@@ -8,12 +8,18 @@ import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsPageSource } from "@/app/(anime-flow)/animations/_components/AnimationsPageSource";
+import { AnimationsPlacedList } from "@/app/(anime-flow)/animations/_components/AnimationsPlacedList";
 import {
   AnimationsPreview,
   type AnimationsPreviewHandle,
 } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import { SETTINGS_ID } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { describePreset, findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
-import { listPageElements, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
+import {
+  flattenElements,
+  listPageElements,
+  type PageElement,
+} from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
   inlineStylesheet,
@@ -109,6 +115,15 @@ export function AnimationsApp() {
   }
   // DOMParser n'existe que dans le navigateur.
   const elements = useMemo(() => (html === null || !isBrowser ? null : listPageElements(html)), [html, isBrowser]);
+  // Seulement les animations des éléments présents dans la page affichée, dans l'ordre de la page.
+  const placed = useMemo(
+    () =>
+      flattenElements(elements ?? []).flatMap((element) => {
+        const animation = animationByElement[element.id];
+        return animation ? [{ element, animation }] : [];
+      }),
+    [elements, animationByElement],
+  );
 
   function changePage(announce: string) {
     // L'élément sélectionné n'existe peut-être pas dans la nouvelle page.
@@ -171,6 +186,19 @@ export function AnimationsApp() {
   function handleTimingChange(timing: Partial<Pick<ElementAnimation, "duration" | "delay">>) {
     if (!selected || !selectedAnimation) return;
     setAnimationByElement({ ...animationByElement, [selected.id]: { ...selectedAnimation, ...timing } });
+  }
+
+  function handleEdit(element: PageElement) {
+    handleSelect(element);
+    // Amène le clavier sur les réglages, une fois le panneau affiché.
+    requestAnimationFrame(() => document.getElementById(SETTINGS_ID)?.focus());
+  }
+
+  function handleRemove(element: PageElement) {
+    const next = { ...animationByElement };
+    delete next[element.id];
+    setAnimationByElement(next);
+    setAnnouncement(`Animation retirée de ${element.name}.`);
   }
 
   function handlePreview() {
@@ -252,7 +280,10 @@ export function AnimationsApp() {
           projectLoad?.status !== "fs-error" && <p className="text-sm text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
-            <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+            <div className="flex flex-col gap-6">
+              <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+              <AnimationsPlacedList items={placed} onEdit={handleEdit} onRemove={handleRemove} />
+            </div>
             <div className="flex flex-col gap-6">
               {selected ? (
                 <AnimationsElementSettings

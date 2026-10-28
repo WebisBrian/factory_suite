@@ -1,5 +1,9 @@
 import { findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
-import { DEFAULT_TRIGGER_EVENT, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
+import {
+  DEFAULT_TRIGGER_EVENT,
+  findTriggerEvent,
+  type TriggerEventId,
+} from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 /** Animation posée sur un élément de la page. Durées en millisecondes. */
 export type ElementAnimation = {
@@ -15,6 +19,14 @@ export const DELAY_LIMITS = { min: 0, max: 5000 } as const;
 
 export function clampMs(value: number, limits: { min: number; max: number }): number {
   return Math.min(limits.max, Math.max(limits.min, Math.round(value)));
+}
+
+/** Résumé lisible : « Rebond, au clic, 0,8 s, après 0,5 s ». */
+export function summarizeAnimation(animation: ElementAnimation): string {
+  const seconds = (ms: number) => `${(ms / 1000).toLocaleString("fr-FR")} s`;
+  const name = findPreset(animation.animation)?.name ?? animation.animation;
+  const delay = animation.delay > 0 ? `, après ${seconds(animation.delay)}` : "";
+  return `${name}, ${findTriggerEvent(animation.event).phrase}, ${seconds(animation.duration)}${delay}`;
 }
 
 /**

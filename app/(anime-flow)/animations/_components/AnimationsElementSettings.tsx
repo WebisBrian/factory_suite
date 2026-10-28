@@ -26,6 +26,9 @@ const EVENT_CHOICES: readonly AnimationsChoice<TriggerEventId>[] = TRIGGER_EVENT
   description: event.description,
 }));
 
+/** id du panneau, pour y amener le focus depuis « Modifier ». */
+export const SETTINGS_ID = "animations-settings";
+
 type Props = {
   elementName: string;
   /** null : aucune animation. */
@@ -47,6 +50,8 @@ export function AnimationsElementSettings({
 }: Props) {
   return (
     <section
+      id={SETTINGS_ID}
+      tabIndex={-1}
       aria-labelledby="animations-settings-title"
       className="flex flex-col gap-5 rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
     >
