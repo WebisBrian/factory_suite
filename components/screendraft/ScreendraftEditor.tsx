@@ -9,7 +9,10 @@ import { ScreendraftHistoryControls } from "@/components/screendraft/Screendraft
 import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
 import { ScreendraftLibrary } from "@/components/screendraft/ScreendraftLibrary";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
-import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
+import {
+  ScreendraftPropertiesPanel,
+  type ScreendraftComponentHandlers,
+} from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
@@ -74,6 +77,27 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     const node = instantiateComponent(component, activeScreen.nodes.length);
     dispatch({ type: "add-node", screenId: activeScreen.id, node });
     setSelectedId(node.id);
+  }
+
+  // La bibliothèque est enregistrée d'abord : la maquette ne change que si l'écriture a réussi,
+  // sinon ses instances ne correspondraient plus au fichier des composants.
+  const componentHandlers: ScreendraftComponentHandlers = {
+    // L'élément d'origine devient la première instance du composant.
+    create: async (name, node) => {
+      const component = await library.add(name, node);
+      if (component) dispatch({ type: "reset-instance", id: node.id, component });
+    },
+    update: async (node) => {
+      if (node.componentId === undefined) return;
+      const component = await library.updateContent(node.componentId, node);
+      if (component) dispatch({ type: "sync-component", component });
+    },
+    reset: (id, component) => dispatch({ type: "reset-instance", id, component }),
+    detach: (id) => dispatch({ type: "detach-instance", id }),
+  };
+
+  async function removeComponent(componentId: string) {
+    if (await library.remove(componentId)) dispatch({ type: "detach-component", componentId });
   }
 
   // Nouvel écran au format de l'écran actif, ajouté à droite et activé.
@@ -223,7 +247,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
               isDemo={projectId === null}
               onInsert={insertComponent}
               onRename={(id, name) => void library.rename(id, name)}
-              onRemove={(id) => void library.remove(id)}
+              onRemove={(id) => void removeComponent(id)}
             />
             <ScreendraftLayers
               nodes={activeScreen.nodes}
@@ -254,7 +278,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             screens={draft.screens}
             onSendToScreen={sendToScreen}
             dispatch={dispatch}
-            onCreateComponent={(name, node) => void library.add(name, node)}
+            components={library.components}
+            componentHandlers={componentHandlers}
           />
         </div>
       </div>
