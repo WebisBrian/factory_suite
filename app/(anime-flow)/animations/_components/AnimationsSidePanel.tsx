@@ -31,7 +31,7 @@ export function AnimationsSidePanel({ view, selectedName, onBack, settings, edit
   return (
     <aside
       aria-labelledby="animations-panel-title"
-      className="flex flex-col gap-4 border-t border-(--line) bg-(--surface-raised) p-4 lg:w-96 lg:max-w-[32vw] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-t-0 lg:border-l"
+      className="relative flex flex-col gap-4 border-t border-(--line) bg-(--surface-raised) p-4 lg:w-96 lg:max-w-[32vw] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-t-0 lg:border-l"
     >
       {view === "editor" && (
         <button type="button" onClick={onBack} className={`${SECONDARY_BUTTON} self-start`}>

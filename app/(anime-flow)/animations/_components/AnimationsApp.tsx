@@ -301,7 +301,7 @@ export function AnimationsApp() {
     // la barre du Hub et seuls ses panneaux défilent. En petit écran, les colonnes s'empilent et la
     // page défile (sinon le texte agrandi ne tiendrait pas).
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <div className="anime-flow flex flex-1 flex-col lg:absolute lg:inset-0">
+      <div className="anime-flow flex flex-1 flex-col lg:absolute lg:inset-0 lg:overflow-hidden">
         <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-(--line) bg-(--surface-raised) px-4 py-2">
           <h1 className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {/* Logo décoratif : le titre « Animations » juste à côté nomme déjà l'outil. */}
@@ -409,7 +409,7 @@ export function AnimationsApp() {
           {/* Panneau de gauche : comme Screendraft, des sections repliables qui défilent d'un bloc. */}
           <aside
             aria-label="Éléments et animations"
-            className="border-b border-(--line) bg-(--surface-raised) py-1 lg:w-80 lg:max-w-[30vw] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r lg:border-b-0"
+            className="relative border-b border-(--line) bg-(--surface-raised) py-1 lg:w-80 lg:max-w-[30vw] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r lg:border-b-0"
           >
             <AnimationsPanelSection
               id="elements"
