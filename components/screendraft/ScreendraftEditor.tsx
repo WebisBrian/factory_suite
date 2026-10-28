@@ -274,6 +274,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             selection={selection?.location ?? null}
             selectionScreenId={selection?.screen.id ?? null}
             screens={draft.screens}
+            theme={draft.theme}
             onSendToScreen={sendToScreen}
             dispatch={dispatch}
             onCreateComponent={(name, node) => void library.add(name, node)}
