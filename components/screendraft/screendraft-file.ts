@@ -1,4 +1,4 @@
-import { SCHEMA_VERSION, type Maquette } from "@/components/screendraft/screendraft-schema";
+import { SCHEMA_VERSION, type Frame, type Maquette } from "@/components/screendraft/screendraft-schema";
 
 /** Fichier écrit dans le dossier du projet, lu ensuite par le Générateur. */
 export const MAQUETTE_FILE = "maquette.json";
@@ -10,8 +10,9 @@ export function serializeMaquette(draft: Maquette): string {
 }
 
 /**
- * Relit un `maquette.json`. Vérifie la version et la forme générale (frame, nodes),
+ * Relit un `maquette.json`. Vérifie la version et la forme générale (écrans, frame, nodes),
  * pas chaque élément : le fichier est censé avoir été écrit par Screendraft.
+ * Un fichier en version 1 (un seul écran) est converti en version 2.
  */
 export function parseMaquette(text: string): ParsedMaquette {
   let data: unknown;
@@ -20,6 +21,7 @@ export function parseMaquette(text: string): ParsedMaquette {
   } catch {
     return { ok: false, error: `${MAQUETTE_FILE} n'est pas un fichier JSON valide.` };
   }
+  if (looksLikeMaquetteV1(data)) return { ok: true, draft: migrateV1(data) };
   if (!looksLikeMaquette(data)) {
     return {
       ok: false,
@@ -35,8 +37,14 @@ export function createEmptyMaquette(projectId: number): Maquette {
     schemaVersion: SCHEMA_VERSION,
     id: `maquette_${projectId}`,
     name: "Nouvelle maquette",
-    frame: { device: "desktop", width: 1440, height: 1024, backgroundColor: "#ffffff" },
-    nodes: [],
+    screens: [
+      {
+        id: "screen_1",
+        name: "Écran 1",
+        frame: { device: "desktop", width: 1440, height: 1024, backgroundColor: "#ffffff" },
+        nodes: [],
+      },
+    ],
   };
 }
 
@@ -52,15 +60,51 @@ export function downloadMaquette(draft: Maquette) {
 }
 
 function looksLikeMaquette(data: unknown): data is Maquette {
-  if (!isRecord(data) || !isRecord(data.frame)) return false;
+  if (!isRecord(data) || !Array.isArray(data.screens) || data.screens.length === 0) return false;
   return (
     data.schemaVersion === SCHEMA_VERSION &&
     typeof data.id === "string" &&
     typeof data.name === "string" &&
-    typeof data.frame.width === "number" &&
-    typeof data.frame.height === "number" &&
+    data.screens.every(
+      (screen) =>
+        isRecord(screen) &&
+        typeof screen.id === "string" &&
+        typeof screen.name === "string" &&
+        looksLikeFrame(screen.frame) &&
+        Array.isArray(screen.nodes),
+    )
+  );
+}
+
+/** Version 1 : un seul écran, `frame` et `nodes` au premier niveau. */
+type MaquetteV1 = Omit<Maquette, "schemaVersion" | "screens"> & {
+  schemaVersion: 1;
+  frame: Frame;
+  nodes: Maquette["screens"][number]["nodes"];
+};
+
+function looksLikeMaquetteV1(data: unknown): data is MaquetteV1 {
+  return (
+    isRecord(data) &&
+    data.schemaVersion === 1 &&
+    typeof data.id === "string" &&
+    typeof data.name === "string" &&
+    looksLikeFrame(data.frame) &&
     Array.isArray(data.nodes)
   );
+}
+
+function migrateV1({ id, name, frame, nodes }: MaquetteV1): Maquette {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    id,
+    name,
+    screens: [{ id: "screen_1", name: "Écran 1", frame, nodes }],
+  };
+}
+
+function looksLikeFrame(frame: unknown): frame is Frame {
+  return isRecord(frame) && typeof frame.width === "number" && typeof frame.height === "number";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

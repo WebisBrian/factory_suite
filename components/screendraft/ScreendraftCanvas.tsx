@@ -1,27 +1,38 @@
 "use client";
 
-import { useRef, type PointerEvent } from "react";
+import { Fragment, useRef, useState, type PointerEvent } from "react";
 import { ScreendraftFrame } from "@/components/screendraft/ScreendraftFrame";
 import { ScreendraftSelection } from "@/components/screendraft/ScreendraftSelection";
 import { ScreendraftZoomControls } from "@/components/screendraft/ScreendraftZoomControls";
-import type { DraftNode, Maquette } from "@/components/screendraft/screendraft-schema";
+import type { Screen } from "@/components/screendraft/screendraft-schema";
 import {
-  findNode,
-  frameRect,
-  isSameOrInside,
-  type NodeLocation,
-} from "@/components/screendraft/screendraft-tree";
+  findScreenNode,
+  screenOrigins,
+  screensSize,
+  type ScreenNodeLocation,
+} from "@/components/screendraft/screendraft-screens";
+import { findNode, frameRect } from "@/components/screendraft/screendraft-tree";
 import { rectToScreen, type Point } from "@/components/screendraft/screendraft-viewport";
 import { useScreendraftViewport } from "@/components/screendraft/use-screendraft-viewport";
 
 type ScreendraftCanvasProps = {
-  draft: Maquette;
-  selection: NodeLocation | null;
-  onSelect: (id: string | null) => void;
+  screens: Screen[];
+  activeScreenId: string;
+  selection: ScreenNodeLocation | null;
+  /** Clic sur le canvas : l'écran sous le pointeur (null : hors écran) et l'élément cliqué (null : aucun). */
+  onPick: (screenId: string | null, nodeId: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
-  /** Fin d'un déplacement au-dessus d'une autre section (ou hors de toute section : `null`). */
+  /** Fin d'un déplacement dans le même écran, au-dessus d'une autre section (ou hors de toute section : `null`). */
   onDropInto: (id: string, parentId: string | null) => void;
+  /** Fin d'un déplacement au-dessus d'un autre écran : x / y relatifs au nouveau parent. */
+  onMoveToScreen: (id: string, screenId: string, parentId: string | null, x: number, y: number) => void;
 };
+
+/** Où lâcher l'élément déplacé : un écran, et une de ses sections (null : le premier niveau). */
+type DropTarget = { screenId: string; parentId: string | null };
+
+/** Écran de départ et écran survolé pendant un déplacement, pour l'affichage. */
+type DragView = { sourceScreenId: string; targetScreenId: string | null };
 
 /**
  * Élément en cours de déplacement : pointeur et position (relative au parent) au début
@@ -33,26 +44,33 @@ type Drag = { id: string; pointer: Point; start: Point; moved: boolean };
 const DRAG_THRESHOLD = 3;
 
 export function ScreendraftCanvas({
-  draft,
+  screens,
+  activeScreenId,
   selection,
-  onSelect,
+  onPick,
   onMove,
   onDropInto,
+  onMoveToScreen,
 }: ScreendraftCanvasProps) {
-  const { canvasRef, viewport, zoom, cursor, panHandlers } = useScreendraftViewport(draft.frame);
+  // « Ajuster » montre tous les écrans à la fois.
+  const { canvasRef, viewport, zoom, cursor, panHandlers } = useScreendraftViewport(screensSize(screens));
+  const origins = screenOrigins(screens);
   const drag = useRef<Drag | null>(null);
+  const [dragView, setDragView] = useState<DragView | null>(null);
 
-  // Clic sur un élément : on sélectionne le plus profond sous le pointeur. Clic ailleurs : on désélectionne.
+  // Clic sur un élément : on sélectionne le plus profond sous le pointeur et on active son écran.
+  // Clic sur le fond d'un écran : on l'active. Ailleurs : on désélectionne.
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     panHandlers.onPointerDown(event);
     // Le hook a pris le geste pour déplacer la vue (espace ou clic molette).
     if (event.defaultPrevented || event.button !== 0) return;
-    const element = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-node-id]") : null;
-    const id = element?.dataset.nodeId ?? null;
-    onSelect(id);
+    const target = event.target instanceof Element ? event.target : null;
+    const id = target?.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId ?? null;
+    const screenId = target?.closest<HTMLElement>("[data-screen-id]")?.dataset.screenId ?? null;
+    onPick(screenId, id);
 
     // Glisser l'élément cliqué le déplace.
-    const location = id ? findNode(draft.nodes, id) : null;
+    const location = id ? findScreenNode(screens, id)?.location : null;
     if (!location) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {
@@ -70,9 +88,15 @@ export function ScreendraftCanvas({
     const screenDx = event.clientX - current.pointer.x;
     const screenDy = event.clientY - current.pointer.y;
     if (!current.moved && Math.hypot(screenDx, screenDy) < DRAG_THRESHOLD) return;
+    if (!current.moved) {
+      const sourceScreenId = findScreenNode(screens, current.id)?.screen.id;
+      if (sourceScreenId) setDragView({ sourceScreenId, targetScreenId: sourceScreenId });
+    }
     current.moved = true;
+    const targetScreenId = dropTargetAt(screens, event.clientX, event.clientY, current.id)?.screenId ?? null;
+    if (dragView && dragView.targetScreenId !== targetScreenId) setDragView({ ...dragView, targetScreenId });
     // Le pointeur bouge en px écran, l'élément en px de la maquette. Pas de borne :
-    // l'élément peut sortir de son parent, il en changera au lâcher.
+    // l'élément peut sortir de son parent, voire de son écran : il en changera au lâcher.
     onMove(
       current.id,
       Math.round(current.start.x + screenDx / viewport.zoom),
@@ -84,15 +108,41 @@ export function ScreendraftCanvas({
     panHandlers.onPointerUp();
     const current = drag.current;
     drag.current = null;
+    setDragView(null);
     if (!current?.moved) return;
-    // Lâché au-dessus d'une section : l'élément y entre. Ailleurs : il revient au premier niveau.
-    const parentId = sectionAt(draft.nodes, event.clientX, event.clientY, current.id);
-    if (findNode(draft.nodes, current.id)?.parentId !== parentId) onDropInto(current.id, parentId);
+    const found = findScreenNode(screens, current.id);
+    if (!found) return;
+    // Lâché au-dessus d'une section : l'élément y entre. Au-dessus du fond d'un écran : il passe
+    // au premier niveau de cet écran. Hors de tout écran : il reste dans le sien, au premier niveau.
+    const target = dropTargetAt(screens, event.clientX, event.clientY, current.id) ?? {
+      screenId: found.screen.id,
+      parentId: null,
+    };
+    if (target.screenId === found.screen.id) {
+      if (found.location.parentId !== target.parentId) onDropInto(current.id, target.parentId);
+      return;
+    }
+
+    // Autre écran : l'élément garde sa place à l'écran, recalculée par rapport à son nouveau parent.
+    const targetScreen = screens.find((screen) => screen.id === target.screenId);
+    const targetOrigin = origins.get(target.screenId);
+    if (!targetScreen || !targetOrigin) return;
+    const position = offsetRect(frameRect(found.location), origins.get(found.screen.id));
+    const parent = target.parentId ? findNode(targetScreen.nodes, target.parentId) : null;
+    const parentOrigin = parent ? frameRect(parent) : { x: 0, y: 0 };
+    onMoveToScreen(
+      current.id,
+      target.screenId,
+      target.parentId,
+      Math.round(position.x - targetOrigin.x - parentOrigin.x),
+      Math.round(position.y - targetOrigin.y - parentOrigin.y),
+    );
   }
 
   function handlePointerCancel() {
     panHandlers.onPointerCancel();
     drag.current = null;
+    setDragView(null);
   }
 
   return (
@@ -106,25 +156,58 @@ export function ScreendraftCanvas({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
     >
+      {viewport &&
+        screens.map((screen) => {
+          const origin = origins.get(screen.id) ?? { x: 0, y: 0 };
+          const left = viewport.x + origin.x * viewport.zoom;
+          const top = viewport.y + origin.y * viewport.zoom;
+          const isActive = screen.id === activeScreenId;
+          const isDragSource = dragView?.sourceScreenId === screen.id;
+          // Écran survolé par un élément venu d'un autre écran : il le recevra au lâcher.
+          const isDropTarget = dragView !== null && !isDragSource && dragView.targetScreenId === screen.id;
+          return (
+            <Fragment key={screen.id}>
+              {/* Nom de l'écran au-dessus du frame, comme dans Figma : un clic l'active. */}
+              <button
+                type="button"
+                data-screen-id={screen.id}
+                aria-current={isActive || undefined}
+                onClick={() => onPick(screen.id, null)}
+                className={`text-body-sm absolute max-w-full truncate rounded-(--radius-sm) px-(--space-1) whitespace-nowrap ${
+                  isActive || isDropTarget
+                    ? "bg-(--draft-soft) font-semibold text-(--draft)"
+                    : "text-(--ink-muted) hover:text-(--ink)"
+                }`}
+                style={{ left, top: top - 24, maxWidth: Math.max(screen.frame.width * viewport.zoom, 80) }}
+              >
+                {screen.name}
+              </button>
+              <ScreendraftFrame
+                screen={screen}
+                style={{
+                  top: 0,
+                  left: 0,
+                  transformOrigin: "0 0",
+                  transform: `translate(${left}px, ${top}px) scale(${viewport.zoom})`,
+                  boxShadow: "var(--shadow-frame)",
+                  // Pendant un déplacement, l'élément reste visible hors de son écran, au-dessus des autres.
+                  ...(isDragSource && { overflow: "visible", zIndex: 1 }),
+                  ...(isDropTarget && { outline: "2px solid var(--selection)" }),
+                }}
+              />
+            </Fragment>
+          );
+        })}
       {viewport && (
         <>
-          <p
-            className="text-body-sm pointer-events-none absolute whitespace-nowrap text-(--ink-muted)"
-            style={{ left: viewport.x, top: viewport.y - 20 }}
-          >
-            {draft.name}
-          </p>
-          <ScreendraftFrame
-            draft={draft}
-            style={{
-              top: 0,
-              left: 0,
-              transformOrigin: "0 0",
-              transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-              boxShadow: "var(--shadow-frame)",
-            }}
-          />
-          {selection && <ScreendraftSelection rect={rectToScreen(frameRect(selection), viewport)} />}
+          {selection && (
+            <ScreendraftSelection
+              rect={rectToScreen(
+                offsetRect(frameRect(selection.location), origins.get(selection.screen.id)),
+                viewport,
+              )}
+            />
+          )}
           <ScreendraftZoomControls zoom={viewport.zoom} onCommand={zoom} />
         </>
       )}
@@ -132,12 +215,27 @@ export function ScreendraftCanvas({
   );
 }
 
-/** Section la plus haute sous le pointeur, en ignorant l'élément déplacé et ses enfants. */
-function sectionAt(nodes: DraftNode[], x: number, y: number, draggedId: string): string | null {
+/** Rectangle d'un élément dans son écran, converti en position sur l'ensemble des écrans. */
+function offsetRect<R extends Point>(rect: R, origin: Point | undefined): R {
+  return origin ? { ...rect, x: rect.x + origin.x, y: rect.y + origin.y } : rect;
+}
+
+/**
+ * Section la plus haute sous le pointeur, ou à défaut l'écran sous le pointeur,
+ * en ignorant l'élément déplacé et ses enfants. null : hors de tout écran.
+ */
+function dropTargetAt(screens: Screen[], x: number, y: number, draggedId: string): DropTarget | null {
   for (const element of document.elementsFromPoint(x, y)) {
-    const id = element instanceof HTMLElement ? element.dataset.nodeId : undefined;
-    if (!id || isSameOrInside(nodes, draggedId, id)) continue;
-    if (findNode(nodes, id)?.node.type === "section") return id;
+    if (!(element instanceof HTMLElement)) continue;
+    if (element.closest(`[data-node-id="${CSS.escape(draggedId)}"]`)) continue;
+    const nodeId = element.dataset.nodeId;
+    if (nodeId) {
+      const found = findScreenNode(screens, nodeId);
+      if (found?.location.node.type === "section") return { screenId: found.screen.id, parentId: nodeId };
+      continue;
+    }
+    const screenId = element.dataset.screenId;
+    if (screenId) return { screenId, parentId: null };
   }
   return null;
 }
