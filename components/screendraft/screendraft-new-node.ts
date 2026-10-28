@@ -1,5 +1,18 @@
 import type { DraftNode, DraftNodeType, ShapeKind } from "@/components/screendraft/screendraft-schema";
 
+let cloneCount = 0;
+
+/**
+ * Copie d'un élément à coller, décalée de `offset` px. Lui et ses enfants reçoivent
+ * de nouveaux id : un id doit rester unique dans le document.
+ */
+export function cloneNode(node: DraftNode, offset: number): DraftNode {
+  const id = `${node.type}_${Date.now()}_${++cloneCount}`;
+  const copy = { ...node, id, x: node.x + offset, y: node.y + offset };
+  if (copy.type !== "section") return copy;
+  return { ...copy, children: copy.children.map((child) => cloneNode(child, 0)) };
+}
+
 /**
  * Nouvel élément inséré depuis la palette, au premier niveau du frame.
  * Chaque insertion est un peu décalée pour ne pas empiler les éléments au même endroit.

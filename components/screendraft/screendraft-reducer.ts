@@ -1,8 +1,10 @@
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
 import type { DraftNode, Maquette } from "@/components/screendraft/screendraft-schema";
 import {
+  findNode,
   moveInDepth,
   placeNode,
+  removeNode,
   updateNode,
   type DepthMove,
   type Placement,
@@ -15,6 +17,8 @@ export type ScreendraftAction =
   | { type: "move-depth"; id: string; move: DepthMove }
   | { type: "place-node"; id: string; placement: Placement }
   | { type: "add-node"; node: DraftNode }
+  | { type: "paste-node"; node: DraftNode; parentId: string | null }
+  | { type: "delete-node"; id: string }
   | { type: "move-node"; id: string; x: number; y: number }
   | { type: "set-text"; id: string; text: string }
   | { type: "set-image"; id: string; src: string; alt: string };
@@ -40,6 +44,19 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
     // Ajouté au premier plan, au premier niveau du frame.
     case "add-node":
       return { ...draft, nodes: [...draft.nodes, action.node] };
+    // Collé au premier plan de son ancienne section, ou du frame si elle n'existe plus.
+    case "paste-node": {
+      const parent = action.parentId === null ? null : findNode(draft.nodes, action.parentId);
+      if (parent?.node.type !== "section") return { ...draft, nodes: [...draft.nodes, action.node] };
+      return withNode(draft, parent.node.id, (section) =>
+        section.type === "section" ? { ...section, children: [...section.children, action.node] } : section,
+      );
+    }
+    // Supprimer une section supprime aussi ses enfants.
+    case "delete-node":
+      return findNode(draft.nodes, action.id)
+        ? { ...draft, nodes: removeNode(draft.nodes, action.id) }
+        : draft;
     // x / y relatifs au parent, comme dans le JSON.
     case "move-node":
       return withNode(draft, action.id, (node) =>
