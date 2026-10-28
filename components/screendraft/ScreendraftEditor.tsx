@@ -1,7 +1,7 @@
 "use client";
 
 import "@/components/screendraft/screendraft-theme.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import wordmark from "@/components/screendraft/brand/logos/screen-draft-wordmark.svg";
 import wordmarkWhite from "@/components/screendraft/brand/logos/screen-draft-wordmark-white.svg";
 import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
@@ -16,6 +16,7 @@ import {
 } from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftPrototype } from "@/components/screendraft/ScreendraftPrototype";
 import { CarouselPreviewContext, useCarouselPreviewState } from "@/components/screendraft/screendraft-carousel";
+import { MapExplorationContext } from "@/components/screendraft/screendraft-map-context";
 import { ScreendraftNextStep } from "@/components/screendraft/ScreendraftNextStep";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
@@ -91,9 +92,16 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const clipboard = useRef<ScreendraftClipboard | null>(null);
   const library = useScreendraftLibrary(projectId);
   const carouselPreview = useCarouselPreviewState();
+  const [exploringMapId, setExploringMapId] = useState<string | null>(null);
+  const mapExploration = useMemo(
+    () => ({ exploringId: exploringMapId, explore: setExploringMapId }),
+    [exploringMapId],
+  );
 
+  // Sélectionner un autre élément (ou rien) termine l'exploration d'une carte.
   function setSelectedId(id: string | null) {
     setSelectedIds(id === null ? [] : [id]);
+    setExploringMapId((current) => (current === id ? current : null));
   }
 
   // Maj + clic : ajoute ou retire l'élément. Un élément d'un autre écran repart d'une sélection neuve.
@@ -282,149 +290,152 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     // et ferait défiler la page. Le conteneur absolu occupe exactement l'espace sous la barre du Hub.
     // Diapositive affichée de chaque carrousel : choisie dans le panneau de propriétés.
     <CarouselPreviewContext value={carouselPreview}>
-      <main className="relative min-h-0 flex-1">
-        <div className="screendraft absolute inset-0 flex flex-col bg-(--surface) text-(--ink)">
-          {isPrototypeOpen && (
-            <ScreendraftPrototype
-              screens={draft.screens}
-              startScreenId={activeScreen.id}
-              onClose={() => setIsPrototypeOpen(false)}
-            />
-          )}
-          {isTemplatesOpen && <ScreendraftTemplateDialog onChoose={loadTemplate} onClose={closeTemplates} />}
-          {/* Pendant l'aperçu, l'éditeur est inerte : ni clic, ni focus clavier. */}
-          <header inert={isOverlayOpen} className="flex min-h-14 shrink-0 flex-wrap items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
-            {/* Titre unique de la page (RGAA 9.1) : l'outil et la maquette ouverte. */}
-            <h1 className="flex min-w-0 flex-wrap items-center gap-(--space-3)">
-              {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
-              <span aria-hidden className="text-body-sm text-(--ink-muted)">
-                /
-              </span>
-              <span className="sr-only">, maquette </span>
-              <span className="text-body-sm min-w-0 break-words text-(--ink-muted)">{draft.name}</span>
-            </h1>
-            <p role="status" className="sr-only">
-              {templateMessage}
-            </p>
-            <div className="ml-auto flex flex-wrap items-center gap-(--space-3)">
-              <button
-                ref={templatesButton}
-                type="button"
-                onClick={() => setIsTemplatesOpen(true)}
-                aria-haspopup="dialog"
-                className="text-body-sm flex min-h-10 items-center gap-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-4) py-(--space-2) font-semibold text-(--ink) hover:bg-(--canvas)"
-              >
-                <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
-                  <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" />
-                </svg>
-                Modèles
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsPrototypeOpen(true)}
-                className="text-body-sm flex min-h-10 items-center gap-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-4) py-(--space-2) font-semibold text-(--ink) hover:bg-(--canvas)"
-              >
-                <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
-                  <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
-                </svg>
-                Prototype
-              </button>
-              <ScreendraftHistoryControls
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onUndo={undo}
-                onRedo={redo}
+      <MapExplorationContext value={mapExploration}>
+        <main className="relative min-h-0 flex-1">
+          <div className="screendraft absolute inset-0 flex flex-col bg-(--surface) text-(--ink)">
+            {isPrototypeOpen && (
+              <ScreendraftPrototype
+                screens={draft.screens}
+                startScreenId={activeScreen.id}
+                onClose={() => setIsPrototypeOpen(false)}
               />
-              <ScreendraftSaveControls
-                projectId={projectId}
-                isDirty={isDirty}
-                status={saveStatus}
-                onSave={() => void save(draft)}
-                onExport={() => downloadMaquette(draft)}
-              />
-              {/* Une page HTML existe déjà dans le projet : on peut passer directement à AnimFlow. */}
-              {projectId !== null && hasProjectHtml && (
-                <ScreendraftNextStep projectId={projectId} isDirty={isDirty} onSave={() => save(draft)} />
-              )}
-              <ScreendraftThemeToggle />
-            </div>
-          </header>
+            )}
+            {isTemplatesOpen && <ScreendraftTemplateDialog onChoose={loadTemplate} onClose={closeTemplates} />}
+            {/* Pendant l'aperçu, l'éditeur est inerte : ni clic, ni focus clavier. */}
+            <header inert={isOverlayOpen} className="flex min-h-14 shrink-0 flex-wrap items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
+              {/* Titre unique de la page (RGAA 9.1) : l'outil et la maquette ouverte. */}
+              <h1 className="flex min-w-0 flex-wrap items-center gap-(--space-3)">
+                {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
+                <span aria-hidden className="text-body-sm text-(--ink-muted)">
+                  /
+                </span>
+                <span className="sr-only">, maquette </span>
+                <span className="text-body-sm min-w-0 break-words text-(--ink-muted)">{draft.name}</span>
+              </h1>
+              <p role="status" className="sr-only">
+                {templateMessage}
+              </p>
+              <div className="ml-auto flex flex-wrap items-center gap-(--space-3)">
+                <button
+                  ref={templatesButton}
+                  type="button"
+                  onClick={() => setIsTemplatesOpen(true)}
+                  aria-haspopup="dialog"
+                  className="text-body-sm flex min-h-10 items-center gap-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-4) py-(--space-2) font-semibold text-(--ink) hover:bg-(--canvas)"
+                >
+                  <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
+                    <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" />
+                  </svg>
+                  Modèles
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrototypeOpen(true)}
+                  className="text-body-sm flex min-h-10 items-center gap-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-4) py-(--space-2) font-semibold text-(--ink) hover:bg-(--canvas)"
+                >
+                  <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
+                    <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+                  </svg>
+                  Prototype
+                </button>
+                <ScreendraftHistoryControls
+                  canUndo={canUndo}
+                  canRedo={canRedo}
+                  onUndo={undo}
+                  onRedo={redo}
+                />
+                <ScreendraftSaveControls
+                  projectId={projectId}
+                  isDirty={isDirty}
+                  status={saveStatus}
+                  onSave={() => void save(draft)}
+                  onExport={() => downloadMaquette(draft)}
+                />
+                {/* Une page HTML existe déjà dans le projet : on peut passer directement à AnimFlow. */}
+                {projectId !== null && hasProjectHtml && (
+                  <ScreendraftNextStep projectId={projectId} isDirty={isDirty} onSave={() => save(draft)} />
+                )}
+                <ScreendraftThemeToggle />
+              </div>
+            </header>
 
-          <div inert={isOverlayOpen} className="flex min-h-0 flex-1">
-            {/* Tout le panneau défile d'un bloc ; chaque section se replie (ScreendraftPanelSection). */}
-            <div className="flex w-60 max-w-[30vw] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-(--line) bg-(--surface-raised)">
-              <ScreendraftPalette onAdd={addNode} />
-              <ScreendraftScreens
+            <div inert={isOverlayOpen} className="flex min-h-0 flex-1">
+              {/* Tout le panneau défile d'un bloc ; chaque section se replie (ScreendraftPanelSection). */}
+              <div className="flex w-60 max-w-[30vw] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-(--line) bg-(--surface-raised)">
+                <ScreendraftPalette onAdd={addNode} />
+                <ScreendraftScreens
+                  screens={draft.screens}
+                  activeScreenId={activeScreen.id}
+                  onActivate={activateScreen}
+                  onAdd={addScreen}
+                  onDropNode={sendToScreen}
+                />
+                <ScreendraftLibrary
+                  components={library.components}
+                  status={library.status}
+                  isDemo={projectId === null}
+                  onInsert={insertComponent}
+                  onRename={(id, name) => void library.rename(id, name)}
+                  onRemove={(id) => void removeComponent(id)}
+                />
+                <ScreendraftLayers
+                  nodes={activeScreen.nodes}
+                  selectedIds={selectedIds}
+                  onSelect={(id, additive) => (additive ? toggleSelected(id) : setSelectedId(id))}
+                  onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
+                  onRename={(id, name) => dispatch({ type: "rename-node", id, name })}
+                />
+              </div>
+              {/* Ajouter, supprimer un écran, changer de format (donc de largeur) ou charger un modèle
+                  recrée le canvas, qui se réajuste pour montrer tous les écrans. */}
+              <ScreendraftCanvas
+                key={draft.screens.map((screen) => `${screen.id}:${screen.frame.width}`).join(",")}
                 screens={draft.screens}
                 activeScreenId={activeScreen.id}
-                onActivate={activateScreen}
-                onAdd={addScreen}
-                onDropNode={sendToScreen}
+                selections={selections}
+                onPick={pick}
+                onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
+                onDropInto={(id, parentId) =>
+                  dispatch({ type: "place-node", id, placement: { type: "inside", parentId } })
+                }
+                onMoveToScreen={moveToScreen}
+                dispatch={dispatch}
               />
-              <ScreendraftLibrary
+              <ScreendraftPropertiesPanel
+                screen={activeScreen}
+                canDeleteScreen={draft.screens.length > 1}
+                selection={selection?.location ?? null}
+                selectionScreenId={selection?.screen.id ?? null}
+                screens={draft.screens}
+                theme={draft.theme}
+                onSendToScreen={sendToScreen}
+                dispatch={dispatch}
                 components={library.components}
-                status={library.status}
-                isDemo={projectId === null}
-                onInsert={insertComponent}
-                onRename={(id, name) => void library.rename(id, name)}
-                onRemove={(id) => void removeComponent(id)}
-              />
-              <ScreendraftLayers
-                nodes={activeScreen.nodes}
-                selectedIds={selectedIds}
-                onSelect={(id, additive) => (additive ? toggleSelected(id) : setSelectedId(id))}
-                onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
-                onRename={(id, name) => dispatch({ type: "rename-node", id, name })}
+                componentHandlers={componentHandlers}
+                multiSelection={
+                  selections.length > 1 && (
+                    <ScreendraftMultiSelection
+                      // Une nouvelle sélection repart du nom par défaut.
+                      key={selectedIds.join(",")}
+                      count={selections.length}
+                      onCreateComponent={(name) => void createComponentFromSelection(name)}
+                      onGroup={groupSelection}
+                      onDelete={() => {
+                        dispatch({ type: "delete-nodes", ids: selections.map(({ location }) => location.node.id) });
+                        setSelectedId(null);
+                      }}
+                    />
+                  )
+                }
               />
             </div>
-            {/* Ajouter, supprimer un écran, changer de format (donc de largeur) ou charger un modèle
-                recrée le canvas, qui se réajuste pour montrer tous les écrans. */}
-            <ScreendraftCanvas
-              key={draft.screens.map((screen) => `${screen.id}:${screen.frame.width}`).join(",")}
-              screens={draft.screens}
-              activeScreenId={activeScreen.id}
-              selections={selections}
-              onPick={pick}
-              onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
-              onDropInto={(id, parentId) =>
-                dispatch({ type: "place-node", id, placement: { type: "inside", parentId } })
-              }
-              onMoveToScreen={moveToScreen}
-            />
-            <ScreendraftPropertiesPanel
-              screen={activeScreen}
-              canDeleteScreen={draft.screens.length > 1}
-              selection={selection?.location ?? null}
-              selectionScreenId={selection?.screen.id ?? null}
-              screens={draft.screens}
-              theme={draft.theme}
-              onSendToScreen={sendToScreen}
-              dispatch={dispatch}
-              components={library.components}
-              componentHandlers={componentHandlers}
-              multiSelection={
-                selections.length > 1 && (
-                  <ScreendraftMultiSelection
-                    // Une nouvelle sélection repart du nom par défaut.
-                    key={selectedIds.join(",")}
-                    count={selections.length}
-                    onCreateComponent={(name) => void createComponentFromSelection(name)}
-                    onGroup={groupSelection}
-                    onDelete={() => {
-                      dispatch({ type: "delete-nodes", ids: selections.map(({ location }) => location.node.id) });
-                      setSelectedId(null);
-                    }}
-                  />
-                )
-              }
-            />
           </div>
-        </div>
-      </main>
+        </main>
+      </MapExplorationContext>
     </CarouselPreviewContext>
   );
 }

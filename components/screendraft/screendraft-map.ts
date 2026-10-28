@@ -2,8 +2,9 @@ import type { MapMarker } from "@/components/screendraft/screendraft-schema";
 import type { Point, Size } from "@/components/screendraft/screendraft-viewport";
 
 /**
- * Carte (SCRUM-32) : calcul des tuiles OpenStreetMap et de la position des points d'intérêt,
- * en projection Web Mercator, sans bibliothèque ni appel à une API.
+ * Carte (SCRUM-32) : calcul des tuiles OpenStreetMap, de la position des points d'intérêt et
+ * des gestes d'exploration (glisser, zoomer), en projection Web Mercator, sans bibliothèque
+ * ni appel à une API.
  */
 
 export const TILE_SIZE = 256;
@@ -16,6 +17,9 @@ const MAX_LATITUDE = 85.05112878;
 export type Coordinates = { latitude: number; longitude: number };
 
 export type MapTile = { key: string; src: string; left: number; top: number };
+
+/** Ce que montre une carte : son centre et son niveau de zoom (entier). */
+export type MapView = Coordinates & { zoom: number };
 
 /** Position d'un point sur la carte du monde entière au niveau `zoom`, en px. */
 export function project({ latitude, longitude }: Coordinates, zoom: number): Point {
@@ -91,46 +95,6 @@ export function visibleTiles(center: Coordinates, zoom: number, size: Size): Map
   return tiles;
 }
 
-export function isValidLatitude(value: number): boolean {
-  return Number.isFinite(value) && value >= -90 && value <= 90;
-}
-
-export function isValidLongitude(value: number): boolean {
-  return Number.isFinite(value) && value >= -180 && value <= 180;
-}
-
-export type ParsedMapLocation = ({ ok: true } & Coordinates & { zoom?: number }) | { ok: false; error: string };
-
-/**
- * Coordonnées tirées d'un lien Google Maps (`@48.85,2.29,15z`, `?q=48.85,2.29`), d'un lien
- * OpenStreetMap (`#map=15/48.85/2.29`, `?mlat=…&mlon=…`) ou d'un simple « 48.85, 2.29 ».
- */
-export function parseMapLocation(input: string): ParsedMapLocation {
-  const text = decodeURIComponent(input.trim());
-  const number = "(-?\\d+(?:\\.\\d+)?)";
-  const patterns: { regex: RegExp; read: (m: RegExpMatchArray) => [number, number, number?] }[] = [
-    { regex: new RegExp(`@${number},${number},(\\d+(?:\\.\\d+)?)z`), read: (m) => [+m[1], +m[2], +m[3]] },
-    { regex: new RegExp(`#map=(\\d+)/${number}/${number}`), read: (m) => [+m[2], +m[3], +m[1]] },
-    { regex: new RegExp(`mlat=${number}&mlon=${number}`), read: (m) => [+m[1], +m[2]] },
-    { regex: new RegExp(`[?&](?:q|ll|query)=${number},\\s*${number}`), read: (m) => [+m[1], +m[2]] },
-    { regex: new RegExp(`^${number}\\s*[,;\\s]\\s*${number}$`), read: (m) => [+m[1], +m[2]] },
-  ];
-  for (const { regex, read } of patterns) {
-    const match = text.match(regex);
-    if (!match) continue;
-    const [latitude, longitude, zoom] = read(match);
-    if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
-      return { ok: false, error: "Coordonnées hors limites : latitude entre -90 et 90, longitude entre -180 et 180." };
-    }
-    const location = { ok: true as const, latitude, longitude };
-    return zoom === undefined ? location : { ...location, zoom: clampZoom(Math.round(zoom)) };
-  }
-  return {
-    ok: false,
-    error: "Lien non reconnu. Collez un lien Google Maps ou OpenStreetMap, ou des coordonnées « 48.8584, 2.2945 ».",
-  };
-}
-
 export function clampZoom(zoom: number): number {
   return Math.max(MIN_MAP_ZOOM, Math.min(MAX_MAP_ZOOM, zoom));
 }
@@ -139,4 +103,37 @@ let markerCount = 0;
 
 export function createMarker(position: number, { latitude, longitude }: Coordinates): MapMarker {
   return { id: `marker_${Date.now()}_${++markerCount}`, label: `Point ${position}`, latitude, longitude };
+}
+
+/** Coordonnées arrondies au millionième de degré (~10 cm), longitude ramenée dans [-180, 180]. */
+function normalize({ latitude, longitude }: Coordinates): Coordinates {
+  const wrapped = ((((longitude + 180) % 360) + 360) % 360) - 180;
+  const round = (value: number) => Math.round(value * 1e6) / 1e6;
+  return { latitude: round(Math.max(-MAX_LATITUDE, Math.min(MAX_LATITUDE, latitude))), longitude: round(wrapped) };
+}
+
+/** Coordonnées du point `point` (px depuis le coin haut gauche) d'une carte de taille `size`. */
+export function coordinatesAt(point: Point, view: MapView, size: Size): Coordinates {
+  const origin = project(view, view.zoom);
+  return normalize(
+    unproject({ x: origin.x + point.x - size.width / 2, y: origin.y + point.y - size.height / 2 }, view.zoom),
+  );
+}
+
+/** Glisser la carte de (dx, dy) px : le centre part dans l'autre sens. */
+export function panView(view: MapView, dx: number, dy: number): MapView {
+  const origin = project(view, view.zoom);
+  return { ...normalize(unproject({ x: origin.x - dx, y: origin.y - dy }, view.zoom)), zoom: view.zoom };
+}
+
+/** Change de zoom en gardant immobile le point `anchor` (px depuis le coin haut gauche), comme Leaflet. */
+export function zoomView(view: MapView, zoom: number, anchor: Point, size: Size): MapView {
+  const nextZoom = clampZoom(zoom);
+  if (nextZoom === view.zoom) return view;
+  const target = project(coordinatesAt(anchor, view, size), nextZoom);
+  const center = unproject(
+    { x: target.x - (anchor.x - size.width / 2), y: target.y - (anchor.y - size.height / 2) },
+    nextZoom,
+  );
+  return { ...normalize(center), zoom: nextZoom };
 }
