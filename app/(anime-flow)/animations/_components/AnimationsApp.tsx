@@ -173,18 +173,18 @@ export function AnimationsApp() {
   return (
     <div className="anime-flow flex flex-1 flex-col">
       <header className="border-b border-(--line) bg-(--surface-raised)">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 py-5">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-4">
             {/* Logo décoratif : le titre « Animations » juste à côté nomme déjà l'outil. */}
             {/* eslint-disable-next-line @next/next/no-img-element -- next/image est exclu par l'export statique. */}
-            <img src={animflowMark.src} alt="" width={48} height={48} className="size-12 shrink-0" />
+            <img src={animflowMark.src} alt="" width={40} height={40} className="size-10 shrink-0" />
 
             <div>
-              <h1 className="text-3xl font-semibold">Animations</h1>
-              <p className="text-lg text-(--ink-muted)">Importez votre page, puis choisissez les éléments à animer.</p>
+              <h1 className="text-2xl font-semibold">Animations</h1>
+              <p className="text-sm text-(--ink-muted)">Importez votre page, puis choisissez les éléments à animer.</p>
             </div>
           </div>
-          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-4 py-1 text-lg font-medium">
+          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-3 py-1 text-sm font-medium">
             {projectId === null ? "Mode démo" : `Projet #${projectId}`}
           </span>
         </div>
@@ -211,7 +211,7 @@ export function AnimationsApp() {
         {!imported && projectId !== null && projectLoad && projectLoad.status !== "ok" && (
           <div
             role="alert"
-            className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)"
+            className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-sm text-(--danger)"
           >
             <p>
               {projectLoad.status === "missing"
@@ -219,10 +219,10 @@ export function AnimationsApp() {
                 : projectLoad.message}
             </p>
             <div className="mt-2 flex gap-6">
-              <button type="button" onClick={handleReload} className="min-h-12 underline">
+              <button type="button" onClick={handleReload} className="min-h-10 underline">
                 Réessayer
               </button>
-              <Link href="/" className="inline-flex min-h-12 items-center underline">
+              <Link href="/" className="inline-flex min-h-10 items-center underline">
                 Retour au Hub
               </Link>
             </div>
@@ -231,7 +231,7 @@ export function AnimationsApp() {
 
         {html === null || elements === null ? (
           projectLoad?.status !== "missing" &&
-          projectLoad?.status !== "fs-error" && <p className="text-lg text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
+          projectLoad?.status !== "fs-error" && <p className="text-sm text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
             <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
@@ -245,7 +245,7 @@ export function AnimationsApp() {
                   onEventChange={handleEventChange}
                 />
               ) : (
-                <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-lg text-(--ink-muted)">
+                <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-sm text-(--ink-muted)">
                   Sélectionnez un élément dans la liste pour lui choisir une animation.
                 </p>
               )}

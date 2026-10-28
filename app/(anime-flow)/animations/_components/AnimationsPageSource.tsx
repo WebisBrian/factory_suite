@@ -56,10 +56,10 @@ export function AnimationsPageSource({
       }`}
     >
       <div>
-        <h2 id="animations-source-title" className="text-xl font-semibold">
+        <h2 id="animations-source-title" className="text-lg font-semibold">
           Votre page
         </h2>
-        <p className="text-lg text-(--ink-muted)">
+        <p className="text-sm text-(--ink-muted)">
           {sourceLabel ?? "Aucune page chargée."} Vous pouvez aussi glisser-déposer {PAGE_FILE} et {STYLE_FILE} ici.
         </p>
       </div>
@@ -68,7 +68,7 @@ export function AnimationsPageSource({
         <button
           type="button"
           onClick={() => fileInput.current?.click()}
-          className="min-h-12 rounded-full bg-(--motion) px-6 text-lg font-semibold text-(--on-motion) hover:bg-(--motion-strong)"
+          className="min-h-10 rounded-full bg-(--motion) px-5 text-sm font-semibold text-(--on-motion) hover:bg-(--motion-strong)"
         >
           Importer une page
         </button>
@@ -76,7 +76,7 @@ export function AnimationsPageSource({
           <button
             type="button"
             onClick={onReloadProject}
-            className="min-h-12 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-6 text-lg font-semibold hover:bg-(--motion-soft)"
+            className="min-h-10 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-sm font-semibold hover:bg-(--motion-soft)"
           >
             Recharger la page du projet
           </button>
@@ -85,7 +85,7 @@ export function AnimationsPageSource({
           <button
             type="button"
             onClick={onCancelImport}
-            className="min-h-12 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-6 text-lg font-semibold hover:bg-(--motion-soft)"
+            className="min-h-10 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-sm font-semibold hover:bg-(--motion-soft)"
           >
             Annuler l&apos;import
           </button>
@@ -102,12 +102,12 @@ export function AnimationsPageSource({
       </div>
 
       {importError && (
-        <p role="alert" className="w-full rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)">
+        <p role="alert" className="w-full rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-sm text-(--danger)">
           {importError}
         </p>
       )}
       {missingStylesheets.length > 0 && (
-        <p className="w-full rounded-xl border-2 border-(--line-strong) p-4 text-lg">
+        <p className="w-full rounded-xl border-2 border-(--line-strong) p-4 text-sm">
           Cette page utilise {missingStylesheets.join(", ")} : importez-le avec la page pour voir ses couleurs et sa mise en
           page.
         </p>

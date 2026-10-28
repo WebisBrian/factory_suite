@@ -63,11 +63,11 @@ export function AnimationsPreview({ html, selectedId }: Props) {
   return (
     <section aria-labelledby="animations-preview-title" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="animations-preview-title" className="text-xl font-semibold">
+        <h2 id="animations-preview-title" className="text-lg font-semibold">
           Aperçu
         </h2>
         {width && scale < 1 && (
-          <p className="text-lg text-(--ink-muted)">
+          <p className="text-sm text-(--ink-muted)">
             Page de {width} px, affichée à {Math.round(scale * 100)} % pour tenir dans l&apos;écran.
           </p>
         )}

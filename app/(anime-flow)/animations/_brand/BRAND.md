@@ -22,9 +22,9 @@
 
 Plus strict que les autres outils de la suite :
 
-- **Texte de 18 px minimum** (`text-lg`) partout, titres plus grands. Pas de `text-sm` ni `text-base`.
+- **Mêmes tailles que les autres outils, agrandissables par le Hub.** Par défaut, densité de Screendraft et du Générateur (titre de page `text-2xl`, titre de panneau `text-lg`, texte courant `text-base`, secondaire `text-sm`). L'utilisateur malvoyant agrandit tout avec le réglage « Taille du texte » du Hub (×1 à ×2), qui change la taille de police de `<html>` : **uniquement des tailles en `rem`** (classes Tailwind), jamais de `px` pour le texte ni les espacements. Tester chaque écran à ×2.
 - **Contraste visé 7:1 (AAA)** pour le texte. Les paires ci-dessous sont vérifiées dans les deux thèmes.
-- **Zones cliquables de 48 px minimum** (`min-h-12`).
+- **Zones cliquables de 40 px minimum** (`min-h-10`), comme le Hub.
 - **Focus** : contour de 4 px en `--focus-ring` (encre foncée en clair, jaune du Hub en sombre), géré par `anime-flow-theme.css`. Ne le supprime pas, ne le recolore pas.
 - **Jamais d'information par la couleur seule** : un élément actif a aussi une coche, un texte en gras ou une bordure plus épaisse.
 - Texte violet sur `--motion-soft` interdit en thème clair (5,98:1) : sur ce fond, le texte est `--ink`.
@@ -55,16 +55,16 @@ Plus strict que les autres outils de la suite :
 | --- | --- |
 | Panneau | `rounded-2xl border border-(--line) bg-(--surface-raised) p-5` |
 | Titre de panneau | `text-xl font-semibold` |
-| Texte secondaire | `text-lg text-(--ink-muted)` |
-| Bouton principal | `min-h-12 rounded-full bg-(--motion) px-6 text-lg font-semibold text-(--on-motion) hover:bg-(--motion-strong)` |
-| Bouton secondaire | `min-h-12 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-6 text-lg font-semibold hover:bg-(--motion-soft)` |
+| Texte secondaire | `text-sm text-(--ink-muted)` |
+| Bouton principal | `min-h-10 rounded-full bg-(--motion) px-5 text-sm font-semibold text-(--on-motion) hover:bg-(--motion-strong)` |
+| Bouton secondaire | `min-h-10 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-sm font-semibold hover:bg-(--motion-soft)` |
 | Choix actif (carte radio) | `border-(--motion) bg-(--motion-soft)` + nom en gras |
-| Badge | `rounded-full border border-(--motion) bg-(--motion-soft) px-4 py-1 text-lg` |
-| Erreur | `rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)` |
+| Badge | `rounded-full border border-(--motion) bg-(--motion-soft) px-3 py-1 text-sm` |
+| Erreur | `rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-sm text-(--danger)` |
 
 ## Motifs propres à l'outil
 
-- **En-tête d'outil** : logo AnimFlow en 48 px, titre « Animations », phrase d'aide en `--ink-muted`, et à droite le badge du mode (« Mode démo » ou « Projet #N »). Le même logo que dans la barre du Hub.
+- **En-tête d'outil** : logo AnimFlow en 40 px (`size-10`), titre « Animations », phrase d'aide en `--ink-muted`, et à droite le badge du mode (« Mode démo » ou « Projet #N »). Le même logo que dans la barre du Hub.
 - **Élément sélectionné dans l'aperçu** : double contour, blanc à l'intérieur et violet `#6d28d9` à l'extérieur. Le violet seul ne ressort pas sur une page sombre (2,5:1) ; le double contour est visible sur n'importe quel fond.
 - **Élément survolé dans l'aperçu (inspecteur)** : contour en pointillés `#6d28d9` et étiquette en aplat `spark` qui donne le nom de l'élément (« Bouton « Contact » »), en texte `on-spark`.
 

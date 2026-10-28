@@ -22,7 +22,7 @@ type Props<T extends string> = {
 export function AnimationsChoiceGroup<T extends string>({ legend, name, choices, value, onChange }: Props<T>) {
   return (
     <fieldset>
-      <legend className="text-lg font-semibold">{legend}</legend>
+      <legend className="text-base font-semibold">{legend}</legend>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {choices.map((choice) => {
           const checked = choice.value === value;
@@ -30,7 +30,7 @@ export function AnimationsChoiceGroup<T extends string>({ legend, name, choices,
           return (
             <label
               key={choice.value}
-              className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border-2 p-3 has-focus-visible:outline-4 has-focus-visible:outline-offset-2 has-focus-visible:outline-(--focus-ring) ${
+              className={`flex min-h-10 cursor-pointer items-start gap-3 rounded-xl border-2 p-3 has-focus-visible:outline-4 has-focus-visible:outline-offset-2 has-focus-visible:outline-(--focus-ring) ${
                 checked ? "border-(--motion) bg-(--motion-soft)" : "border-(--line) hover:border-(--line-strong)"
               }`}
             >
@@ -40,11 +40,11 @@ export function AnimationsChoiceGroup<T extends string>({ legend, name, choices,
                 checked={checked}
                 onChange={() => onChange(choice.value)}
                 aria-describedby={descriptionId}
-                className="mt-1 size-6 shrink-0 accent-(--motion)"
+                className="mt-0.5 size-5 shrink-0 accent-(--motion)"
               />
               <span className="flex flex-col">
-                <span className={`text-lg ${checked ? "font-semibold" : ""}`}>{choice.name}</span>
-                <span id={descriptionId} className="text-lg text-(--ink-muted)">
+                <span className={`text-base ${checked ? "font-semibold" : ""}`}>{choice.name}</span>
+                <span id={descriptionId} className="text-sm text-(--ink-muted)">
                   {choice.description}
                 </span>
               </span>
