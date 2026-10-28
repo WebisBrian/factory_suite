@@ -186,6 +186,10 @@ export function contentLabel(node: DraftNode): string {
       return node.props.label;
     case "shape":
       return SHAPE_LABELS[node.props.shape];
+    case "carousel":
+      return node.props.title || "Carrousel";
+    case "map":
+      return node.props.title || "Carte";
   }
 }
 

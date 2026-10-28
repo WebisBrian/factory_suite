@@ -1,9 +1,10 @@
 import { HubAppShowcase } from "@/components/hub/HubAppShowcase";
+import { HubChat } from "@/components/hub/HubChat";
 import { HubDashboard } from "@/components/hub/HubDashboard";
 
 export default function HubPage() {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:gap-12 sm:py-12">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 pt-8 pb-28 sm:gap-12 sm:pt-12">
       <div className="flex flex-col gap-3">
         <p className="text-base font-bold tracking-widest text-zinc-300 uppercase">FactorySuite Hub</p>
         <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
@@ -20,6 +21,8 @@ export default function HubPage() {
       </div>
       <HubAppShowcase />
       <HubDashboard />
+      {/* Bouton flottant + fenêtre modale : présent uniquement sur la page du Hub. */}
+      <HubChat />
     </main>
   );
 }

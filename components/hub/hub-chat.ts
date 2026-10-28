@@ -1,0 +1,667 @@
+// Moteur de l'assistant du Hub : comprend une demande en français (règles par mots-clés,
+// 100 % navigateur, sans appel réseau) et l'exécute via @/lib/project-fs.
+
+import {
+  ProjectFsError,
+  createProject,
+  deleteProject,
+  getFolderStatus,
+  listProjectFiles,
+  listProjectHistory,
+  listProjects,
+  pickDataFolder,
+  renameProject,
+  requestFolderAccess,
+  restoreFileVersion,
+  type ProjectFsErrorCode,
+  type ProjectInfo,
+} from "@/lib/project-fs";
+import {
+  checkHubGuide,
+  describeProject,
+  skipHubGuideStep,
+  startHubGuide,
+  stopHubGuide,
+  type HubGuide,
+} from "@/components/hub/hub-chat-guide";
+import { notifyHubProjectsChanged } from "@/components/hub/hub-project-events";
+import { HUB_TOOLS, hubToolHref, type HubTool } from "@/components/hub/hub-tools";
+
+export type HubChatAuthor = "user" | "assistant";
+
+export interface HubChatMessage {
+  id: number;
+  author: HubChatAuthor;
+  text: string;
+  /** Réponse d'erreur : affichée avec le préfixe « Erreur : » (pas seulement en couleur). */
+  isError?: boolean;
+  actions?: HubChatAction[];
+}
+
+/** Lien proposé sous une réponse (ex. ouvrir l'outil de l'étape du parcours guidé). */
+export interface HubChatAction {
+  /** Nom accessible précis : « Ouvrir CodeForge pour le projet Boulangerie ». */
+  label: string;
+  href: string;
+}
+
+/** Action irréversible en attente : exécutée seulement après confirmation explicite. */
+export interface HubChatConfirmation {
+  /** Texte du bouton de confirmation, précis sur sa cible : « Supprimer « Boulangerie » ». */
+  label: string;
+  run: () => Promise<HubChatReply>;
+  cancelText: string;
+}
+
+export interface HubChatReply {
+  text: string;
+  isError?: boolean;
+  /** Page à ouvrir après la réponse (outil de la suite). */
+  navigateTo?: string;
+  confirmation?: HubChatConfirmation;
+  actions?: HubChatAction[];
+  /** Nouvel état du parcours guidé : absent = inchangé, null = parcours terminé ou arrêté. */
+  guide?: HubGuide | null;
+  /** Projet dont on parle désormais : absent = inchangé, null = plus aucun. */
+  currentProject?: ProjectInfo | null;
+}
+
+/** État de la conversation dont le moteur a besoin pour comprendre la demande. */
+export interface HubChatContext {
+  guide: HubGuide | null;
+  /** Dernier projet dont on a parlé : sert quand une demande n'en désigne aucun (« ouvre ScreenDraft »). */
+  currentProject: ProjectInfo | null;
+}
+
+/** Exemples proposés à l'ouverture de l'assistant. */
+export const HUB_CHAT_SUGGESTIONS: readonly string[] = [
+  "Aide",
+  "Liste mes projets",
+  "Crée un projet Boulangerie et guide-moi",
+  "Guide-moi pour le dernier projet",
+];
+
+// Mise en forme des textes : voir HubChatText (**gras**, ligne vide = paragraphe, « • » = liste).
+
+export const HUB_CHAT_WELCOME = [
+  "Bonjour, je suis l'**assistant FactorySuite**.",
+  "",
+  "Je peux **gérer vos projets**, **ouvrir un outil** et vous **guider étape par étape**, de la maquette à la page animée.",
+  "",
+  "Dites « **aide** » pour voir des exemples.",
+].join("\n");
+
+const HELP_TEXT = [
+  "Voici ce que je sais faire, avec des exemples à recopier.",
+  "",
+  "**Projets**",
+  "• Lister : « liste mes projets »",
+  "• Créer : « crée un projet Boulangerie »",
+  "• Renommer : « renomme le projet 2 en Pâtisserie »",
+  "• Supprimer, après confirmation : « supprime le projet 2 »",
+  "",
+  "**Suivi**",
+  "• Avancement : « où en est le projet Boulangerie ? »",
+  "• Fichiers : « fichiers du projet 2 »",
+  "• Historique : « historique du projet 2 »",
+  "• Restaurer, après confirmation : « restaure la version précédente de la maquette »",
+  "",
+  "**Outils**",
+  "• Ouvrir : « ouvre CodeForge pour le projet 2 »",
+  "",
+  "**Dossier de travail**",
+  "• Choisir ou changer : « choisis le dossier »",
+  "• Après un rechargement : « autorise l'accès »",
+  "• Savoir lequel est utilisé : « quel dossier ? »",
+  "",
+  "**Parcours guidé**, d'outil en outil",
+  "• Démarrer : « guide-moi pour le projet 2 » ou « crée un projet Café et guide-moi »",
+  "• Pendant le parcours : « terminé », « passe l'étape », « arrête le guide »",
+  "",
+  "Un projet se désigne par son **numéro**, son **nom** ou « **le dernier projet** ».",
+  "Ensuite, **je retiens ce projet** : « ouvre CodeForge », « où en est-il ? » s'y rapportent.",
+  "Pour un outil sans projet, dites « ouvre ScreenDraft **en démo** ».",
+].join("\n");
+
+const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" });
+
+// --- Analyse du texte ---------------------------------------------------------
+
+/**
+ * Minuscules sans accents, caractère par caractère : la chaîne garde la même longueur
+ * que l'originale, ce qui permet d'y retrouver un nom (avec sa casse et ses accents).
+ */
+function normalize(text: string): string {
+  return text
+    .split("")
+    .map((char) => {
+      const plain = char.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      return plain.length === 1 ? plain : char;
+    })
+    .join("");
+}
+
+/** Groupe capturé en fin de motif, repris dans le texte d'origine. */
+function trailingGroup(request: string, match: RegExpMatchArray, group: string): string {
+  const start = (match.index ?? 0) + match[0].length - group.length;
+  return cleanName(request.slice(start, start + group.length));
+}
+
+function cleanName(name: string): string {
+  return name
+    .trim()
+    .replace(/[\s.!?]+$/, "")
+    .replace(/^["'«“\s]+|["'»”\s]+$/g, "")
+    .trim();
+}
+
+const YES = /^(oui|ok|d'accord|confirme[rs]?|vas-y|valide[rs]?)\b/;
+const NO = /^(non|annule[rs]?|stop|laisse tomber)\b/;
+
+export function isHubChatYes(text: string): boolean {
+  return YES.test(normalize(text.trim()));
+}
+
+export function isHubChatNo(text: string): boolean {
+  return NO.test(normalize(text.trim()));
+}
+
+const TOOL_PATTERNS: Record<HubTool["slug"], RegExp> = {
+  screendraft: /\b(screen ?draft|maquett\w*)\b/,
+  generator: /\b(code ?forge|generateur|generator|html)\b/,
+  animations: /\b(anim ?flow|anime ?flow|animations?|anim)\b/,
+  quality: /\b(qualite|quality|controle|score|seo|performance)\b/,
+};
+
+/** Noms d'outils reconnus malgré une faute de frappe (« screndraft », « codefroge »). */
+const TOOL_NAMES: Record<HubTool["slug"], string> = {
+  screendraft: "screendraft",
+  generator: "codeforge",
+  animations: "animflow",
+  quality: "qualite",
+};
+
+/** Distance d'édition (insertion, suppression, substitution d'un caractère). */
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+function findTool(text: string): HubTool | null {
+  const exact = HUB_TOOLS.find((tool) => TOOL_PATTERNS[tool.slug].test(text));
+  if (exact) return exact;
+  // Mots seuls et paires de mots (« screen drat ») comparés aux noms d'outils, 2 fautes au plus.
+  const words = text.split(/[^a-z0-9]+/).filter(Boolean);
+  const candidates = [...words, ...words.slice(1).map((word, i) => words[i] + word)].filter((w) => w.length >= 6);
+  return (
+    HUB_TOOLS.find((tool) => candidates.some((word) => editDistance(word, TOOL_NAMES[tool.slug]) <= 2)) ?? null
+  );
+}
+
+type ProjectRef = { kind: "found"; project: ProjectInfo } | { kind: "none" } | { kind: "unknown"; label: string };
+
+/** Demande explicite du mode démo : « ouvre ScreenDraft en démo », « … sans projet ». */
+const DEMO_REQUEST = /\b(demo|demonstration|sans projet)\b/;
+
+/**
+ * Retrouve le projet désigné : « projet 2 », « #2 », « le dernier projet » ou son nom.
+ * Sinon, le projet de la conversation (`fallback`), s'il existe toujours.
+ */
+function findProject(text: string, projects: readonly ProjectInfo[], fallback: ProjectInfo | null): ProjectRef {
+  const explicit = findExplicitProject(text, projects);
+  if (explicit.kind !== "none" || !fallback) return explicit;
+  const project = projects.find((p) => p.id === fallback.id);
+  return project ? { kind: "found", project } : explicit;
+}
+
+const NUMBER_WORDS: Record<string, number> = {
+  un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10,
+  onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15, seize: 16, vingt: 20,
+};
+
+function findExplicitProject(rawText: string, projects: readonly ProjectInfo[]): ProjectRef {
+  // « projet deux » → « projet 2 » (copie locale : le texte d'origine garde sa longueur).
+  const text = rawText.replace(
+    /\b(projet|numero|n°)\s+(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt)\b/g,
+    (_, prefix: string, word: string) => `${prefix} ${NUMBER_WORDS[word]}`,
+  );
+  if (/\bpremier projet\b|\bprojet le plus ancien\b/.test(text) && projects.length > 0) {
+    return { kind: "found", project: projects[0] };
+  }
+  const byNumber = text.match(/(?:projet|#|n°|numero)\s*(?:n°|numero|#)?\s*(\d+)\b/);
+  if (byNumber) {
+    const id = Number(byNumber[1]);
+    const project = projects.find((p) => p.id === id);
+    return project ? { kind: "found", project } : { kind: "unknown", label: `n°${id}` };
+  }
+  if (/\bdernier projet\b|\bprojet le plus recent\b/.test(text) && projects.length > 0) {
+    return { kind: "found", project: projects[projects.length - 1] };
+  }
+  // Nom cité dans la phrase : le plus long l'emporte (« Boulangerie bio » avant « Boulangerie »).
+  const named = projects
+    .filter((p) => normalize(p.name).trim() !== "" && text.includes(normalize(p.name)))
+    .sort((a, b) => b.name.length - a.name.length)[0];
+  return named ? { kind: "found", project: named } : { kind: "none" };
+}
+
+// --- Réponses ----------------------------------------------------------------
+
+const ERROR_HINTS: Partial<Record<ProjectFsErrorCode, string>> = {
+  "no-folder": "Dites « **choisis le dossier** » pour le sélectionner.",
+  "permission-denied": "Dites « **autorise l'accès** », puis refaites votre demande.",
+  unsupported: "Ouvrez FactorySuite dans **Chrome** ou **Edge**.",
+};
+
+function errorReply(error: unknown): HubChatReply {
+  if (error instanceof ProjectFsError) {
+    const hint = ERROR_HINTS[error.code];
+    return { text: hint ? `${error.message}\n\n${hint}` : error.message, isError: true };
+  }
+  return { text: error instanceof Error ? error.message : String(error), isError: true };
+}
+
+/** Demande qui nécessite un projet, mais aucun n'est désigné clairement. */
+function askWhichProject(ref: ProjectRef, projects: readonly ProjectInfo[], example: string): HubChatReply {
+  if (projects.length === 0) {
+    return { text: "Il n'y a **encore aucun projet**.\n\nDites par exemple « crée un projet Boulangerie »." };
+  }
+  const intro =
+    ref.kind === "unknown" ? `Je ne trouve pas le **projet ${ref.label}**.` : "**De quel projet** parlez-vous ?";
+  return { text: `${intro}\n\n${projectListText(projects)}\n\nPrécisez-le, par exemple : « ${example} ».` };
+}
+
+function projectListText(projects: readonly ProjectInfo[]): string {
+  if (projects.length === 0) return "Il n'y a **encore aucun projet**.";
+  const lines = projects.map((p) => `• **${p.name}** (n°${p.id})`);
+  return [`**${projects.length} projet${projects.length > 1 ? "s" : ""}** :`, ...lines].join("\n");
+}
+
+async function projectStatus(project: ProjectInfo): Promise<HubChatReply> {
+  const files = await listProjectFiles(project.id);
+  const steps = HUB_TOOLS.map((tool, index) => {
+    const file = files.find((f) => f.name === tool.outputFile);
+    return { tool, index, file };
+  });
+  const lines = steps.map(({ tool, index, file }) =>
+    file
+      ? `${index + 1}. ${tool.label} : **fait**, ${file.name} du ${dateFormat.format(file.lastModified)}`
+      : `${index + 1}. ${tool.label} : **à faire**`,
+  );
+  const next = steps.find((step) => !step.file);
+  const conclusion = next
+    ? `**Prochaine étape : ${next.tool.label}.**\nDites « ouvre ${next.tool.label} pour le projet ${project.id} » ou « guide-moi pour le projet ${project.id} ».`
+    : "**Les trois étapes sont faites.**";
+  return { text: [`Avancement du projet ${describeProject(project)} :`, "", ...lines, "", conclusion].join("\n") };
+}
+
+async function projectFiles(project: ProjectInfo): Promise<HubChatReply> {
+  const files = await listProjectFiles(project.id);
+  if (files.length === 0) return { text: `Le projet ${describeProject(project)} n'a **encore aucun fichier**.` };
+  const lines = files.map((f) => `• ${f.name}, modifié le ${dateFormat.format(f.lastModified)}`);
+  return { text: [`Fichiers du projet ${describeProject(project)} :`, "", ...lines].join("\n") };
+}
+
+const HISTORY_LIMIT = 5;
+
+async function projectHistory(project: ProjectInfo): Promise<HubChatReply> {
+  const versions = await listProjectHistory(project.id);
+  if (versions.length === 0) {
+    return { text: `**Aucun enregistrement** dans l'historique du projet ${describeProject(project)}.` };
+  }
+  const lines = versions
+    .slice(0, HISTORY_LIMIT)
+    .map((v) => `• ${v.filename}, enregistré le ${dateFormat.format(v.savedAt)}`);
+  const more =
+    versions.length > HISTORY_LIMIT
+      ? `Et ${versions.length - HISTORY_LIMIT} version(s) plus ancienne(s) : voir l'onglet « **Historique** » de la carte du projet.`
+      : "Pour revenir en arrière, dites « restaure la version précédente de … » ou ouvrez l'onglet « **Historique** » de la carte du projet.";
+  return {
+    text: [`Derniers enregistrements du projet ${describeProject(project)} :`, "", ...lines, "", more].join("\n"),
+  };
+}
+
+async function confirmDelete(project: ProjectInfo, { guide, currentProject }: HubChatContext): Promise<HubChatReply> {
+  const files = await listProjectFiles(project.id);
+  return {
+    text: [
+      `**Supprimer définitivement** le projet ${describeProject(project)} et ses ${files.length} fichier(s) du disque ?`,
+      "",
+      "Cette action est **irréversible**.",
+      "",
+      "Répondez « oui » ou « non », ou utilisez les boutons ci-dessous.",
+    ].join("\n"),
+    confirmation: {
+      label: `Supprimer « ${project.name} »`,
+      cancelText: `Suppression **annulée** : le projet ${describeProject(project)} est conservé.`,
+      run: async () => {
+        try {
+          await deleteProject(project.id);
+          notifyHubProjectsChanged();
+          const stopsGuide = guide?.projectId === project.id;
+          return {
+            text: `Le projet ${describeProject(project)} a été **supprimé**.${stopsGuide ? "\n\nSon parcours guidé est arrêté." : ""}`,
+            ...(stopsGuide && { guide: null }),
+            ...(currentProject?.id === project.id && { currentProject: null }),
+          };
+        } catch (error) {
+          return errorReply(error);
+        }
+      },
+    },
+  };
+}
+
+/** Fichier visé par une restauration : nom cité (« page.html »), ou fichier de l'outil cité (« la maquette »). */
+function findFilename(text: string, filenames: readonly string[]): string | null {
+  const cited = filenames.find((name) => text.includes(normalize(name)));
+  if (cited) return cited;
+  const tool = findTool(text);
+  if (tool && filenames.includes(tool.outputFile)) return tool.outputFile;
+  return filenames.length === 1 ? filenames[0] : null;
+}
+
+/** Remet un fichier à sa version précédente (l'avant-dernier enregistrement), après confirmation. */
+async function confirmRestore(project: ProjectInfo, text: string): Promise<HubChatReply> {
+  const versions = await listProjectHistory(project.id);
+  // Fichiers qui ont au moins une version antérieure à la version actuelle.
+  const restorable = [...new Set(versions.map((v) => v.filename))].filter(
+    (name) => versions.filter((v) => v.filename === name).length > 1,
+  );
+  if (restorable.length === 0) {
+    return { text: `Le projet ${describeProject(project)} n'a **aucune version précédente** à restaurer.` };
+  }
+  const filename = findFilename(text, restorable);
+  if (!filename) {
+    return {
+      text: [
+        "**Quel fichier** voulez-vous restaurer ?",
+        "",
+        ...restorable.map((name) => `• ${name}`),
+        "",
+        `Par exemple : « restaure ${restorable[0]} ».`,
+      ].join("\n"),
+    };
+  }
+  // Versions triées de la plus récente à la plus ancienne : [0] est le contenu actuel.
+  const previous = versions.filter((v) => v.filename === filename)[1];
+  const when = dateFormat.format(previous.savedAt);
+  return {
+    text: [
+      `Remettre **${filename}** du projet ${describeProject(project)} à sa **version du ${when}** ?`,
+      "",
+      "La version actuelle reste dans l'historique : vous pourrez y revenir.",
+      "",
+      "Répondez « oui » ou « non », ou utilisez les boutons ci-dessous.",
+    ].join("\n"),
+    confirmation: {
+      label: `Restaurer « ${filename} »`,
+      cancelText: `Restauration **annulée** : ${filename} n'a pas changé.`,
+      run: async () => {
+        try {
+          await restoreFileVersion(project.id, filename, previous.versionId);
+          notifyHubProjectsChanged();
+          return { text: `**${filename}** du projet ${describeProject(project)} est **restauré** (version du ${when}).` };
+        } catch (error) {
+          return errorReply(error);
+        }
+      },
+    },
+  };
+}
+
+function openTool(tool: HubTool, project: ProjectInfo | null): HubChatReply {
+  return {
+    text: project
+      ? `J'ouvre **${tool.label}** pour le projet ${describeProject(project)}.`
+      : `J'ouvre **${tool.label}** en **mode démo** (sans projet).`,
+    navigateTo: hubToolHref(tool, project?.id ?? null),
+  };
+}
+
+const UNKNOWN_TEXT = [
+  "Je n'ai **pas compris** cette demande.",
+  "",
+  "Je sais **gérer vos projets**, donner leur **avancement**, **ouvrir un outil** et vous **guider** d'outil en outil.",
+  "",
+  "Dites « **aide** » pour voir des exemples.",
+].join("\n");
+
+/** Politesse et petites questions : une réponse courte plutôt que « je n'ai pas compris ». */
+function respondToSmallTalk(text: string): HubChatReply | null {
+  if (/^(bonjour|bonsoir|salut|coucou|hello|bjr)\b/.test(text)) {
+    return { text: "Bonjour ! Que voulez-vous faire ?\n\nDites « **aide** » pour voir des exemples." };
+  }
+  if (/^(merci|super|parfait|genial|top)\b/.test(text)) {
+    return { text: "Avec plaisir. Dites-moi si vous avez besoin d'autre chose." };
+  }
+  if (/\bqui es[- ]tu\b|\btu es qui\b|\bc'est quoi (ce|cet) (assistant|chat ?bot)\b/.test(text)) {
+    return { text: HUB_CHAT_WELCOME };
+  }
+  return null;
+}
+
+const FOLDER_PICK = /\b(choisi\w*|change[rsz]?|changement|selectionne\w*|definir|definis|modifie[rsz]?)\b.*\bdossier\b/;
+const FOLDER_ACCESS = /\b(autorise\w*|donne\w* (l'|l )?acces|acces au dossier|redonne\w* (l'|l )?acces|permission)\b/;
+const FOLDER_STATUS = /\b(quel|quels|ou est|ou se trouve)\b.*\bdossier\b|^dossier( de travail)?\s*\??$/;
+
+/**
+ * Dossier de travail. Appelé avant tout `await` de la réponse : le sélecteur de dossier
+ * et l'invite d'autorisation de Chrome exigent d'être lancés depuis le geste de l'utilisateur.
+ */
+function respondToFolder(text: string, guide: HubGuide | null): Promise<HubChatReply> | null {
+  if (FOLDER_PICK.test(text)) {
+    const picking = pickDataFolder();
+    return picking.then(
+      (folder) => {
+        notifyHubProjectsChanged();
+        return {
+          text: [
+            `Dossier de travail : **${folder.name}**.`,
+            "",
+            "Les projets du Hub sont maintenant ceux de ce dossier.",
+            ...(guide ? ["", "Le parcours guidé en cours est **arrêté** : son projet était dans l'ancien dossier."] : []),
+          ].join("\n"),
+          // Autre dossier, autres projets : on oublie ceux de la conversation.
+          currentProject: null,
+          ...(guide && { guide: null }),
+        };
+      },
+      (error: unknown) =>
+        error instanceof DOMException && error.name === "AbortError"
+          ? { text: "Choix du dossier **annulé** : rien n'a changé." }
+          : errorReply(error),
+    );
+  }
+  if (FOLDER_ACCESS.test(text)) {
+    return requestFolderAccess().then(
+      (granted) => {
+        notifyHubProjectsChanged();
+        return granted
+          ? { text: "**Accès autorisé** au dossier de travail. Vous pouvez refaire votre demande." }
+          : {
+              text: "**Accès non accordé.**\n\nSi aucun dossier n'est choisi, dites « choisis le dossier ».",
+              isError: true,
+            };
+      },
+      (error: unknown) => errorReply(error),
+    );
+  }
+  if (FOLDER_STATUS.test(text)) {
+    return getFolderStatus().then((status) => {
+      switch (status.state) {
+        case "unsupported":
+          return errorReply(new ProjectFsError("unsupported", "Ce navigateur ne permet pas d'écrire dans un dossier."));
+        case "no-folder":
+          return { text: "**Aucun dossier de travail** n'est choisi.\n\nDites « choisis le dossier » pour le sélectionner." };
+        case "needs-permission":
+          return {
+            text: `Dossier de travail : **${status.folderName}**, mais **l'accès est à autoriser**.\n\nDites « autorise l'accès ».`,
+          };
+        case "ready":
+          return { text: `Dossier de travail : **${status.folderName}** (accès autorisé).` };
+      }
+    });
+  }
+  return null;
+}
+
+const GUIDE_REQUEST = /\b(guide[rsz]?|parcours|accompagne\w*|pas a pas)\b/;
+/** « … et guide-moi » à la fin d'une demande de création. */
+const GUIDE_SUFFIX = /\s+et\s+(?:guide|accompagne)\S*.*$/i;
+
+/** Commandes valables seulement pendant un parcours guidé. */
+function respondToGuide(text: string, guide: HubGuide): Promise<HubChatReply> | HubChatReply | null {
+  if (/\b(arrete[rsz]?|stop|quitte[rsz]?|annule[rsz]?)\b.*\b(guide|parcours)\b/.test(text)) return stopHubGuide(guide);
+  if (/\b(passe[rsz]?|saute[rsz]?|ignore[rsz]?)\b.*\betape\b|\bgarde[rsz]? (cette|la) version\b/.test(text)) {
+    return skipHubGuideStep(guide);
+  }
+  if (
+    /^(termine|fini|j'ai (fini|termine)|c'est (fait|bon|fini|termine)|fait|continue[rsz]?|suite|verifie[rsz]?|etape suivante|et maintenant)\b/.test(text) ||
+    /\bou en est (le )?(guide|parcours)\b/.test(text)
+  ) {
+    return checkHubGuide(guide, true);
+  }
+  return null;
+}
+
+export async function respondToHubChat(request: string, context: HubChatContext): Promise<HubChatReply> {
+  const { guide } = context;
+  const text = normalize(request.trim());
+  // Projet par défaut : celui de la conversation, sinon celui du parcours guidé.
+  const fallback =
+    context.currentProject ?? (guide ? { id: guide.projectId, name: guide.projectName } : null);
+  /** Réponse qui porte sur `project` : il devient le projet de la conversation. */
+  const about = (project: ProjectInfo, reply: HubChatReply): HubChatReply => ({ ...reply, currentProject: project });
+
+  if (
+    /^(aide|help|\?|commandes?|exemples?)\b|que (sais|peux)[- ]tu|qu.est.ce que tu (sais|peux)|que (puis|peux)[- ]je|comment (ca|tu) (marche|fonctionne)/.test(
+      text,
+    )
+  ) {
+    return { text: HELP_TEXT };
+  }
+  const smallTalk = respondToSmallTalk(text);
+  if (smallTalk) return smallTalk;
+
+  const folderReply = respondToFolder(text, guide);
+  if (folderReply) return folderReply;
+
+  try {
+    const guideReply = guide && respondToGuide(text, guide);
+    if (guideReply) return await guideReply;
+
+    // Création d'abord : le nom du projet peut contenir un nom d'outil (« crée un projet AnimFlow »).
+    const create = text.match(
+      /\b(?:(?:cree[rsz]?|ajoute[rsz]?|demarre[rsz]?|commence[rsz]?|lance[rsz]?)\s+(?:un\s+)?(?:nouveau\s+)?|nouveau\s+)projet\b\s*(?:(?:nomme|appele|intitule)e?\s+|:\s*)?(.*)$/,
+    );
+    if (create) {
+      const wantsGuide = GUIDE_SUFFIX.test(create[1]);
+      const name = trailingGroup(request.trim(), create, create[1]).replace(GUIDE_SUFFIX, "");
+      const id = await createProject(name);
+      notifyHubProjectsChanged();
+      const label = name || `Projet ${id}`;
+      const project = { id, name: label };
+      const created = `Projet « **${label}** » **créé** (n°${id}).`;
+      if (wantsGuide) {
+        const reply = await startHubGuide(project);
+        return about(project, { ...reply, text: `${created}\n\n${reply.text}` });
+      }
+      return about(project, {
+        text: [
+          created,
+          "",
+          "**Prochaine étape : la maquette.**",
+          `Dites « ouvre ScreenDraft » ou « guide-moi » : je m'occupe de ce projet.`,
+        ].join("\n"),
+      });
+    }
+
+    const detail = /\bhistorique\b|\bversions?\b/.test(text)
+      ? { run: projectHistory, example: "historique du projet 2" }
+      : /\bfichiers?\b/.test(text)
+        ? { run: projectFiles, example: "fichiers du projet 2" }
+        : /\bou en est\b|\bavancement\b|\betat\b|\bstatut\b|\bsuivi\b|\betapes?\b/.test(text) ||
+            /\b(montre|affiche|details?|infos?|informations?|resume)\b.*\bprojet\b(?!s)/.test(text)
+          ? { run: projectStatus, example: "où en est le projet 2 ?" }
+          : null;
+    const tool = findTool(text);
+
+    // Sans dossier de travail (ou sans autorisation), ouvrir un outil en mode démo reste possible.
+    const projects = await listProjects().catch((error: unknown) => {
+      if (tool && !detail && (DEMO_REQUEST.test(text) || (!fallback && !/\bprojet\b|#\s*\d/.test(text)))) return null;
+      throw error;
+    });
+    if (projects === null) return tool ? openTool(tool, null) : { text: UNKNOWN_TEXT };
+
+    // Avant les outils et l'avancement : « guide-moi pour le projet AnimFlow » démarre un parcours.
+    if (GUIDE_REQUEST.test(text)) {
+      const ref = findProject(text, projects, fallback);
+      if (ref.kind === "none" && projects.length === 1) return about(projects[0], await startHubGuide(projects[0]));
+      if (ref.kind !== "found") return askWhichProject(ref, projects, "guide-moi pour le projet 1");
+      return about(ref.project, await startHubGuide(ref.project));
+    }
+
+    // « renomme le projet 2 en … », « renomme Café en … » ou « renomme-le en … » (projet de la conversation).
+    // Le projet visé ne commence pas par « en » : dans « renomme-le en Site en ligne », tout le reste est le nom.
+    const rename = text.match(/\brenomm\w*(?:-le|-la)?\s+(?:(?!en\s)(?:le\s+|ce\s+)?(?:projet\s*)?(.*?)\s+)?en\s+(.+)$/);
+    if (rename) {
+      const target = (rename[1] ?? "").trim();
+      const ref = findProject(/^\d+$/.test(target) ? `projet ${target}` : target, projects, fallback);
+      if (ref.kind !== "found") return askWhichProject(ref, projects, "renomme le projet 2 en Pâtisserie");
+      const name = trailingGroup(request.trim(), rename, rename[2]);
+      if (!name) return { text: "**Quel nouveau nom ?**\n\nPar exemple : « renomme le projet 2 en Pâtisserie »." };
+      await renameProject(ref.project.id, name);
+      notifyHubProjectsChanged();
+      return about(
+        { id: ref.project.id, name },
+        {
+          text: `Le projet n°${ref.project.id} s'appelle maintenant « **${name}** ».`,
+          ...(guide?.projectId === ref.project.id && { guide: { ...guide, projectName: name } }),
+        },
+      );
+    }
+
+    if (/\b(supprim\w*|efface\w*|detrui\w*|retire[rsz]?|enleve[rsz]?)\b/.test(text)) {
+      const ref = findProject(text, projects, fallback);
+      if (ref.kind !== "found") return askWhichProject(ref, projects, "supprime le projet 2");
+      return await confirmDelete(ref.project, context);
+    }
+
+    // Avant l'historique et les outils : « restaure la version précédente de la maquette ».
+    if (/\b(restaure\w*|retabli\w*|reviens|revenir|remets|remettre)\b|\b(version precedente|ancienne version)\b/.test(text)) {
+      const ref = findProject(text, projects, fallback);
+      if (ref.kind === "none" && projects.length === 1) return about(projects[0], await confirmRestore(projects[0], text));
+      if (ref.kind !== "found") return askWhichProject(ref, projects, "restaure la maquette du projet 2");
+      return about(ref.project, await confirmRestore(ref.project, text));
+    }
+
+    if (detail) {
+      const ref = findProject(text, projects, fallback);
+      // Un seul projet : pas besoin de le préciser.
+      if (ref.kind === "none" && projects.length === 1) return about(projects[0], await detail.run(projects[0]));
+      if (ref.kind !== "found") return askWhichProject(ref, projects, detail.example);
+      return about(ref.project, await detail.run(ref.project));
+    }
+
+    // Après l'avancement : « où en est la maquette du projet 2 » ne doit pas ouvrir ScreenDraft.
+    if (tool) {
+      if (DEMO_REQUEST.test(text)) return openTool(tool, null);
+      const ref = findProject(text, projects, fallback);
+      if (ref.kind === "unknown") return askWhichProject(ref, projects, `ouvre ${tool.label} pour le projet 1`);
+      return ref.kind === "found" ? about(ref.project, openTool(tool, ref.project)) : openTool(tool, null);
+    }
+
+    if (/\bprojets\b|\bcombien de projet/.test(text)) return { text: projectListText(projects) };
+  } catch (error) {
+    return errorReply(error);
+  }
+
+  return { text: UNKNOWN_TEXT };
+}

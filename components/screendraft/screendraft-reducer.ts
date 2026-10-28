@@ -7,7 +7,9 @@ import {
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
 import type {
   ButtonNode,
+  CarouselNode,
   DraftNode,
+  MapNode,
   ImageNode,
   Maquette,
   NodeA11y,
@@ -70,6 +72,10 @@ export type ScreendraftAction =
   | ({ type: "set-props"; id: string } & PropsPatch)
   /** Nom du calque ; une chaîne vide le retire (le calque reprend son contenu comme libellé). */
   | { type: "rename-node"; id: string; name: string }
+  /** Ajoute, retire ou réordonne les diapositives d'un carrousel : une étape d'annulation chacune. */
+  | { type: "set-carousel-slides"; id: string; slides: CarouselNode["props"]["slides"] }
+  /** Ajoute ou retire des points d'intérêt d'une carte : une étape d'annulation chacun. */
+  | { type: "set-map-markers"; id: string; markers: MapNode["props"]["markers"] }
   | { type: "sync-component"; component: CustomComponent }
   | { type: "reset-instance"; id: string; component: CustomComponent }
   | { type: "detach-instance"; id: string }
@@ -90,6 +96,8 @@ export type PropsPatch =
   | { nodeType: "text"; props: Partial<TextNode["props"]> }
   | { nodeType: "image"; props: Partial<ImageNode["props"]> }
   | { nodeType: "video"; props: Partial<VideoNode["props"]> }
+  | { nodeType: "carousel"; props: Partial<CarouselNode["props"]> }
+  | { nodeType: "map"; props: Partial<MapNode["props"]> }
   | { nodeType: "button"; props: Partial<ButtonNode["props"]> }
   | { nodeType: "shape"; props: Partial<ShapeNode["props"]> };
 
@@ -247,6 +255,14 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         (current, id) => withNodesOf(current, id, (nodes) => removeNode(nodes, id)),
         draft,
       );
+    case "set-map-markers":
+      return withNode(draft, action.id, (node) =>
+        node.type === "map" ? { ...node, props: { ...node.props, markers: action.markers } } : node,
+      );
+    case "set-carousel-slides":
+      return withNode(draft, action.id, (node) =>
+        node.type === "carousel" ? { ...node, props: { ...node.props, slides: action.slides } } : node,
+      );
     case "set-theme":
       return applyTheme({ ...draft, theme: patchTheme(draft.theme, action.patch) });
     case "link-style":
@@ -288,6 +304,10 @@ function mergeProps(node: DraftNode, patch: PropsPatch): DraftNode {
       return node.type === "image" ? { ...node, props: { ...node.props, ...patch.props } } : node;
     case "video":
       return node.type === "video" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+    case "carousel":
+      return node.type === "carousel" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+    case "map":
+      return node.type === "map" ? { ...node, props: { ...node.props, ...patch.props } } : node;
     case "button":
       return node.type === "button"
         ? { ...node, props: withoutUndefined({ ...node.props, ...patch.props }) }

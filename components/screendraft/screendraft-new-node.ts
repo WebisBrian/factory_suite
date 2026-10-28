@@ -1,3 +1,5 @@
+import { createSlide } from "@/components/screendraft/screendraft-carousel";
+import { createMarker } from "@/components/screendraft/screendraft-map";
 import { defaultThemeLinks } from "@/components/screendraft/screendraft-mockup-theme";
 import type { DraftNode, DraftNodeType, ShapeKind } from "@/components/screendraft/screendraft-schema";
 
@@ -89,6 +91,28 @@ function createBaseNode(type: DraftNodeType, index: number, shape: ShapeKind): D
         style: { backgroundColor: "#0f172a", borderRadius: 12 },
         props: { src: "", kind: "embed", title: "Vidéo" },
       };
+    // Trois diapositives d'exemple, à remplacer dans le panneau de propriétés.
+    case "carousel":
+      return {
+        ...base,
+        type,
+        width: 640,
+        height: 360,
+        style: { borderRadius: 12 },
+        props: { title: "Carrousel", slides: [1, 2, 3].map(createSlide) },
+      };
+    // Centrée sur Paris, avec un point d'intérêt à remplacer dans le panneau de propriétés.
+    case "map": {
+      const center = { latitude: 48.8566, longitude: 2.3522 };
+      return {
+        ...base,
+        type,
+        width: 480,
+        height: 320,
+        style: { borderRadius: 12 },
+        props: { title: "Carte", ...center, zoom: 13, markers: [createMarker(1, center)] },
+      };
+    }
     case "shape":
       return {
         ...base,

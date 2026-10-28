@@ -10,6 +10,7 @@ import {
 } from "@/lib/project-fs";
 import { HubAlert, HubStatus } from "@/components/hub/HubAlert";
 import { HubProjectCard } from "@/components/hub/HubProjectCard";
+import { onHubProjectsChanged } from "@/components/hub/hub-project-events";
 import { hubCard, hubCode, hubInput, hubPrimaryButton, hubSecondaryButton } from "@/components/hub/hub-styles";
 
 function HubNotice({ title, children }: { title: string; children: React.ReactNode }) {
@@ -46,6 +47,9 @@ function HubProjectList({ folderName, onChangeFolder }: { folderName: string; on
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
+
+  // Projet créé, renommé ou supprimé par l'assistant : on recharge la liste.
+  useEffect(() => onHubProjectsChanged(() => void load()), [load]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +138,10 @@ function HubProjectList({ folderName, onChangeFolder }: { folderName: string; on
 }
 
 export function HubDashboard() {
-  const { status, pickFolder, requestAccess } = useProjectFolder();
+  const { status, refresh, pickFolder, requestAccess } = useProjectFolder();
+
+  // Une demande à l'assistant a pu déclencher l'invite d'autorisation du dossier.
+  useEffect(() => onHubProjectsChanged(() => void refresh()), [refresh]);
 
   if (status === null) {
     return <HubStatus>Chargement…</HubStatus>;
