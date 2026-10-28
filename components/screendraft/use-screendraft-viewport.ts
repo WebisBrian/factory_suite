@@ -5,6 +5,7 @@ import {
   useState,
   type PointerEvent,
 } from "react";
+import { isEditableTarget } from "@/components/screendraft/screendraft-keyboard";
 import {
   applyZoomCommand,
   fitToScreen,
@@ -92,7 +93,7 @@ export function useScreendraftViewport(frame: Size) {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (isEditable(event.target)) return;
+      if (isEditableTarget(event.target)) return;
       if (event.code === "Space") {
         event.preventDefault();
         setIsSpacePressed(true);
@@ -106,7 +107,7 @@ export function useScreendraftViewport(frame: Size) {
     }
 
     function handleKeyUp(event: KeyboardEvent) {
-      if (event.code !== "Space" || isEditable(event.target)) return;
+      if (event.code !== "Space" || isEditableTarget(event.target)) return;
       // Évite qu'un bouton qui a le focus soit activé en relâchant espace.
       event.preventDefault();
       setIsSpacePressed(false);
@@ -190,11 +191,6 @@ function zoomShortcut(event: KeyboardEvent): ZoomCommand | null {
   if (event.code === "Digit1") return "fit";
   if (event.code === "Digit0") return "reset";
   return null;
-}
-
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
 function cursorFor(isPanning: boolean, isSpacePressed: boolean): string {

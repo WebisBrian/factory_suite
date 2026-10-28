@@ -1,20 +1,22 @@
 "use client";
 
 import "@/components/screendraft/screendraft-theme.css";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useState } from "react";
 import wordmark from "@/components/screendraft/brand/logos/screen-draft-wordmark.svg";
 import wordmarkWhite from "@/components/screendraft/brand/logos/screen-draft-wordmark-white.svg";
 import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
+import { ScreendraftHistoryControls } from "@/components/screendraft/ScreendraftHistoryControls";
 import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
 import { downloadMaquette } from "@/components/screendraft/screendraft-file";
-import { screendraftReducer } from "@/components/screendraft/screendraft-reducer";
+import { historyShortcut, isEditableTarget } from "@/components/screendraft/screendraft-keyboard";
 import { createNode } from "@/components/screendraft/screendraft-new-node";
 import type { DraftNodeType, Maquette, ShapeKind } from "@/components/screendraft/screendraft-schema";
 import { findNode } from "@/components/screendraft/screendraft-tree";
+import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
 
 type ScreendraftEditorProps = {
@@ -25,7 +27,7 @@ type ScreendraftEditorProps = {
 
 /** Éditeur plein écran, dans l'espace laissé sous la barre du Hub. */
 export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditorProps) {
-  const [draft, dispatch] = useReducer(screendraftReducer, initialDraft);
+  const { draft, dispatch, undo, redo, canUndo, canRedo } = useScreendraftHistory(initialDraft);
   // La sélection est un état de l'éditeur : elle n'est pas exportée dans le JSON.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selection = selectedId ? findNode(draft.nodes, selectedId) : null;
@@ -46,10 +48,17 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         event.preventDefault();
         void save(draft);
       }
+      // Dans un champ de saisie, Ctrl/⌘ + Z annule la frappe : le navigateur s'en charge.
+      const shortcut = isEditableTarget(event.target) ? null : historyShortcut(event);
+      if (shortcut) {
+        event.preventDefault();
+        if (shortcut === "undo") undo();
+        else redo();
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save]);
+  }, [draft, projectId, save, undo, redo]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {
@@ -77,6 +86,12 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
           </span>
           <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
           <div className="ml-auto flex items-center gap-(--space-3)">
+            <ScreendraftHistoryControls
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={undo}
+              onRedo={redo}
+            />
             <ScreendraftSaveControls
               projectId={projectId}
               isDirty={isDirty}
