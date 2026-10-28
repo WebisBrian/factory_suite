@@ -38,7 +38,7 @@ export function HubNavSwitcher() {
       )}
       <ul className="flex flex-wrap items-center gap-1">
         {HUB_TOOLS.map((tool) => {
-          const active = pathname.startsWith(`/${tool.slug}`);
+          const active = pathname.startsWith(tool.path ?? `/${tool.slug}`);
           const description = `${tool.label} : ${tool.description}${projectId !== null ? `, projet ${name ?? projectId}` : ", mode démo"}`;
           return (
             <li key={tool.slug}>

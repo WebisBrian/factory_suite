@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { ProjectFsError, readProjectText, useProjectId } from "@/lib/project-fs";
-import { MAQUETTE_FILE, parseMaquette, type Maquette } from "@/app/(codeforg)/generator/_lib/maquette";
-import { maquetteFixture } from "@/app/(codeforg)/generator/_lib/maquette-fixture";
-import { GeneratorMaquetteSummary } from "@/app/(codeforg)/generator/_components/GeneratorMaquetteSummary";
+import { MAQUETTE_FILE, parseMaquette, type Maquette } from "@/app/codeforge/generator/_lib/maquette";
+import { maquetteFixture } from "@/app/codeforge/generator/_lib/maquette-fixture";
+import { GeneratorMaquetteSummary } from "@/app/codeforge/generator/_components/GeneratorMaquetteSummary";
+import { GeneratorOutput } from "@/app/codeforge/generator/_components/GeneratorOutput";
 
 type ProjectLoad =
   | { status: "ok"; maquette: Maquette }
@@ -178,7 +179,10 @@ export function GeneratorApp() {
       </section>
 
       {maquette ? (
-        <GeneratorMaquetteSummary maquette={maquette} sourceLabel={sourceLabel} />
+        <>
+          <GeneratorOutput maquette={maquette} projectId={projectId} />
+          <GeneratorMaquetteSummary maquette={maquette} sourceLabel={sourceLabel} />
+        </>
       ) : (
         projectId !== null &&
         projectLoad === null && <p className="text-sm text-zinc-500">Lecture de {MAQUETTE_FILE}…</p>

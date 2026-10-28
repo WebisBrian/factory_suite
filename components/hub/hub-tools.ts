@@ -1,5 +1,7 @@
 export interface HubTool {
   slug: "screendraft" | "generator" | "animations";
+  /** Route de l'outil si elle diffère de `/${slug}` (Générateur : app/codeforge/). */
+  path?: string;
   label: string;
   /** Monogramme affiché dans l'icône de l'appli (style suite créative). */
   monogram: string;
@@ -33,6 +35,7 @@ export const HUB_TOOLS: readonly HubTool[] = [
   },
   {
     slug: "generator",
+    path: "/codeforge/generator",
     label: "Générateur",
     monogram: "Gn",
     description: "JSON → HTML/CSS",
@@ -59,5 +62,6 @@ export const HUB_TOOLS: readonly HubTool[] = [
 
 /** Lien vers un outil. Sans projectId : mode démo (fixtures). */
 export function hubToolHref(tool: HubTool, projectId: number | null): string {
-  return projectId === null ? `/${tool.slug}` : `/${tool.slug}?project_id=${projectId}`;
+  const path = tool.path ?? `/${tool.slug}`;
+  return projectId === null ? path : `${path}?project_id=${projectId}`;
 }

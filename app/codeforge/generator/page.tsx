@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { GeneratorApp } from "@/app/(codeforg)/generator/_components/GeneratorApp";
+import { GeneratorApp } from "@/app/codeforge/generator/_components/GeneratorApp";
 
 export default function GeneratorPage() {
   return (
