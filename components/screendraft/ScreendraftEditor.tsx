@@ -46,7 +46,7 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
           <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
-          <span aria-hidden className="text-body-sm text-(--line-strong)">
+          <span aria-hidden className="text-body-sm text-(--ink-muted)">
             /
           </span>
           <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
