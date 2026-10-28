@@ -3,7 +3,11 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { playAnimation, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { pageWidth } from "@/app/(anime-flow)/animations/_lib/page-source";
-import { createInspector, type Inspector } from "@/app/(anime-flow)/animations/_lib/preview-inspector";
+import {
+  createInspector,
+  type Inspector,
+  type NavigationKey,
+} from "@/app/(anime-flow)/animations/_lib/preview-inspector";
 
 export type AnimationsPreviewHandle = {
   /** Joue l'animation sur l'élément dans l'aperçu. Renvoie false si l'élément est introuvable. */
@@ -15,6 +19,8 @@ type Props = {
   selectedId: string | null;
   /** Élément survolé, dans l'aperçu ou dans la liste. */
   hoveredId: string | null;
+  /** Élément ciblé au clavier dans l'aperçu (flèches). */
+  keyboardId: string | null;
   /** Nom lisible de chaque élément animable, par id : seuls ceux-là sont sélectionnables. */
   elementNames: ReadonlyMap<string, string>;
   onHoverId: (id: string | null) => void;
@@ -24,6 +30,8 @@ type Props = {
   onMissedClick: () => void;
   /** Échap dans l'aperçu : désélection. */
   onEscape: () => void;
+  /** Flèches et Entrée dans l'aperçu. */
+  onNavigate: (key: NavigationKey) => void;
   ref?: Ref<AnimationsPreviewHandle>;
 };
 
@@ -36,11 +44,13 @@ export function AnimationsPreview({
   html,
   selectedId,
   hoveredId,
+  keyboardId,
   elementNames,
   onHoverId,
   onSelectId,
   onMissedClick,
   onEscape,
+  onNavigate,
   ref,
 }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -49,9 +59,16 @@ export function AnimationsPreview({
   const [doc, setDoc] = useState<Document | null>(null);
   const [boxSize, setBoxSize] = useState<{ width: number; height: number } | null>(null);
   // Les écouteurs de l'iframe sont posés une fois au chargement : ils lisent les props à jour ici.
-  const latest = useRef({ elementNames, onHover: onHoverId, onSelect: onSelectId, onMissedClick, onEscape });
+  const latest = useRef({
+    elementNames,
+    onHover: onHoverId,
+    onSelect: onSelectId,
+    onMissedClick,
+    onEscape,
+    onNavigate,
+  });
   useEffect(() => {
-    latest.current = { elementNames, onHover: onHoverId, onSelect: onSelectId, onMissedClick, onEscape };
+    latest.current = { elementNames, onHover: onHoverId, onSelect: onSelectId, onMissedClick, onEscape, onNavigate };
   });
 
   useEffect(() => {
@@ -84,6 +101,11 @@ export function AnimationsPreview({
     inspector.current?.highlight(hoveredId);
   }, [doc, hoveredId]);
 
+  // Au clavier, l'élément ciblé peut être hors de la zone visible : on y fait défiler l'aperçu.
+  useEffect(() => {
+    if (keyboardId) inspector.current?.reveal(keyboardId);
+  }, [doc, keyboardId]);
+
   // Lecture sur demande explicite de l'utilisateur : jouée même si son système réduit les animations.
   useImperativeHandle(
     ref,
@@ -113,7 +135,9 @@ export function AnimationsPreview({
       </div>
       <p id="animations-preview-help" className="text-sm text-(--ink-muted)">
         Survolez un élément pour voir son nom, cliquez pour le sélectionner, Échap pour désélectionner. Au clavier,
-        utilisez la liste « Éléments de la page ». Glissez-déposez page.html et page.css ici pour changer de page.
+        entrez dans l&apos;aperçu avec Tab : flèches haut et bas pour l&apos;élément précédent ou suivant, gauche pour
+        le parent, droite pour le premier enfant, Entrée pour sélectionner. Glissez-déposez page.html et page.css ici
+        pour changer de page.
       </p>
       {/* Fond blanc : c'est la page de l'utilisateur, pas l'interface de l'outil. */}
       {/* Pleine hauteur en 3 colonnes ; empilé (petit écran), une hauteur fixe. */}
@@ -124,7 +148,7 @@ export function AnimationsPreview({
         {/* Sans allow-scripts : les scripts de la page ne tournent pas, mais on garde l'accès au DOM. */}
         <iframe
           ref={frame}
-          title="Aperçu de votre page, cliquez sur un élément pour le sélectionner"
+          title="Aperçu de votre page : cliquez sur un élément, ou parcourez-les avec les flèches"
           aria-describedby="animations-preview-help"
           srcDoc={html}
           sandbox="allow-same-origin"

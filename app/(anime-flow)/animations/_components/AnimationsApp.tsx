@@ -26,6 +26,7 @@ import {
   AnimationsPreview,
   type AnimationsPreviewHandle,
 } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import type { NavigationKey } from "@/app/(anime-flow)/animations/_lib/preview-inspector";
 import {
   AnimationsSidePanel,
   type SidePanelView,
@@ -134,6 +135,8 @@ export function AnimationsApp() {
   const preview = useRef<AnimationsPreviewHandle>(null);
   /** Élément survolé, dans la liste ou dans l'aperçu : entouré des deux côtés. */
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  /** Élément ciblé au clavier dans l'aperçu (inspecteur F12 au clavier). */
+  const [keyboardId, setKeyboardId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [panelView, setPanelView] = useState<SidePanelView>("settings");
 
@@ -180,6 +183,7 @@ export function AnimationsApp() {
     // L'élément sélectionné n'existe peut-être pas dans la nouvelle page.
     setSelected(null);
     setHoveredId(null);
+    setKeyboardId(null);
     setImportError(null);
     setAnnouncement(announce);
   }
@@ -226,6 +230,32 @@ export function AnimationsApp() {
     handleSelect(element);
     // La liste se cale sur l'élément choisi, sans défilement animé.
     document.getElementById(elementButtonId(id))?.scrollIntoView({ block: "nearest" });
+  }
+
+  // Inspecteur au clavier : haut/bas = précédent/suivant dans la page, gauche = parent, droite = premier enfant.
+  function handleNavigate(key: NavigationKey) {
+    const flat = flattenElements(elements ?? []);
+    if (flat.length === 0) return;
+    const currentId = keyboardId ?? selected?.id ?? null;
+    if (key === "Enter") {
+      if (currentId) handleSelectId(currentId);
+      return;
+    }
+    const index = flat.findIndex((element) => element.id === currentId);
+    let target: PageElement | undefined;
+    if (index === -1) target = flat[0];
+    else if (key === "ArrowDown") target = flat[index + 1];
+    else if (key === "ArrowUp") target = flat[index - 1];
+    else if (key === "ArrowRight") target = flat[index].children[0];
+    else target = flat.find((element) => element.children.some((child) => child.id === currentId));
+    if (!target) {
+      setAnnouncement("Pas d'autre élément dans cette direction.");
+      return;
+    }
+    setKeyboardId(target.id);
+    setHoveredId(target.id);
+    const animation = animationByElement[target.id];
+    setAnnouncement(`${target.name}.${animation ? ` ${describeAnimation(animation, customAnimations)}` : ""} Entrée pour sélectionner.`);
   }
 
   function handleMissedClick() {
@@ -546,11 +576,13 @@ export function AnimationsApp() {
                 html={html}
                 selectedId={selected?.id ?? null}
                 hoveredId={hoveredId}
+                keyboardId={keyboardId}
                 elementNames={elementNames}
                 onHoverId={setHoveredId}
                 onSelectId={handleSelectId}
                 onMissedClick={handleMissedClick}
                 onEscape={handleDeselect}
+                onNavigate={handleNavigate}
                 ref={preview}
               />
             ) : projectError ? (
