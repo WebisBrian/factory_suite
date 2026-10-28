@@ -1,6 +1,14 @@
-import type { CSSProperties } from "react";
+import { useContext, type CSSProperties } from "react";
 import { a11yAttributes } from "@/components/screendraft/screendraft-a11y";
-import type { ButtonNode, DraftNode, NodeStyle, ShapeNode, VideoNode } from "@/components/screendraft/screendraft-schema";
+import { CarouselPreviewContext, wrapSlideIndex } from "@/components/screendraft/screendraft-carousel";
+import type {
+  ButtonNode,
+  CarouselNode,
+  DraftNode,
+  NodeStyle,
+  ShapeNode,
+  VideoNode,
+} from "@/components/screendraft/screendraft-schema";
 
 /**
  * Un élément de la maquette, à l'échelle 1, positionné dans son parent.
@@ -49,6 +57,8 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
       );
     case "video":
       return <VideoNodeView node={node} style={style} />;
+    case "carousel":
+      return <CarouselNodeView node={node} style={style} />;
     case "button":
       // Pas de vrai lien ni de vrai bouton : dans l'éditeur, un clic ne doit rien déclencher.
       return (
@@ -59,6 +69,90 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
     case "shape":
       return <ShapeNodeView node={node} style={style} />;
   }
+}
+
+const CAROUSEL_ARROW: CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  width: 40,
+  height: 40,
+  marginTop: -20,
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "rgb(255 255 255 / 0.9)",
+  color: "#111827",
+  fontSize: 28,
+  lineHeight: 1,
+  boxShadow: "0 1px 4px rgb(0 0 0 / 0.3)",
+};
+
+/**
+ * Une diapositive à la fois, avec les flèches et l'indicateur de position de la page générée.
+ * Ils ne sont que dessinés : dans l'éditeur, la diapositive se choisit dans le panneau de
+ * propriétés ; dans le prototype, de vrais boutons sont posés par-dessus.
+ */
+function CarouselNodeView({ node, style }: { node: CarouselNode; style: CSSProperties }) {
+  const { slideIndex } = useContext(CarouselPreviewContext);
+  const { slides, title } = node.props;
+  const index = wrapSlideIndex(slideIndex(node.id), slides.length);
+  const slide = slides[index];
+
+  return (
+    <div
+      data-node-id={node.id}
+      role="region"
+      aria-roledescription="carrousel"
+      aria-label={title}
+      {...a11yAttributes(node)}
+      style={{ ...style, overflow: "hidden", backgroundColor: style.backgroundColor ?? "#e5e7eb" }}
+    >
+      {slide ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={slide.src}
+          alt={slide.alt}
+          draggable={false}
+          style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
+          Ajoutez des images
+        </div>
+      )}
+      {slides.length > 1 && (
+        <div aria-hidden>
+          <span style={{ ...CAROUSEL_ARROW, left: 12 }}>‹</span>
+          <span style={{ ...CAROUSEL_ARROW, right: 12 }}>›</span>
+          <span
+            style={{
+              position: "absolute",
+              bottom: 12,
+              left: 0,
+              right: 0,
+              display: "flex",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            {slides.map((candidate, position) => (
+              <span
+                key={candidate.id}
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  backgroundColor: position === index ? "#ffffff" : "rgb(255 255 255 / 0.5)",
+                  boxShadow: "0 0 0 1px rgb(0 0 0 / 0.3)",
+                }}
+              />
+            ))}
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**

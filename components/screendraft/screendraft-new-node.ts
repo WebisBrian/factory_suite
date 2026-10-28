@@ -1,3 +1,4 @@
+import { createSlide } from "@/components/screendraft/screendraft-carousel";
 import { defaultThemeLinks } from "@/components/screendraft/screendraft-mockup-theme";
 import type { DraftNode, DraftNodeType, ShapeKind } from "@/components/screendraft/screendraft-schema";
 
@@ -88,6 +89,16 @@ function createBaseNode(type: DraftNodeType, index: number, shape: ShapeKind): D
         height: 270,
         style: { backgroundColor: "#0f172a", borderRadius: 12 },
         props: { src: "", kind: "embed", title: "Vidéo" },
+      };
+    // Trois diapositives d'exemple, à remplacer dans le panneau de propriétés.
+    case "carousel":
+      return {
+        ...base,
+        type,
+        width: 640,
+        height: 360,
+        style: { borderRadius: 12 },
+        props: { title: "Carrousel", slides: [1, 2, 3].map(createSlide) },
       };
     case "shape":
       return {

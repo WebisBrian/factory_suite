@@ -7,6 +7,7 @@ import {
   ScreendraftNumberField,
   ScreendraftSelectField,
 } from "@/components/screendraft/ScreendraftFields";
+import { ScreendraftCarouselFields } from "@/components/screendraft/ScreendraftCarouselFields";
 import type { Geometry, ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
 import type {
   ButtonNode,
@@ -36,7 +37,7 @@ const DEFAULT_FONT_SIZE = 16;
 
 const HAS_FILL: DraftNodeType[] = ["section", "button", "shape"];
 const HAS_TEXT_STYLE: DraftNodeType[] = ["title", "text", "button"];
-const HAS_BOX_STYLE: DraftNodeType[] = ["section", "image", "video", "button", "shape"];
+const HAS_BOX_STYLE: DraftNodeType[] = ["section", "image", "video", "carousel", "button", "shape"];
 
 const GEOMETRY_FIELDS: { key: keyof Geometry; label: string; min: number; max: number }[] = [
   { key: "x", label: "X", min: 0, max: MAX_POSITION },
@@ -312,6 +313,8 @@ function ContentFields({ node, screens, screenId, dispatch }: ScreendraftNodePro
     // Remonté à chaque changement d'élément pour repartir de son lien.
     case "video":
       return <VideoFields key={node.id} node={node} dispatch={dispatch} />;
+    case "carousel":
+      return <ScreendraftCarouselFields node={node} dispatch={dispatch} />;
     case "shape":
       return (
         <ScreendraftFieldGroup title="Forme">
