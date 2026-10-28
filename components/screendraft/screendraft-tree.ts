@@ -105,6 +105,14 @@ export function removeNode(nodes: DraftNode[], id: string): DraftNode[] {
     );
 }
 
+/** Ajoute un élément au premier plan d'une section, ou du frame si `parentId` est null. */
+export function insertInto(nodes: DraftNode[], node: DraftNode, parentId: string | null): DraftNode[] {
+  if (parentId === null) return [...nodes, node];
+  return updateNode(nodes, parentId, (section) =>
+    section.type === "section" ? { ...section, children: [...section.children, node] } : section,
+  );
+}
+
 function insertAmong(siblings: DraftNode[], node: DraftNode, placement: Placement): DraftNode[] {
   if (placement.type === "inside") return [...siblings, node];
   const index =

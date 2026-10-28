@@ -10,7 +10,7 @@ import {
   isValidFrameHeight,
 } from "@/components/screendraft/screendraft-formats";
 import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { DraftNode, Frame } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Frame, Screen } from "@/components/screendraft/screendraft-schema";
 import type { NodeLocation } from "@/components/screendraft/screendraft-tree";
 
 const DEVICE_GROUPS: { device: Frame["device"]; label: string }[] = [
@@ -25,27 +25,44 @@ const FIELD_CLASS =
   "w-full rounded-(--radius-sm) border border-(--line-strong) bg-(--surface-raised) px-(--space-2) py-(--space-1) text-(--ink)";
 
 type ScreendraftPropertiesPanelProps = {
-  frame: Frame;
+  /** Écran actif. */
+  screen: Screen;
+  /** Une maquette garde au moins un écran : le dernier ne peut pas être supprimé. */
+  canDeleteScreen: boolean;
   selection: NodeLocation | null;
+  /** Écran de l'élément sélectionné. */
+  selectionScreenId: string | null;
+  screens: Screen[];
+  onSendToScreen: (nodeId: string, screenId: string) => void;
   dispatch: Dispatch<ScreendraftAction>;
   onCreateComponent: (name: string, node: DraftNode) => void;
 };
 
 /**
- * Propriétés, profondeur et création de composant pour l'élément sélectionné,
- * puis propriétés de la maquette.
+ * Propriétés, profondeur, écran et création de composant pour l'élément sélectionné,
+ * puis propriétés de l'écran actif.
  */
 export function ScreendraftPropertiesPanel({
-  frame,
+  screen,
+  canDeleteScreen,
   selection,
+  selectionScreenId,
+  screens,
+  onSendToScreen,
   dispatch,
   onCreateComponent,
 }: ScreendraftPropertiesPanelProps) {
+  const { frame } = screen;
   const preset = findPreset(frame);
 
   function handleFormatChange(event: ChangeEvent<HTMLSelectElement>) {
     const next = FRAME_PRESETS.find((option) => String(option.width) === event.target.value);
-    if (next) dispatch({ type: "set-format", format: next });
+    if (next) dispatch({ type: "set-format", screenId: screen.id, format: next });
+  }
+
+  // Un nom vide n'est pas gardé : l'écran reprend un nom par défaut en sortant du champ.
+  function commitName(input: HTMLInputElement) {
+    if (input.value.trim() === "") dispatch({ type: "rename-screen", screenId: screen.id, name: "Sans nom" });
   }
 
   // Validée à la sortie du champ (ou sur Entrée) pour laisser taper librement.
@@ -55,13 +72,32 @@ export function ScreendraftPropertiesPanel({
       input.value = String(frame.height);
       return;
     }
-    if (height !== frame.height) dispatch({ type: "set-frame-height", height });
+    if (height !== frame.height) dispatch({ type: "set-frame-height", screenId: screen.id, height });
   }
 
   return (
     <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
       {selection && <ScreendraftNodeProperties node={selection.node} dispatch={dispatch} />}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
+      {/* Équivalent clavier du glisser vers un autre écran. */}
+      {selection && selectionScreenId && screens.length > 1 && (
+        <section className="mb-(--space-4) border-b border-(--line) pb-(--space-4)">
+          <label className="text-body-sm flex flex-col gap-(--space-1)">
+            <span className="text-label text-(--ink-muted)">Écran de l’élément</span>
+            <select
+              value={selectionScreenId}
+              onChange={(event) => onSendToScreen(selection.node.id, event.target.value)}
+              className={FIELD_CLASS}
+            >
+              {screens.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+      )}
       {selection && (
         <ScreendraftCreateComponent
           key={selection.node.id}
@@ -70,9 +106,25 @@ export function ScreendraftPropertiesPanel({
         />
       )}
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
-        Maquette
+        Écran
       </h2>
       <div className="text-body-sm flex flex-col gap-(--space-3)">
+        <label className="flex flex-col gap-(--space-1)">
+          <span className="text-(--ink-muted)">Nom</span>
+          <input
+            type="text"
+            value={screen.name}
+            onChange={(event) =>
+              dispatch({ type: "rename-screen", screenId: screen.id, name: event.target.value })
+            }
+            onBlur={(event) => commitName(event.currentTarget)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            className={FIELD_CLASS}
+          />
+        </label>
+
         <label className="flex flex-col gap-(--space-1)">
           <span className="text-(--ink-muted)">Format</span>
           <select
@@ -107,7 +159,7 @@ export function ScreendraftPropertiesPanel({
           <label className="flex flex-col gap-(--space-1)">
             <span className="text-(--ink-muted)">Hauteur (px)</span>
             <input
-              key={frame.height}
+              key={`${screen.id}:${frame.height}`}
               type="number"
               inputMode="numeric"
               min={MIN_FRAME_HEIGHT}
@@ -135,6 +187,16 @@ export function ScreendraftPropertiesPanel({
             </span>
           </span>
         </div>
+
+        <button
+          type="button"
+          disabled={!canDeleteScreen}
+          title={canDeleteScreen ? undefined : "Une maquette garde au moins un écran"}
+          onClick={() => dispatch({ type: "delete-screen", screenId: screen.id })}
+          className="text-body-sm mt-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-2) py-(--space-1) text-(--danger) hover:border-(--danger) disabled:border-(--line) disabled:text-(--line-strong) disabled:hover:border-(--line)"
+        >
+          Supprimer l’écran
+        </button>
       </div>
     </aside>
   );
