@@ -17,7 +17,9 @@ export interface HubGuide {
 
 /** Ce qu'il faut faire dans chaque outil, avec le libellé exact de ses boutons. */
 const STEP_HOWTO: Record<HubTool["slug"], string> = {
-  screendraft: "Créez votre maquette, puis cliquez sur « Enregistrer » (ou Ctrl+S).",
+  // Premier passage sur un projet : ScreenDraft propose ses modèles avant l'éditeur.
+  screendraft:
+    "Choisissez un modèle (bouton « Utiliser ») ou la maquette vierge, adaptez-la, puis cliquez sur « Enregistrer » (ou Ctrl+S).",
   generator: "Vérifiez l'aperçu de la page, puis cliquez sur « Générer et enregistrer ».",
   animations: "Sélectionnez les éléments de la page et choisissez leurs animations.",
 };
