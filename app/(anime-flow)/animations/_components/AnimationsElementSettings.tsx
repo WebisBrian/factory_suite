@@ -4,7 +4,13 @@ import {
   AnimationsChoiceGroup,
   type AnimationsChoice,
 } from "@/app/(anime-flow)/animations/_components/AnimationsChoiceGroup";
+import { AnimationsSecondsField } from "@/app/(anime-flow)/animations/_components/AnimationsSecondsField";
 import { ANIMATION_PRESETS, describeEffect } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  DELAY_LIMITS,
+  DURATION_LIMITS,
+  type ElementAnimation,
+} from "@/app/(anime-flow)/animations/_lib/element-animation";
 import { TRIGGER_EVENTS, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 const NO_ANIMATION = "none";
@@ -23,14 +29,20 @@ const EVENT_CHOICES: readonly AnimationsChoice<TriggerEventId>[] = TRIGGER_EVENT
 type Props = {
   elementName: string;
   /** null : aucune animation. */
-  presetId: string | null;
-  event: TriggerEventId;
+  animation: ElementAnimation | null;
   onPresetChange: (presetId: string | null) => void;
   onEventChange: (event: TriggerEventId) => void;
+  onTimingChange: (timing: Partial<Pick<ElementAnimation, "duration" | "delay">>) => void;
 };
 
-/** Réglages de l'élément sélectionné : l'animation, puis ce qui la déclenche. */
-export function AnimationsElementSettings({ elementName, presetId, event, onPresetChange, onEventChange }: Props) {
+/** Réglages de l'élément sélectionné : l'animation, ce qui la déclenche, puis sa durée et son délai. */
+export function AnimationsElementSettings({
+  elementName,
+  animation,
+  onPresetChange,
+  onEventChange,
+  onTimingChange,
+}: Props) {
   return (
     <section
       aria-labelledby="animations-settings-title"
@@ -43,18 +55,38 @@ export function AnimationsElementSettings({ elementName, presetId, event, onPres
         legend="Animation"
         name="animations-preset"
         choices={PRESET_CHOICES}
-        value={presetId ?? NO_ANIMATION}
+        value={animation?.animation ?? NO_ANIMATION}
         onChange={(value) => onPresetChange(value === NO_ANIMATION ? null : value)}
       />
-      {/* Sans animation, il n'y a rien à déclencher. */}
-      {presetId !== null && (
-        <AnimationsChoiceGroup
-          legend="Déclencheur"
-          name="animations-event"
-          choices={EVENT_CHOICES}
-          value={event}
-          onChange={onEventChange}
-        />
+      {/* Sans animation, il n'y a rien à déclencher ni à régler. */}
+      {animation && (
+        <>
+          <AnimationsChoiceGroup
+            legend="Déclencheur"
+            name="animations-event"
+            choices={EVENT_CHOICES}
+            value={animation.event}
+            onChange={onEventChange}
+          />
+          {/* key : la durée repart de celle de l'animation quand on en change. */}
+          <fieldset key={animation.animation}>
+            <legend className="text-base font-semibold">Durée et délai</legend>
+            <div className="mt-2 flex flex-wrap gap-6">
+              <AnimationsSecondsField
+                label="Durée"
+                valueMs={animation.duration}
+                limits={DURATION_LIMITS}
+                onChange={(duration) => onTimingChange({ duration })}
+              />
+              <AnimationsSecondsField
+                label="Délai avant de démarrer"
+                valueMs={animation.delay}
+                limits={DELAY_LIMITS}
+                onChange={(delay) => onTimingChange({ delay })}
+              />
+            </div>
+          </fieldset>
+        </>
       )}
     </section>
   );

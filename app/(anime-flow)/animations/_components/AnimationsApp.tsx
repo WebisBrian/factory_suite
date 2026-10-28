@@ -18,14 +18,8 @@ import {
   PAGE_FILE,
   STYLE_FILE,
 } from "@/app/(anime-flow)/animations/_lib/page-source";
-import {
-  DEFAULT_TRIGGER_EVENT,
-  findTriggerEvent,
-  type TriggerEventId,
-} from "@/app/(anime-flow)/animations/_lib/trigger-events";
-
-/** Animation posée sur un élément : laquelle, et ce qui la déclenche. */
-type ElementAnimation = { animation: string; event: TriggerEventId };
+import { findTriggerEvent, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
+import { withPreset, type ElementAnimation } from "@/app/(anime-flow)/animations/_lib/element-animation";
 
 type ProjectLoad = { status: "ok"; html: string } | { status: "missing" } | { status: "fs-error"; message: string };
 
@@ -156,8 +150,7 @@ export function AnimationsApp() {
       delete next[selected.id];
       setAnnouncement(`Animation retirée de ${selected.name}.`);
     } else {
-      // On garde le déclencheur déjà choisi quand on change seulement d'animation.
-      next[selected.id] = { animation: presetId, event: selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT };
+      next[selected.id] = withPreset(presetId, selectedAnimation);
       setAnnouncement(`${describeAnimation(next[selected.id])} Ajoutée à ${selected.name}.`);
     }
     setAnimationByElement(next);
@@ -168,6 +161,12 @@ export function AnimationsApp() {
     const updated = { ...selectedAnimation, event };
     setAnimationByElement({ ...animationByElement, [selected.id]: updated });
     setAnnouncement(`${describeAnimation(updated)} Sur ${selected.name}.`);
+  }
+
+  // Pas d'annonce : le lecteur d'écran lit déjà la valeur saisie dans le champ.
+  function handleTimingChange(timing: Partial<Pick<ElementAnimation, "duration" | "delay">>) {
+    if (!selected || !selectedAnimation) return;
+    setAnimationByElement({ ...animationByElement, [selected.id]: { ...selectedAnimation, ...timing } });
   }
 
   return (
@@ -238,11 +237,13 @@ export function AnimationsApp() {
             <div className="flex flex-col gap-6">
               {selected ? (
                 <AnimationsElementSettings
+                  // key : les champs de durée repartent des valeurs de l'élément choisi.
+                  key={selected.id}
                   elementName={selected.name}
-                  presetId={selectedAnimation?.animation ?? null}
-                  event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
+                  animation={selectedAnimation}
                   onPresetChange={handlePresetChange}
                   onEventChange={handleEventChange}
+                  onTimingChange={handleTimingChange}
                 />
               ) : (
                 <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-sm text-(--ink-muted)">
