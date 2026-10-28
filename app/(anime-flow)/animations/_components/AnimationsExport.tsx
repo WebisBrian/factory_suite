@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { writeProjectFile } from "@/lib/project-fs";
 import {
@@ -10,21 +9,12 @@ import {
   type AnimeFlowConfig,
 } from "@/app/(anime-flow)/animations/_lib/animation-config";
 import { ANIMATION_RUNTIME_JS, INTEGRATION_SNIPPET } from "@/app/(anime-flow)/animations/_lib/animation-runtime";
+import { PRIMARY_BUTTON, SECONDARY_BUTTON } from "@/app/(anime-flow)/animations/_lib/field-styles";
 
-type ExportState =
+export type ExportState =
   | { status: "saving" }
   | { status: "done"; message: string }
   | { status: "error"; message: string; showHubLink: boolean };
-
-type Props = {
-  projectId: number | null;
-  config: AnimeFlowConfig;
-};
-
-const PRIMARY_BUTTON =
-  "min-h-12 rounded-full bg-(--motion) px-6 text-lg font-semibold text-(--on-motion) hover:bg-(--motion-strong)";
-const SECONDARY_BUTTON =
-  "min-h-12 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-6 text-lg font-semibold hover:bg-(--motion-soft)";
 
 function downloadFile(name: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -39,94 +29,99 @@ function downloadFile(name: string, content: string, type: string) {
 }
 
 /** Export pour l'intégration : le script `animations.js` et sa config `animations.json`. */
-export function AnimationsExport({ projectId, config }: Props) {
+/** `announce` reçoit le message de réussite, pour le lecteur d'écran. */
+export function useAnimationsExport(
+  projectId: number | null,
+  config: AnimeFlowConfig,
+  announce: (message: string) => void,
+) {
   const [state, setState] = useState<ExportState | null>(null);
-  const count = config.elements.length;
-  const summary =
-    count === 0
-      ? "Aucun élément animé pour l'instant : la config sera vide."
-      : `${count} élément${count > 1 ? "s" : ""} animé${count > 1 ? "s" : ""}.`;
 
   // Écriture depuis un clic : Chrome peut afficher l'invite d'autorisation.
-  async function handleSave() {
+  async function save() {
     if (projectId === null) return;
     setState({ status: "saving" });
     try {
       await writeProjectFile(projectId, CONFIG_FILE, serializeConfig(config));
       await writeProjectFile(projectId, SCRIPT_FILE, ANIMATION_RUNTIME_JS);
-      setState({
-        status: "done",
-        message: `${SCRIPT_FILE} et ${CONFIG_FILE} enregistrés dans le projet ${projectId}.`,
-      });
+      const message = `${SCRIPT_FILE} et ${CONFIG_FILE} enregistrés dans le projet ${projectId}.`;
+      setState({ status: "done", message });
+      announce(message);
     } catch (e) {
       setState({ status: "error", message: e instanceof Error ? e.message : String(e), showHubLink: true });
     }
   }
 
-  function handleDownload() {
+  function download() {
     try {
       downloadFile(CONFIG_FILE, serializeConfig(config), "application/json;charset=utf-8");
       downloadFile(SCRIPT_FILE, ANIMATION_RUNTIME_JS, "text/javascript;charset=utf-8");
-      setState({ status: "done", message: `Téléchargement de ${SCRIPT_FILE} et ${CONFIG_FILE} lancé.` });
+      const message = `Téléchargement de ${SCRIPT_FILE} et ${CONFIG_FILE} lancé.`;
+      setState({ status: "done", message });
+      announce(message);
     } catch {
       setState({ status: "error", message: "le téléchargement a échoué. Réessayez.", showHubLink: false });
     }
   }
 
-  return (
-    <section
-      aria-labelledby="animations-export-title"
-      className="flex flex-col gap-4 rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
-    >
-      <h2 id="animations-export-title" className="text-xl font-semibold">
-        Exporter les animations
-      </h2>
-      <p className="text-lg text-(--ink-muted)">
-        Deux fichiers pour l&apos;intégration : <code className="font-mono">{SCRIPT_FILE}</code> (le script qui joue
-        les animations) et <code className="font-mono">{CONFIG_FILE}</code> (la liste des animations). {summary}
-      </p>
+  return { state, save, download, dismiss: () => setState(null) };
+}
 
-      <div className="flex flex-wrap gap-3">
-        {projectId !== null && (
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={state?.status === "saving"}
-            className={PRIMARY_BUTTON}
-          >
-            Enregistrer dans le projet
-          </button>
-        )}
+type ButtonsProps = {
+  projectId: number | null;
+  saving: boolean;
+  onSave: () => void;
+  onDownload: () => void;
+};
+
+/** Boutons d'export de l'en-tête. */
+export function AnimationsExportButtons({ projectId, saving, onSave, onDownload }: ButtonsProps) {
+  return (
+    <>
+      {projectId !== null && (
         <button
           type="button"
-          onClick={handleDownload}
-          className={projectId === null ? PRIMARY_BUTTON : SECONDARY_BUTTON}
+          onClick={onSave}
+          disabled={saving}
+          aria-label={`Enregistrer ${SCRIPT_FILE} et ${CONFIG_FILE} dans le projet`}
+          className={PRIMARY_BUTTON}
         >
-          Télécharger les 2 fichiers
+          <svg aria-hidden viewBox="0 0 24 24" className="size-5 fill-current">
+            <path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 2v5h8V5H7Zm5 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+          </svg>
+          {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
-      </div>
-
-      <p role="status" className="text-lg">
-        {state?.status === "saving" && "Enregistrement…"}
-        {state?.status === "done" && state.message}
-      </p>
-      {state?.status === "error" && (
-        <div role="alert" className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)">
-          <p>Erreur : {state.message}</p>
-          {state.showHubLink && (
-            <Link href="/" className="inline-flex min-h-12 items-center underline">
-              Retour au Hub
-            </Link>
-          )}
-        </div>
       )}
+      <button
+        type="button"
+        onClick={onDownload}
+        aria-label={`Télécharger ${SCRIPT_FILE} et ${CONFIG_FILE}`}
+        className={projectId === null ? PRIMARY_BUTTON : SECONDARY_BUTTON}
+      >
+        <svg aria-hidden viewBox="0 0 24 24" className="size-5 fill-current">
+          <path d="M11 3h2v9.17l3.59-3.58L18 10l-6 6-6-6 1.41-1.41L11 12.17V3ZM4 18h16v2H4v-2Z" />
+        </svg>
+        Télécharger
+      </button>
+    </>
+  );
+}
 
-      <div>
-        <p className="text-lg">Ensuite, ajoutez cette ligne dans le &lt;head&gt; de la page :</p>
-        <pre className="mt-2 overflow-x-auto rounded-xl border border-(--line) bg-(--surface) p-3 text-lg">
-          <code className="font-mono">{INTEGRATION_SNIPPET}</code>
-        </pre>
-      </div>
-    </section>
+/** Ce que l'intégration doit ajouter à la page. */
+export function AnimationsIntegration({ animatedCount }: { animatedCount: number }) {
+  return (
+    <div className="flex flex-col gap-3 text-lg">
+      <p>
+        L&apos;export produit <code className="font-mono">{SCRIPT_FILE}</code> (le script qui joue les animations) et{" "}
+        <code className="font-mono">{CONFIG_FILE}</code> (la liste des animations).{" "}
+        {animatedCount === 0
+          ? "Aucun élément animé pour l'instant."
+          : `${animatedCount} élément${animatedCount > 1 ? "s" : ""} animé${animatedCount > 1 ? "s" : ""}.`}
+      </p>
+      <p>Placez-les à côté de la page, puis ajoutez dans son &lt;head&gt; :</p>
+      <pre className="overflow-x-auto rounded-xl border border-(--line) bg-(--surface) p-3 whitespace-pre-wrap break-all">
+        <code className="font-mono">{INTEGRATION_SNIPPET}</code>
+      </pre>
+    </div>
   );
 }

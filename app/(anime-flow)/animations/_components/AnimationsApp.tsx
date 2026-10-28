@@ -10,10 +10,19 @@ import {
   elementButtonId,
 } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
-import { AnimationsExport } from "@/app/(anime-flow)/animations/_components/AnimationsExport";
+import {
+  AnimationsExportButtons,
+  AnimationsIntegration,
+  useAnimationsExport,
+} from "@/app/(anime-flow)/animations/_components/AnimationsExport";
 import { AnimationsCustomEditor } from "@/app/(anime-flow)/animations/_components/AnimationsCustomEditor";
-import { AnimationsPageSource } from "@/app/(anime-flow)/animations/_components/AnimationsPageSource";
+import { AnimationsPageImport, useFileDrop } from "@/app/(anime-flow)/animations/_components/AnimationsPageImport";
+import { AnimationsPanelSection } from "@/app/(anime-flow)/animations/_components/AnimationsPanelSection";
 import { AnimationsPreview, type PreviewPlay } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import {
+  AnimationsSidePanel,
+  type SidePanelView,
+} from "@/app/(anime-flow)/animations/_components/AnimationsSidePanel";
 import {
   buildConfig,
   CONFIG_FILE,
@@ -21,7 +30,13 @@ import {
   type ElementAnimation,
   type RestoredConfig,
 } from "@/app/(anime-flow)/animations/_lib/animation-config";
-import { ANIMATION_PRESETS, findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  ANIMATION_PRESETS,
+  describeEffect,
+  findPreset,
+  type AnimationPreset,
+} from "@/app/(anime-flow)/animations/_lib/animation-library";
+import { ERROR_BOX, SECONDARY_BUTTON } from "@/app/(anime-flow)/animations/_lib/field-styles";
 import { flattenElements, listPageElements, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
@@ -116,6 +131,7 @@ export function AnimationsApp() {
   /** Élément survolé, dans la liste ou dans l'aperçu : entouré des deux côtés. */
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [panelView, setPanelView] = useState<SidePanelView>("settings");
 
   // Reprend aussi le travail enregistré dans animations.json.
   function applyLoad(next: ProjectLoad) {
@@ -143,13 +159,13 @@ export function AnimationsApp() {
   let sourceLabel: string | null = null;
   if (imported) {
     html = imported.html;
-    sourceLabel = `Page importée : ${imported.fileName}.`;
+    sourceLabel = imported.fileName;
   } else if (projectId === null) {
     html = pageHtmlFixture;
-    sourceLabel = "Page de démo.";
+    sourceLabel = "page de démo";
   } else if (projectLoad?.status === "ok") {
     html = projectLoad.html;
-    sourceLabel = `${PAGE_FILE} du projet #${projectId}.`;
+    sourceLabel = PAGE_FILE;
   }
   // DOMParser n'existe que dans le navigateur.
   const elements = useMemo(() => (html === null || !isBrowser ? null : listPageElements(html)), [html, isBrowser]);
@@ -258,107 +274,210 @@ export function AnimationsApp() {
     setAnnouncement(`${describeAnimation(updated, customAnimations)} Sur ${selected.name}.`);
   }
 
+  const exporter = useAnimationsExport(projectId, config, setAnnouncement);
+  const drop = useFileDrop(handleFiles);
+
+  // Création depuis le panneau : annonce, puis retour aux réglages (où l'animation est appliquée).
+  function handleCreateFromEditor(preset: AnimationPreset): string {
+    const message = handleCreate(preset);
+    setAnnouncement(message);
+    setPanelView("settings");
+    return message;
+  }
+
+  const projectError =
+    !imported && projectId !== null && projectLoad && projectLoad.status !== "ok" ? projectLoad : null;
+  const missing = html === null ? [] : missingStylesheets(html);
+  const exportState = exporter.state;
+  const hasMessages =
+    projectError !== null ||
+    (projectLoad?.status === "ok" && projectLoad.invalidConfig) ||
+    importError !== null ||
+    missing.length > 0 ||
+    exportState !== null;
+
   return (
-    <div className="anime-flow flex flex-1 flex-col">
-      <header className="border-b border-(--line) bg-(--surface-raised)">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 py-5">
-          <div className="flex items-center gap-4">
+    // Le Hub n'impose pas de hauteur : comme Screendraft, l'outil occupe exactement l'espace sous
+    // la barre du Hub et seuls ses panneaux défilent. En petit écran, les colonnes s'empilent et la
+    // page défile (sinon le texte agrandi ne tiendrait pas).
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="anime-flow flex flex-1 flex-col lg:absolute lg:inset-0">
+        <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-(--line) bg-(--surface-raised) px-4 py-2">
+          <h1 className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {/* Logo décoratif : le titre « Animations » juste à côté nomme déjà l'outil. */}
             {/* eslint-disable-next-line @next/next/no-img-element -- next/image est exclu par l'export statique. */}
-            <img src={animflowMark.src} alt="" width={48} height={48} className="size-12 shrink-0" />
-
-            <div>
-              <h1 className="text-3xl font-semibold">Animations</h1>
-              <p className="text-lg text-(--ink-muted)">Importez votre page, puis choisissez les éléments à animer.</p>
-            </div>
-          </div>
-          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-4 py-1 text-lg font-medium">
+            <img src={animflowMark.src} alt="" width={40} height={40} className="size-10 shrink-0" />
+            <span className="text-2xl font-semibold">Animations</span>
+            {sourceLabel && (
+              <>
+                <span aria-hidden className="text-lg text-(--ink-muted)">
+                  /
+                </span>
+                <span className="sr-only">, </span>
+                <span className="min-w-0 text-lg font-normal break-words text-(--ink-muted)">{sourceLabel}</span>
+              </>
+            )}
+          </h1>
+          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-3 text-lg font-medium">
             {projectId === null ? "Mode démo" : `Projet #${projectId}`}
           </span>
-        </div>
-      </header>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <AnimationsPageImport
+              canReloadProject={projectId !== null}
+              canCancelImport={imported !== null}
+              onFiles={handleFiles}
+              onReloadProject={handleReload}
+              onCancelImport={handleCancelImport}
+            />
+            <AnimationsExportButtons
+              projectId={projectId}
+              saving={exportState?.status === "saving"}
+              onSave={exporter.save}
+              onDownload={exporter.download}
+            />
+          </div>
+        </header>
 
-      {/* Pleine largeur : la page à animer doit s'afficher en grand. */}
-      <div className="flex w-full flex-col gap-6 px-6 py-8">
         {/* Annonce les actions aux lecteurs d'écran. */}
         <p aria-live="polite" className="sr-only">
           {announcement}
         </p>
 
-        <AnimationsPageSource
-          sourceLabel={sourceLabel}
-          missingStylesheets={html === null ? [] : missingStylesheets(html)}
-          importError={importError}
-          canReloadProject={projectId !== null}
-          canCancelImport={imported !== null}
-          onFiles={handleFiles}
-          onReloadProject={handleReload}
-          onCancelImport={handleCancelImport}
-        />
-
-        {!imported && projectId !== null && projectLoad && projectLoad.status !== "ok" && (
-          <div
-            role="alert"
-            className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)"
-          >
-            <p>
-              {projectLoad.status === "missing"
-                ? `${PAGE_FILE} introuvable dans le projet ${projectId} : passez d'abord par le Générateur, ou importez une page.`
-                : projectLoad.message}
-            </p>
-            <div className="mt-2 flex gap-6">
-              <button type="button" onClick={handleReload} className="min-h-12 underline">
-                Réessayer
-              </button>
-              <Link href="/" className="inline-flex min-h-12 items-center underline">
-                Retour au Hub
-              </Link>
-            </div>
+        {hasMessages && (
+          <div className="flex shrink-0 flex-col gap-2 border-b border-(--line) bg-(--surface) px-4 py-2">
+            {projectError && (
+              <div role="alert" className={`${ERROR_BOX} flex flex-wrap items-center gap-x-6`}>
+                <p>
+                  Erreur :{" "}
+                  {projectError.status === "missing"
+                    ? `${PAGE_FILE} introuvable dans le projet ${projectId} : passez d'abord par le Générateur, ou importez une page.`
+                    : projectError.message}
+                </p>
+                <button type="button" onClick={handleReload} className="min-h-12 underline">
+                  Réessayer
+                </button>
+                <Link href="/" className="inline-flex min-h-12 items-center underline">
+                  Retour au Hub
+                </Link>
+              </div>
+            )}
+            {projectLoad?.status === "ok" && projectLoad.invalidConfig && (
+              <p role="alert" className={ERROR_BOX}>
+                Erreur : {CONFIG_FILE} est illisible. Les animations repartent de zéro ; l&apos;enregistrement
+                remplacera ce fichier.
+              </p>
+            )}
+            {importError && (
+              <p role="alert" className={ERROR_BOX}>
+                Erreur : {importError}
+              </p>
+            )}
+            {missing.length > 0 && (
+              <p className="rounded-xl border-2 border-(--line-strong) p-3 text-lg">
+                Cette page utilise {missing.join(", ")} : importez-le avec la page pour voir ses couleurs et sa mise en
+                page.
+              </p>
+            )}
+            {exportState?.status === "done" && (
+              <div className="flex flex-wrap items-center gap-x-6 rounded-xl border-2 border-(--motion) bg-(--motion-soft) px-3 text-lg">
+                <p className="py-2">
+                  <span aria-hidden>✓ </span>
+                  {exportState.message}
+                </p>
+                <button type="button" onClick={exporter.dismiss} className="min-h-12 underline">
+                  Masquer le message
+                </button>
+              </div>
+            )}
+            {exportState?.status === "error" && (
+              <div role="alert" className={`${ERROR_BOX} flex flex-wrap items-center gap-x-6`}>
+                <p>Erreur : {exportState.message}</p>
+                {exportState.showHubLink && (
+                  <Link href="/" className="inline-flex min-h-12 items-center underline">
+                    Retour au Hub
+                  </Link>
+                )}
+                <button type="button" onClick={exporter.dismiss} className="min-h-12 underline">
+                  Masquer le message
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        {projectLoad?.status === "ok" && projectLoad.invalidConfig && (
-          <p role="alert" className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)">
-            Erreur : {CONFIG_FILE} est illisible. Les animations repartent de zéro ; l&apos;enregistrement remplacera
-            ce fichier.
-          </p>
-        )}
-
-        {html === null || elements === null ? (
-          projectLoad?.status !== "missing" &&
-          projectLoad?.status !== "fs-error" && <p className="text-lg text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
-        ) : (
-          <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
-            <AnimationsElementBar
-              elements={elements}
-              selectedId={selected?.id ?? null}
-              hoveredId={hoveredId}
-              onSelect={handleSelect}
-              onHover={setHoveredId}
-            />
-            <div className="flex flex-col gap-6">
-              {selected ? (
-                <AnimationsElementSettings
-                  elementName={selected.name}
-                  presetId={selectedAnimation?.animation ?? null}
-                  event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
-                  customAnimations={customAnimations}
-                  onPresetChange={handlePresetChange}
-                  onEventChange={handleEventChange}
+        <div className="flex flex-1 flex-col lg:min-h-0 lg:flex-row">
+          {/* Panneau de gauche : comme Screendraft, des sections repliables qui défilent d'un bloc. */}
+          <aside
+            aria-label="Éléments et animations"
+            className="border-b border-(--line) bg-(--surface-raised) py-1 lg:w-80 lg:max-w-[30vw] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r lg:border-b-0"
+          >
+            <AnimationsPanelSection
+              id="elements"
+              headingId="animations-elements-title"
+              title="Éléments de la page"
+              count={elementById.size}
+              isFirst
+            >
+              {elements ? (
+                <AnimationsElementBar
+                  elements={elements}
+                  selectedId={selected?.id ?? null}
+                  hoveredId={hoveredId}
+                  onSelect={handleSelect}
+                  onHover={setHoveredId}
+                  labelledBy="animations-elements-title"
                 />
               ) : (
-                <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-lg text-(--ink-muted)">
-                  Sélectionnez un élément dans la liste ou cliquez dessus dans l&apos;aperçu pour lui choisir une
-                  animation.
-                </p>
+                <p className="text-lg text-(--ink-muted)">Aucune page chargée.</p>
               )}
-              <AnimationsCustomEditor
-                selectedName={selected?.name ?? null}
-                takenNames={[...ANIMATION_PRESETS, ...customAnimations].map((preset) => preset.name)}
-                takenIds={[...ANIMATION_PRESETS, ...customAnimations].map((preset) => preset.id)}
-                onTest={handleTest}
-                onCreate={handleCreate}
-              />
+            </AnimationsPanelSection>
+
+            <AnimationsPanelSection
+              id="custom"
+              headingId="animations-custom-title"
+              title="Mes animations"
+              count={customAnimations.length}
+              defaultOpen={false}
+            >
+              <div className="flex flex-col gap-3">
+                {customAnimations.length === 0 ? (
+                  <p className="text-lg text-(--ink-muted)">
+                    Pas encore d&apos;animation personnalisée : créez la vôtre si la bibliothèque ne suffit pas.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {customAnimations.map((preset) => (
+                      <li key={preset.id} className="text-lg">
+                        <span className="font-semibold">{preset.name}</span>
+                        <span className="block text-(--ink-muted)">{describeEffect(preset)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPanelView("editor")}
+                  aria-pressed={panelView === "editor"}
+                  className={`${SECONDARY_BUTTON} self-start`}
+                >
+                  <span aria-hidden>+</span> Créer une animation
+                </button>
+              </div>
+            </AnimationsPanelSection>
+
+            <AnimationsPanelSection
+              id="integration"
+              headingId="animations-integration-title"
+              title="Intégration"
+              defaultOpen={false}
+            >
+              <AnimationsIntegration animatedCount={config.elements.length} />
+            </AnimationsPanelSection>
+          </aside>
+
+          {/* Centre : l'aperçu, qui accepte aussi le dépôt de page.html et page.css. */}
+          <div className="relative flex min-w-0 flex-1 flex-col p-4 lg:min-h-0" {...drop.handlers}>
+            {html !== null && elements !== null ? (
               <AnimationsPreview
                 html={html}
                 selectedId={selected?.id ?? null}
@@ -370,10 +489,47 @@ export function AnimationsApp() {
                 onEscape={handleDeselect}
                 play={previewPlay}
               />
-              <AnimationsExport projectId={projectId} config={config} />
-            </div>
+            ) : projectError ? (
+              <p className="text-lg text-(--ink-muted)">
+                Aucune page à afficher. Importez une page, ou glissez-déposez {PAGE_FILE} et son CSS ici.
+              </p>
+            ) : (
+              <p role="status" className="text-lg text-(--ink-muted)">
+                Lecture de {PAGE_FILE}…
+              </p>
+            )}
+            {/* Au-dessus de l'iframe, qui garderait sinon pour elle les évènements de dépôt. */}
+            {drop.dragging && (
+              <div className="absolute inset-2 z-10 flex items-center justify-center rounded-xl border-4 border-dashed border-(--motion) bg-(--motion-soft) p-6 text-center text-xl font-semibold">
+                Déposez {PAGE_FILE} et son fichier CSS pour animer cette page
+              </div>
+            )}
           </div>
-        )}
+
+          <AnimationsSidePanel
+            view={panelView}
+            selectedName={selected?.name ?? null}
+            onBack={() => setPanelView("settings")}
+            settings={
+              <AnimationsElementSettings
+                presetId={selectedAnimation?.animation ?? null}
+                event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
+                customAnimations={customAnimations}
+                onPresetChange={handlePresetChange}
+                onEventChange={handleEventChange}
+              />
+            }
+            editor={
+              <AnimationsCustomEditor
+                selectedName={selected?.name ?? null}
+                takenNames={[...ANIMATION_PRESETS, ...customAnimations].map((preset) => preset.name)}
+                takenIds={[...ANIMATION_PRESETS, ...customAnimations].map((preset) => preset.id)}
+                onTest={handleTest}
+                onCreate={handleCreateFromEditor}
+              />
+            }
+          />
+        </div>
       </div>
     </div>
   );

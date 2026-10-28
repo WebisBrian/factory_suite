@@ -17,22 +17,24 @@ export function elementButtonId(elementId: string): string {
   return `animations-element-${elementId}`;
 }
 
-/** Barre listant les éléments de la page, pour choisir lequel animer (SCRUM-6). */
-export function AnimationsElementBar({ elements, selectedId, hoveredId, onSelect, onHover }: Props) {
+/**
+ * Liste des éléments de la page, pour choisir lequel animer (SCRUM-6).
+ * Le titre est porté par la section du panneau : `labelledBy` est son id.
+ */
+export function AnimationsElementBar({
+  elements,
+  selectedId,
+  hoveredId,
+  onSelect,
+  onHover,
+  labelledBy,
+}: Props & { labelledBy: string }) {
   return (
-    <nav
-      aria-labelledby="animations-elements-title"
-      className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
-    >
-      <h2 id="animations-elements-title" className="text-xl font-semibold">
-        Éléments de la page
-      </h2>
-      <p className="mt-1 text-lg text-(--ink-muted)">Choisissez l&apos;élément à animer.</p>
-
+    <nav aria-labelledby={labelledBy}>
       {elements.length === 0 ? (
-        <p className="mt-4 text-lg text-(--ink-muted)">Aucun élément animable dans cette page.</p>
+        <p className="text-lg text-(--ink-muted)">Aucun élément animable dans cette page.</p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-1">
+        <ul className="flex flex-col gap-1">
           {elements.map((element) => (
             <AnimationsElementItem
               key={element.id}

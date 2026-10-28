@@ -95,23 +95,27 @@ export function AnimationsPreview({
   }, [doc, play]);
 
   return (
-    <section aria-labelledby="animations-preview-title" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <section aria-labelledby="animations-preview-title" className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h2 id="animations-preview-title" className="text-xl font-semibold">
           Aperçu
         </h2>
         {width && scale < 1 && (
           <p className="text-lg text-(--ink-muted)">
-            Page de {width} px, affichée à {Math.round(scale * 100)} % pour tenir dans l&apos;écran.
+            Page de {width} px, affichée à {Math.round(scale * 100)} %.
           </p>
         )}
       </div>
       <p id="animations-preview-help" className="text-lg text-(--ink-muted)">
         Survolez un élément pour voir son nom, cliquez pour le sélectionner, Échap pour désélectionner. Au clavier,
-        parcourez la liste « Éléments de la page » : l&apos;élément est entouré dans l&apos;aperçu.
+        utilisez la liste « Éléments de la page ». Glissez-déposez page.html et page.css ici pour changer de page.
       </p>
       {/* Fond blanc : c'est la page de l'utilisateur, pas l'interface de l'outil. */}
-      <div ref={box} className="relative h-[75vh] w-full overflow-hidden rounded-2xl border border-(--line) bg-white">
+      {/* Pleine hauteur en 3 colonnes ; empilé (petit écran), une hauteur fixe. */}
+      <div
+        ref={box}
+        className="relative h-[70vh] w-full overflow-hidden rounded-xl border border-(--line) bg-white lg:h-auto lg:min-h-0 lg:flex-1"
+      >
         {/* Sans allow-scripts : les scripts de la page ne tournent pas, mais on garde l'accès au DOM. */}
         <iframe
           ref={frame}

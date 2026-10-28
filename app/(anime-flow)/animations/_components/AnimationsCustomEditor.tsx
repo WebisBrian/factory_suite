@@ -15,6 +15,12 @@ import {
   type CustomDraft,
   type CustomStep,
 } from "@/app/(anime-flow)/animations/_lib/custom-animations";
+import {
+  ERROR_BOX,
+  FIELD_CLASS as FIELD,
+  PRIMARY_BUTTON,
+  SECONDARY_BUTTON,
+} from "@/app/(anime-flow)/animations/_lib/field-styles";
 
 type Props = {
   /** Nom de l'élément sélectionné, null si aucun. */
@@ -28,13 +34,8 @@ type Props = {
   onCreate: (preset: AnimationPreset) => string;
 };
 
-const FIELD = "min-h-12 rounded-xl border-2 border-(--line-strong) bg-(--surface-raised) px-3 text-lg";
-const SECONDARY_BUTTON =
-  "min-h-12 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-lg font-semibold hover:bg-(--motion-soft)";
-const PRIMARY_BUTTON =
-  "min-h-12 rounded-full bg-(--motion) px-6 text-lg font-semibold text-(--on-motion) hover:bg-(--motion-strong)";
 
-/** Formulaire de création d'une animation : étapes (keyframes) et propriétés CSS. */
+/** Formulaire de création d'une animation : étapes (keyframes) et propriétés CSS. Titre posé par le panneau. */
 export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onTest, onCreate }: Props) {
   const uid = useId();
   const [draft, setDraft] = useState<CustomDraft>(DEFAULT_DRAFT);
@@ -110,223 +111,217 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
   }
 
   return (
-    <details className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5">
-      <summary className="min-h-12 cursor-pointer py-2 text-xl font-semibold">
-        <h2 className="inline">Créer une animation</h2>
-      </summary>
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <p className="text-lg text-(--ink-muted)">
+        Décrivez l&apos;animation étape par étape : à chaque position (0 % = début, 100 % = fin), choisissez les
+        propriétés CSS et leur valeur. Le navigateur fait la transition entre les étapes. L&apos;animation est jouée
+        une seule fois.
+      </p>
 
-      <form noValidate onSubmit={handleSubmit} className="mt-4 flex flex-col gap-5">
-        <p className="text-lg text-(--ink-muted)">
-          Décrivez l&apos;animation étape par étape : à chaque position (0 % = début, 100 % = fin), choisissez les
-          propriétés CSS et leur valeur. Le navigateur fait la transition entre les étapes. L&apos;animation est jouée
-          une seule fois.
-        </p>
-
-        {errors.size > 0 && (
-          <div role="alert" className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)">
-            <p className="font-semibold">Erreur : l&apos;animation n&apos;est pas valide.</p>
-            <ul className="mt-2 list-disc pl-6">
-              {[...errors.values()].map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="flex flex-col gap-1">
-            <label htmlFor={fieldId(errorKey.name)} className="text-lg font-semibold">
-              Nom
-            </label>
-            <input
-              id={fieldId(errorKey.name)}
-              type="text"
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              aria-invalid={errors.has(errorKey.name)}
-              aria-describedby={describedBy(errorKey.name)}
-              className={FIELD}
-            />
-            <FieldError id={errorId(errorKey.name)} message={errors.get(errorKey.name)} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={fieldId(errorKey.duration)} className="text-lg font-semibold">
-              Durée (ms)
-            </label>
-            <input
-              id={fieldId(errorKey.duration)}
-              type="number"
-              min={MIN_DURATION}
-              max={MAX_DURATION}
-              step={100}
-              value={Number.isNaN(draft.duration) ? "" : draft.duration}
-              onChange={(e) => setDraft({ ...draft, duration: e.target.valueAsNumber })}
-              aria-invalid={errors.has(errorKey.duration)}
-              aria-describedby={describedBy(errorKey.duration)}
-              className={FIELD}
-            />
-            <FieldError id={errorId(errorKey.duration)} message={errors.get(errorKey.duration)} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={fieldId("easing")} className="text-lg font-semibold">
-              Rythme
-            </label>
-            <select
-              id={fieldId("easing")}
-              value={draft.easing}
-              onChange={(e) => setDraft({ ...draft, easing: e.target.value })}
-              className={FIELD}
-            >
-              {EASINGS.map((easing) => (
-                <option key={easing.value} value={easing.value}>
-                  {easing.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      {errors.size > 0 && (
+        <div role="alert" className={ERROR_BOX}>
+          <p className="font-semibold">Erreur : l&apos;animation n&apos;est pas valide.</p>
+          <ul className="mt-2 list-disc pl-6">
+            {[...errors.values()].map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
         </div>
+      )}
 
-        <ol className="flex flex-col gap-4">
-          {draft.steps.map((step, i) => {
-            const number = i + 1;
-            const isEdge = i === 0 || i === draft.steps.length - 1;
-            return (
-              <li key={i}>
-                <fieldset className="flex flex-col gap-3 rounded-xl border-2 border-(--line) p-4">
-                  <legend className="px-1 text-lg font-semibold">Étape {number}</legend>
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor={fieldId(errorKey.offset(i))} className="text-lg">
-                      Position (%)
-                    </label>
-                    <input
-                      id={fieldId(errorKey.offset(i))}
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={Number.isNaN(step.offset) ? "" : step.offset}
-                      onChange={(e) => updateStep(i, { ...step, offset: e.target.valueAsNumber })}
-                      aria-invalid={errors.has(errorKey.offset(i))}
-                      aria-describedby={describedBy(errorKey.offset(i))}
-                      className={`${FIELD} max-w-40`}
-                    />
-                    <FieldError id={errorId(errorKey.offset(i))} message={errors.get(errorKey.offset(i))} />
-                  </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={fieldId(errorKey.name)} className="text-lg font-semibold">
+            Nom
+          </label>
+          <input
+            id={fieldId(errorKey.name)}
+            type="text"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            aria-invalid={errors.has(errorKey.name)}
+            aria-describedby={describedBy(errorKey.name)}
+            className={FIELD}
+          />
+          <FieldError id={errorId(errorKey.name)} message={errors.get(errorKey.name)} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={fieldId(errorKey.duration)} className="text-lg font-semibold">
+            Durée (ms)
+          </label>
+          <input
+            id={fieldId(errorKey.duration)}
+            type="number"
+            min={MIN_DURATION}
+            max={MAX_DURATION}
+            step={100}
+            value={Number.isNaN(draft.duration) ? "" : draft.duration}
+            onChange={(e) => setDraft({ ...draft, duration: e.target.valueAsNumber })}
+            aria-invalid={errors.has(errorKey.duration)}
+            aria-describedby={describedBy(errorKey.duration)}
+            className={FIELD}
+          />
+          <FieldError id={errorId(errorKey.duration)} message={errors.get(errorKey.duration)} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={fieldId("easing")} className="text-lg font-semibold">
+            Rythme
+          </label>
+          <select
+            id={fieldId("easing")}
+            value={draft.easing}
+            onChange={(e) => setDraft({ ...draft, easing: e.target.value })}
+            className={FIELD}
+          >
+            {EASINGS.map((easing) => (
+              <option key={easing.value} value={easing.value}>
+                {easing.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-                  <ul className="flex flex-col gap-3">
-                    {step.properties.map((row, j) => {
-                      const property = findCssProperty(row.property);
-                      const valueKey = errorKey.value(i, j);
-                      const hintId = `${fieldId(valueKey)}-hint`;
-                      return (
-                        <li key={j} className="flex flex-wrap items-end gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label htmlFor={fieldId(`step-${i}-property-${j}`)} className="text-lg">
-                              Propriété
-                            </label>
-                            <select
-                              id={fieldId(`step-${i}-property-${j}`)}
-                              value={row.property}
-                              onChange={(e) =>
-                                updateStep(i, {
-                                  ...step,
-                                  properties: step.properties.map((r, k) =>
-                                    k === j ? { ...r, property: e.target.value } : r,
-                                  ),
-                                })
-                              }
-                              className={FIELD}
-                            >
-                              {CSS_PROPERTIES.map((p) => (
-                                <option key={p.css} value={p.css}>
-                                  {p.label} ({p.css})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="flex min-w-48 flex-1 flex-col gap-1">
-                            <label htmlFor={fieldId(valueKey)} className="text-lg">
-                              Valeur
-                            </label>
-                            <input
-                              id={fieldId(valueKey)}
-                              type="text"
-                              value={row.value}
-                              onChange={(e) =>
-                                updateStep(i, {
-                                  ...step,
-                                  properties: step.properties.map((r, k) =>
-                                    k === j ? { ...r, value: e.target.value } : r,
-                                  ),
-                                })
-                              }
-                              aria-invalid={errors.has(valueKey)}
-                              aria-describedby={[hintId, describedBy(valueKey)].filter(Boolean).join(" ")}
-                              className={`${FIELD} font-mono`}
-                            />
-                            <p id={hintId} className="text-lg text-(--ink-muted)">
-                              Exemple : <span className="font-mono">{property?.example}</span>
-                            </p>
-                            <FieldError id={errorId(valueKey)} message={errors.get(valueKey)} />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeProperty(i, j)}
-                            aria-label={`Retirer la propriété ${property?.label ?? ""} de l'étape ${number}`}
-                            className={SECONDARY_BUTTON}
+      <ol className="flex flex-col gap-4">
+        {draft.steps.map((step, i) => {
+          const number = i + 1;
+          const isEdge = i === 0 || i === draft.steps.length - 1;
+          return (
+            <li key={i}>
+              <fieldset className="flex flex-col gap-3 rounded-xl border-2 border-(--line) p-4">
+                <legend className="px-1 text-lg font-semibold">Étape {number}</legend>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor={fieldId(errorKey.offset(i))} className="text-lg">
+                    Position (%)
+                  </label>
+                  <input
+                    id={fieldId(errorKey.offset(i))}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Number.isNaN(step.offset) ? "" : step.offset}
+                    onChange={(e) => updateStep(i, { ...step, offset: e.target.valueAsNumber })}
+                    aria-invalid={errors.has(errorKey.offset(i))}
+                    aria-describedby={describedBy(errorKey.offset(i))}
+                    className={`${FIELD} max-w-40`}
+                  />
+                  <FieldError id={errorId(errorKey.offset(i))} message={errors.get(errorKey.offset(i))} />
+                </div>
+
+                <ul className="flex flex-col gap-3">
+                  {step.properties.map((row, j) => {
+                    const property = findCssProperty(row.property);
+                    const valueKey = errorKey.value(i, j);
+                    const hintId = `${fieldId(valueKey)}-hint`;
+                    return (
+                      <li key={j} className="flex flex-col gap-2 rounded-lg border border-(--line) p-3">
+                        <div className="flex flex-col gap-1">
+                          <label htmlFor={fieldId(`step-${i}-property-${j}`)} className="text-lg">
+                            Propriété
+                          </label>
+                          <select
+                            id={fieldId(`step-${i}-property-${j}`)}
+                            value={row.property}
+                            onChange={(e) =>
+                              updateStep(i, {
+                                ...step,
+                                properties: step.properties.map((r, k) =>
+                                  k === j ? { ...r, property: e.target.value } : r,
+                                ),
+                              })
+                            }
+                            className={FIELD}
                           >
-                            Retirer
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                            {CSS_PROPERTIES.map((p) => (
+                              <option key={p.css} value={p.css}>
+                                {p.label} ({p.css})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label htmlFor={fieldId(valueKey)} className="text-lg">
+                            Valeur
+                          </label>
+                          <input
+                            id={fieldId(valueKey)}
+                            type="text"
+                            value={row.value}
+                            onChange={(e) =>
+                              updateStep(i, {
+                                ...step,
+                                properties: step.properties.map((r, k) =>
+                                  k === j ? { ...r, value: e.target.value } : r,
+                                ),
+                              })
+                            }
+                            aria-invalid={errors.has(valueKey)}
+                            aria-describedby={[hintId, describedBy(valueKey)].filter(Boolean).join(" ")}
+                            className={`${FIELD} font-mono`}
+                          />
+                          <p id={hintId} className="text-lg text-(--ink-muted)">
+                            Exemple : <span className="font-mono">{property?.example}</span>
+                          </p>
+                          <FieldError id={errorId(valueKey)} message={errors.get(valueKey)} />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeProperty(i, j)}
+                          aria-label={`Retirer la propriété ${property?.label ?? ""} de l'étape ${number}`}
+                          className={SECONDARY_BUTTON}
+                        >
+                          Retirer
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
 
-                  <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => addProperty(i)}
+                    aria-label={`Ajouter une propriété à l'étape ${number}`}
+                    className={SECONDARY_BUTTON}
+                  >
+                    + Ajouter une propriété
+                  </button>
+                  {/* La première et la dernière étape (0 % et 100 %) sont obligatoires. */}
+                  {!isEdge && (
                     <button
                       type="button"
-                      onClick={() => addProperty(i)}
-                      aria-label={`Ajouter une propriété à l'étape ${number}`}
+                      onClick={() => removeStep(i)}
+                      aria-label={`Supprimer l'étape ${number}`}
                       className={SECONDARY_BUTTON}
                     >
-                      + Ajouter une propriété
+                      − Supprimer l&apos;étape
                     </button>
-                    {/* La première et la dernière étape (0 % et 100 %) sont obligatoires. */}
-                    {!isEdge && (
-                      <button
-                        type="button"
-                        onClick={() => removeStep(i)}
-                        aria-label={`Supprimer l'étape ${number}`}
-                        className={SECONDARY_BUTTON}
-                      >
-                        − Supprimer l&apos;étape
-                      </button>
-                    )}
-                  </div>
-                </fieldset>
-              </li>
-            );
-          })}
-        </ol>
+                  )}
+                </div>
+              </fieldset>
+            </li>
+          );
+        })}
+      </ol>
 
-        <FieldError id={errorId(errorKey.flashing)} message={errors.get(errorKey.flashing)} />
+      <FieldError id={errorId(errorKey.flashing)} message={errors.get(errorKey.flashing)} />
 
-        <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={addStep} className={SECONDARY_BUTTON}>
-            + Ajouter une étape
-          </button>
-          <button type="button" onClick={handleTest} className={SECONDARY_BUTTON}>
-            Tester sur l&apos;élément sélectionné
-          </button>
-          <button type="submit" className={PRIMARY_BUTTON}>
-            {selectedName ? `Créer et appliquer à ${selectedName}` : "Créer l'animation"}
-          </button>
-        </div>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={addStep} className={SECONDARY_BUTTON}>
+          + Ajouter une étape
+        </button>
+        <button type="button" onClick={handleTest} className={SECONDARY_BUTTON}>
+          Tester sur l&apos;élément sélectionné
+        </button>
+        <button type="submit" className={PRIMARY_BUTTON}>
+          {selectedName ? `Créer et appliquer à ${selectedName}` : "Créer l'animation"}
+        </button>
+      </div>
 
-        <p role="status" className="text-lg">
-          {status}
-        </p>
-      </form>
-    </details>
+      <p role="status" className="text-lg">
+        {status}
+      </p>
+    </form>
   );
 }
 

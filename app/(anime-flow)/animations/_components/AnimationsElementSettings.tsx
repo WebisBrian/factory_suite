@@ -1,27 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
-import {
-  AnimationsChoiceGroup,
-  type AnimationsChoice,
-} from "@/app/(anime-flow)/animations/_components/AnimationsChoiceGroup";
+import { useId } from "react";
 import {
   ANIMATION_PRESETS,
   describeEffect,
+  findPreset,
   type AnimationPreset,
 } from "@/app/(anime-flow)/animations/_lib/animation-library";
-import { TRIGGER_EVENTS, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
+import { FIELD_CLASS } from "@/app/(anime-flow)/animations/_lib/field-styles";
+import {
+  findTriggerEvent,
+  TRIGGER_EVENTS,
+  type TriggerEventId,
+} from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 const NO_ANIMATION = "none";
 
-const EVENT_CHOICES: readonly AnimationsChoice<TriggerEventId>[] = TRIGGER_EVENTS.map((event) => ({
-  value: event.id,
-  name: event.name,
-  description: event.description,
-}));
-
 type Props = {
-  elementName: string;
   /** null : aucune animation. */
   presetId: string | null;
   event: TriggerEventId;
@@ -30,52 +25,78 @@ type Props = {
   onEventChange: (event: TriggerEventId) => void;
 };
 
-/** Réglages de l'élément sélectionné : l'animation, puis ce qui la déclenche. */
-export function AnimationsElementSettings({
-  elementName,
-  presetId,
-  event,
-  customAnimations,
-  onPresetChange,
-  onEventChange,
-}: Props) {
-  const presetChoices = useMemo<readonly AnimationsChoice<string>[]>(
-    () => [
-      { value: NO_ANIMATION, name: "Aucune animation", description: "L'élément reste immobile." },
-      ...[...ANIMATION_PRESETS, ...customAnimations].map((preset) => ({
-        value: preset.id,
-        name: preset.custom ? `${preset.name} (personnalisée)` : preset.name,
-        description: describeEffect(preset),
-      })),
-    ],
-    [customAnimations],
-  );
+/**
+ * Réglages de l'élément sélectionné : l'animation, puis ce qui la déclenche.
+ * Deux listes déroulantes ; la description du choix courant est lue avec le champ.
+ */
+export function AnimationsElementSettings({ presetId, event, customAnimations, onPresetChange, onEventChange }: Props) {
+  const uid = useId();
+  const preset = presetId ? findPreset(presetId, customAnimations) : null;
+  const presetDescription = preset ? describeEffect(preset) : "L'élément reste immobile.";
 
   return (
-    <section
-      aria-labelledby="animations-settings-title"
-      className="flex flex-col gap-5 rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
-    >
-      <h2 id="animations-settings-title" className="text-xl font-semibold">
-        Réglages de : {elementName}
-      </h2>
-      <AnimationsChoiceGroup
-        legend="Animation"
-        name="animations-preset"
-        choices={presetChoices}
-        value={presetId ?? NO_ANIMATION}
-        onChange={(value) => onPresetChange(value === NO_ANIMATION ? null : value)}
-      />
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${uid}-animation`} className="text-lg font-semibold">
+          Animation
+        </label>
+        <select
+          id={`${uid}-animation`}
+          value={presetId ?? NO_ANIMATION}
+          onChange={(e) => onPresetChange(e.target.value === NO_ANIMATION ? null : e.target.value)}
+          aria-describedby={`${uid}-animation-description`}
+          className={FIELD_CLASS}
+        >
+          <option value={NO_ANIMATION}>Aucune animation</option>
+          <optgroup label="Bibliothèque">
+            {ANIMATION_PRESETS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </optgroup>
+          {customAnimations.length > 0 && (
+            <optgroup label="Mes animations">
+              {customAnimations.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+        <p id={`${uid}-animation-description`} className="text-lg text-(--ink-muted)">
+          {presetDescription}
+        </p>
+      </div>
+
       {/* Sans animation, il n'y a rien à déclencher. */}
       {presetId !== null && (
-        <AnimationsChoiceGroup
-          legend="Déclencheur"
-          name="animations-event"
-          choices={EVENT_CHOICES}
-          value={event}
-          onChange={onEventChange}
-        />
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${uid}-event`} className="text-lg font-semibold">
+            Déclencheur
+          </label>
+          <select
+            id={`${uid}-event`}
+            value={event}
+            onChange={(e) => {
+              const next = TRIGGER_EVENTS.find((trigger) => trigger.id === e.target.value);
+              if (next) onEventChange(next.id);
+            }}
+            aria-describedby={`${uid}-event-description`}
+            className={FIELD_CLASS}
+          >
+            {TRIGGER_EVENTS.map((trigger) => (
+              <option key={trigger.id} value={trigger.id}>
+                {trigger.name}
+              </option>
+            ))}
+          </select>
+          <p id={`${uid}-event-description`} className="text-lg text-(--ink-muted)">
+            {findTriggerEvent(event).description}
+          </p>
+        </div>
       )}
-    </section>
+    </div>
   );
 }
