@@ -5,10 +5,13 @@ import {
   ProjectFsError,
   createProject,
   deleteProject,
+  getFolderStatus,
   listProjectFiles,
   listProjectHistory,
   listProjects,
+  pickDataFolder,
   renameProject,
+  requestFolderAccess,
   type ProjectFsErrorCode,
   type ProjectInfo,
 } from "@/lib/project-fs";
@@ -103,6 +106,11 @@ const HELP_TEXT = [
   "",
   "**Outils**",
   "• Ouvrir : « ouvre CodeForge pour le projet 2 »",
+  "",
+  "**Dossier de travail**",
+  "• Choisir ou changer : « choisis le dossier »",
+  "• Après un rechargement : « autorise l'accès »",
+  "• Savoir lequel est utilisé : « quel dossier ? »",
   "",
   "**Parcours guidé**, d'outil en outil",
   "• Démarrer : « guide-moi pour le projet 2 » ou « crée un projet Café et guide-moi »",
@@ -202,8 +210,8 @@ function findExplicitProject(text: string, projects: readonly ProjectInfo[]): Pr
 // --- Réponses ----------------------------------------------------------------
 
 const ERROR_HINTS: Partial<Record<ProjectFsErrorCode, string>> = {
-  "no-folder": "Fermez l'assistant, puis cliquez sur « **Choisir le dossier** » dans la section Projets.",
-  "permission-denied": "Fermez l'assistant, cliquez sur « **Autoriser l'accès** », puis refaites votre demande.",
+  "no-folder": "Dites « **choisis le dossier** » pour le sélectionner.",
+  "permission-denied": "Dites « **autorise l'accès** », puis refaites votre demande.",
   unsupported: "Ouvrez FactorySuite dans **Chrome** ou **Edge**.",
 };
 
@@ -323,6 +331,71 @@ const UNKNOWN_TEXT = [
   "Dites « **aide** » pour voir des exemples.",
 ].join("\n");
 
+const FOLDER_PICK = /\b(choisi\w*|change[rsz]?|changement|selectionne\w*|definir|definis|modifie[rsz]?)\b.*\bdossier\b/;
+const FOLDER_ACCESS = /\b(autorise\w*|donne\w* (l'|l )?acces|acces au dossier|redonne\w* (l'|l )?acces|permission)\b/;
+const FOLDER_STATUS = /\b(quel|quels|ou est|ou se trouve)\b.*\bdossier\b|^dossier( de travail)?\s*\??$/;
+
+/**
+ * Dossier de travail. Appelé avant tout `await` de la réponse : le sélecteur de dossier
+ * et l'invite d'autorisation de Chrome exigent d'être lancés depuis le geste de l'utilisateur.
+ */
+function respondToFolder(text: string, guide: HubGuide | null): Promise<HubChatReply> | null {
+  if (FOLDER_PICK.test(text)) {
+    const picking = pickDataFolder();
+    return picking.then(
+      (folder) => {
+        notifyHubProjectsChanged();
+        return {
+          text: [
+            `Dossier de travail : **${folder.name}**.`,
+            "",
+            "Les projets du Hub sont maintenant ceux de ce dossier.",
+            ...(guide ? ["", "Le parcours guidé en cours est **arrêté** : son projet était dans l'ancien dossier."] : []),
+          ].join("\n"),
+          // Autre dossier, autres projets : on oublie ceux de la conversation.
+          currentProject: null,
+          ...(guide && { guide: null }),
+        };
+      },
+      (error: unknown) =>
+        error instanceof DOMException && error.name === "AbortError"
+          ? { text: "Choix du dossier **annulé** : rien n'a changé." }
+          : errorReply(error),
+    );
+  }
+  if (FOLDER_ACCESS.test(text)) {
+    return requestFolderAccess().then(
+      (granted) => {
+        notifyHubProjectsChanged();
+        return granted
+          ? { text: "**Accès autorisé** au dossier de travail. Vous pouvez refaire votre demande." }
+          : {
+              text: "**Accès non accordé.**\n\nSi aucun dossier n'est choisi, dites « choisis le dossier ».",
+              isError: true,
+            };
+      },
+      (error: unknown) => errorReply(error),
+    );
+  }
+  if (FOLDER_STATUS.test(text)) {
+    return getFolderStatus().then((status) => {
+      switch (status.state) {
+        case "unsupported":
+          return errorReply(new ProjectFsError("unsupported", "Ce navigateur ne permet pas d'écrire dans un dossier."));
+        case "no-folder":
+          return { text: "**Aucun dossier de travail** n'est choisi.\n\nDites « choisis le dossier » pour le sélectionner." };
+        case "needs-permission":
+          return {
+            text: `Dossier de travail : **${status.folderName}**, mais **l'accès est à autoriser**.\n\nDites « autorise l'accès ».`,
+          };
+        case "ready":
+          return { text: `Dossier de travail : **${status.folderName}** (accès autorisé).` };
+      }
+    });
+  }
+  return null;
+}
+
 const GUIDE_REQUEST = /\b(guide[rsz]?|parcours|accompagne\w*|pas a pas)\b/;
 /** « … et guide-moi » à la fin d'une demande de création. */
 const GUIDE_SUFFIX = /\s+et\s+(?:guide|accompagne)\S*.*$/i;
@@ -354,6 +427,9 @@ export async function respondToHubChat(request: string, context: HubChatContext)
   if (/^(aide|help|\?)|que (sais|peux)[- ]tu|qu.est.ce que tu (sais|peux)|comment (ca|tu) (marche|fonctionne)/.test(text)) {
     return { text: HELP_TEXT };
   }
+
+  const folderReply = respondToFolder(text, guide);
+  if (folderReply) return folderReply;
 
   try {
     const guideReply = guide && respondToGuide(text, guide);
