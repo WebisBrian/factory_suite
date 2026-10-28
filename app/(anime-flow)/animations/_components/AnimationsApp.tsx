@@ -7,8 +7,16 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
+import { AnimationsExport } from "@/app/(anime-flow)/animations/_components/AnimationsExport";
 import { AnimationsPreview } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
-import { findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  buildConfig,
+  CONFIG_FILE,
+  parseConfig,
+  type ElementAnimation,
+  type RestoredConfig,
+} from "@/app/(anime-flow)/animations/_lib/animation-config";
+import { findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { listPageElements, PAGE_FILE, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
@@ -17,23 +25,36 @@ import {
   type TriggerEventId,
 } from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
-/** Animation posée sur un élément : laquelle, et ce qui la déclenche. */
-type ElementAnimation = { animation: string; event: TriggerEventId };
-
-type ProjectLoad = { status: "ok"; html: string } | { status: "missing" } | { status: "fs-error"; message: string };
+type ProjectLoad =
+  | {
+      status: "ok";
+      html: string;
+      /** Travail enregistré lors d'une session précédente (animations.json), null s'il n'y en a pas. */
+      restored: RestoredConfig | null;
+      /** animations.json existe mais n'a pas pu être lu. */
+      invalidConfig: boolean;
+    }
+  | { status: "missing" }
+  | { status: "fs-error"; message: string };
 
 async function loadProjectPage(projectId: number): Promise<ProjectLoad> {
   try {
     const html = await readProjectText(projectId, PAGE_FILE);
-    return html === null ? { status: "missing" } : { status: "ok", html };
+    if (html === null) return { status: "missing" };
+    const configText = await readProjectText(projectId, CONFIG_FILE);
+    const restored = configText === null ? null : parseConfig(configText);
+    return { status: "ok", html, restored, invalidConfig: configText !== null && restored === null };
   } catch (e) {
     return { status: "fs-error", message: e instanceof Error ? e.message : String(e) };
   }
 }
 
 /** Pour les annonces : « Animation Rebond, au clic. » */
-function describeAnimation(animation: ElementAnimation | undefined): string {
-  const preset = animation ? findPreset(animation.animation) : null;
+function describeAnimation(
+  animation: ElementAnimation | undefined,
+  customAnimations: readonly AnimationPreset[],
+): string {
+  const preset = animation ? findPreset(animation.animation, customAnimations) : null;
   if (!animation || !preset) return "Aucune animation.";
   return `Animation ${preset.name}, ${findTriggerEvent(animation.event).phrase}.`;
 }
@@ -56,14 +77,24 @@ export function AnimationsApp() {
   const [selected, setSelected] = useState<PageElement | null>(null);
   /** Animations posées, par id d'élément. Un élément sans animation n'a pas d'entrée. */
   const [animationByElement, setAnimationByElement] = useState<Record<string, ElementAnimation>>({});
+  const [customAnimations, setCustomAnimations] = useState<AnimationPreset[]>([]);
   const [announcement, setAnnouncement] = useState("");
+
+  // Reprend aussi le travail enregistré dans animations.json.
+  function applyLoad(next: ProjectLoad) {
+    setProjectLoad(next);
+    if (next.status === "ok" && next.restored) {
+      setAnimationByElement(next.restored.animationByElement);
+      setCustomAnimations(next.restored.customAnimations);
+    }
+  }
 
   // Chargement initial de la page du projet (si l'accès est déjà accordé).
   useEffect(() => {
     if (projectId === null) return;
     let cancelled = false;
     loadProjectPage(projectId).then((next) => {
-      if (!cancelled) setProjectLoad(next);
+      if (!cancelled) applyLoad(next);
     });
     return () => {
       cancelled = true;
@@ -79,14 +110,19 @@ export function AnimationsApp() {
   async function handleReload() {
     if (projectId === null) return;
     setSelected(null);
-    setProjectLoad(await loadProjectPage(projectId));
+    applyLoad(await loadProjectPage(projectId));
   }
+
+  const config = useMemo(
+    () => buildConfig(animationByElement, customAnimations),
+    [animationByElement, customAnimations],
+  );
 
   const selectedAnimation = selected ? (animationByElement[selected.id] ?? null) : null;
 
   function handleSelect(element: PageElement) {
     setSelected(element);
-    setAnnouncement(`${element.name} sélectionné. ${describeAnimation(animationByElement[element.id])}`);
+    setAnnouncement(`${element.name} sélectionné. ${describeAnimation(animationByElement[element.id], customAnimations)}`);
   }
 
   function handlePresetChange(presetId: string | null) {
@@ -98,7 +134,7 @@ export function AnimationsApp() {
     } else {
       // On garde le déclencheur déjà choisi quand on change seulement d'animation.
       next[selected.id] = { animation: presetId, event: selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT };
-      setAnnouncement(`${describeAnimation(next[selected.id])} Ajoutée à ${selected.name}.`);
+      setAnnouncement(`${describeAnimation(next[selected.id], customAnimations)} Ajoutée à ${selected.name}.`);
     }
     setAnimationByElement(next);
   }
@@ -107,7 +143,7 @@ export function AnimationsApp() {
     if (!selected || !selectedAnimation) return;
     const updated = { ...selectedAnimation, event };
     setAnimationByElement({ ...animationByElement, [selected.id]: updated });
-    setAnnouncement(`${describeAnimation(updated)} Sur ${selected.name}.`);
+    setAnnouncement(`${describeAnimation(updated, customAnimations)} Sur ${selected.name}.`);
   }
 
   return (
@@ -157,6 +193,13 @@ export function AnimationsApp() {
           </div>
         )}
 
+        {projectLoad?.status === "ok" && projectLoad.invalidConfig && (
+          <p role="alert" className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)">
+            Erreur : {CONFIG_FILE} est illisible. Les animations repartent de zéro ; l&apos;enregistrement remplacera
+            ce fichier.
+          </p>
+        )}
+
         {html === null || elements === null ? (
           projectLoad?.status !== "missing" &&
           projectLoad?.status !== "fs-error" && <p className="text-lg text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
@@ -178,6 +221,7 @@ export function AnimationsApp() {
                 </p>
               )}
               <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+              <AnimationsExport projectId={projectId} config={config} />
             </div>
           </div>
         )}
