@@ -1,12 +1,19 @@
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
 import type { DraftNode, Maquette } from "@/components/screendraft/screendraft-schema";
-import { moveInDepth, updateNode, type DepthMove } from "@/components/screendraft/screendraft-tree";
+import {
+  moveInDepth,
+  placeNode,
+  updateNode,
+  type DepthMove,
+  type Placement,
+} from "@/components/screendraft/screendraft-tree";
 
 /** Toutes les modifications de la maquette passent par ici, une action par story. */
 export type ScreendraftAction =
   | { type: "set-format"; format: FrameFormat }
   | { type: "set-frame-height"; height: number }
   | { type: "move-depth"; id: string; move: DepthMove }
+  | { type: "place-node"; id: string; placement: Placement }
   | { type: "add-node"; node: DraftNode }
   | { type: "move-node"; id: string; x: number; y: number }
   | { type: "set-text"; id: string; text: string }
@@ -23,6 +30,11 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
       return { ...draft, frame: { ...draft.frame, height: action.height } };
     case "move-depth": {
       const nodes = moveInDepth(draft.nodes, action.id, action.move);
+      return nodes === draft.nodes ? draft : { ...draft, nodes };
+    }
+    // Sortir un élément d'une section, l'y faire entrer ou le passer dans une autre.
+    case "place-node": {
+      const nodes = placeNode(draft.nodes, action.id, action.placement);
       return nodes === draft.nodes ? draft : { ...draft, nodes };
     }
     // Ajouté au premier plan, au premier niveau du frame.

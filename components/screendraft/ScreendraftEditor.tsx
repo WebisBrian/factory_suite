@@ -36,36 +36,48 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
   }, []);
 
   return (
-    <div className="screendraft flex min-h-0 flex-1 flex-col bg-(--surface) text-(--ink)">
-      <header className="flex h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4)">
-        {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
-        <span aria-hidden className="text-body-sm text-(--line-strong)">
-          /
-        </span>
-        <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
-        <div className="ml-auto">
-          <ScreendraftThemeToggle />
-        </div>
-      </header>
+    // Le Hub n'impose pas de hauteur à la page : seul, l'éditeur grandirait avec la liste des calques
+    // et ferait défiler la page. Le conteneur absolu occupe exactement l'espace sous la barre du Hub.
+    <div className="relative min-h-0 flex-1">
+      <div className="screendraft absolute inset-0 flex flex-col bg-(--surface) text-(--ink)">
+        <header className="flex h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4)">
+          {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
+          <span aria-hidden className="text-body-sm text-(--line-strong)">
+            /
+          </span>
+          <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
+          <div className="ml-auto">
+            <ScreendraftThemeToggle />
+          </div>
+        </header>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
-          <ScreendraftPalette onAdd={addNode} />
-          <ScreendraftLayers nodes={draft.nodes} selectedId={selectedId} onSelect={setSelectedId} />
+        <div className="flex min-h-0 flex-1">
+          <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
+            <ScreendraftPalette onAdd={addNode} />
+            <ScreendraftLayers
+              nodes={draft.nodes}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
+            />
+          </div>
+          {/* Changer de format (donc de largeur) recrée le canvas, qui se réajuste à l'écran. */}
+          <ScreendraftCanvas
+            key={draft.frame.width}
+            draft={draft}
+            selection={selection}
+            onSelect={setSelectedId}
+            onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
+            onDropInto={(id, parentId) =>
+              dispatch({ type: "place-node", id, placement: { type: "inside", parentId } })
+            }
+          />
+          <ScreendraftPropertiesPanel frame={draft.frame} selection={selection} dispatch={dispatch} />
         </div>
-        {/* Changer de format (donc de largeur) recrée le canvas, qui se réajuste à l'écran. */}
-        <ScreendraftCanvas
-          key={draft.frame.width}
-          draft={draft}
-          selection={selection}
-          onSelect={setSelectedId}
-          onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
-        />
-        <ScreendraftPropertiesPanel frame={draft.frame} selection={selection} dispatch={dispatch} />
       </div>
     </div>
   );

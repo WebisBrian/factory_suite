@@ -3,26 +3,42 @@ import type { DraftNode, ShapeKind } from "@/components/screendraft/screendraft-
 /** Déplacement d'un élément dans l'ordre d'empilement de ses voisins (SCRUM-9). */
 export type DepthMove = "front" | "forward" | "backward" | "back";
 
-/** Un élément, sa place parmi ses voisins et la position de son parent dans le frame. */
+/**
+ * Un élément, son parent (`null` : le frame), sa place parmi ses voisins
+ * et la position de son parent dans le frame.
+ */
 export type NodeLocation = {
   node: DraftNode;
+  parentId: string | null;
   index: number;
   siblingCount: number;
   parentX: number;
   parentY: number;
 };
 
-export function findNode(
-  nodes: DraftNode[],
-  id: string,
-  parentX = 0,
-  parentY = 0,
-): NodeLocation | null {
+type Parent = { id: string | null; x: number; y: number };
+
+const FRAME: Parent = { id: null, x: 0, y: 0 };
+
+export function findNode(nodes: DraftNode[], id: string, parent = FRAME): NodeLocation | null {
   for (let index = 0; index < nodes.length; index++) {
     const node = nodes[index];
-    if (node.id === id) return { node, index, siblingCount: nodes.length, parentX, parentY };
+    if (node.id === id) {
+      return {
+        node,
+        parentId: parent.id,
+        index,
+        siblingCount: nodes.length,
+        parentX: parent.x,
+        parentY: parent.y,
+      };
+    }
     if (node.type === "section") {
-      const found = findNode(node.children, id, parentX + node.x, parentY + node.y);
+      const found = findNode(node.children, id, {
+        id: node.id,
+        x: parent.x + node.x,
+        y: parent.y + node.y,
+      });
       if (found) return found;
     }
   }
@@ -34,9 +50,71 @@ export function frameRect({ node, parentX, parentY }: NodeLocation) {
   return { x: parentX + node.x, y: parentY + node.y, width: node.width, height: node.height };
 }
 
+/** Vrai si `targetId` désigne l'élément `id` lui-même ou l'un de ses descendants. */
+export function isSameOrInside(nodes: DraftNode[], id: string, targetId: string): boolean {
+  if (id === targetId) return true;
+  const location = findNode(nodes, id);
+  return location?.node.type === "section" && findNode(location.node.children, targetId) !== null;
+}
+
+/**
+ * Nouvelle place d'un élément dans l'arbre. `inside` le met au premier plan d'une section
+ * (ou du frame si `parentId` est null) ; `before` / `after` le met derrière / devant un voisin.
+ */
+export type Placement =
+  | { type: "inside"; parentId: string | null }
+  | { type: "before" | "after"; siblingId: string };
+
+/**
+ * Change le parent ou la place d'un élément sans le faire bouger à l'écran : ses x / y
+ * sont recalculés par rapport au nouveau parent. Un élément ne peut pas entrer en lui-même.
+ */
+export function placeNode(nodes: DraftNode[], id: string, placement: Placement): DraftNode[] {
+  const location = findNode(nodes, id);
+  const anchorId = placement.type === "inside" ? placement.parentId : placement.siblingId;
+  if (!location || (anchorId !== null && isSameOrInside(nodes, id, anchorId))) return nodes;
+
+  const remaining = removeNode(nodes, id);
+  const parentId =
+    placement.type === "inside"
+      ? placement.parentId
+      : findNode(remaining, placement.siblingId)?.parentId;
+  if (parentId === undefined) return nodes;
+
+  const parent = parentId === null ? null : findNode(remaining, parentId);
+  if (parent && parent.node.type !== "section") return nodes;
+
+  const position = frameRect(location);
+  const origin = parent ? frameRect(parent) : FRAME;
+  const moved = { ...location.node, x: position.x - origin.x, y: position.y - origin.y };
+
+  if (parentId === null) return insertAmong(remaining, moved, placement);
+  return updateNode(remaining, parentId, (section) =>
+    section.type === "section"
+      ? { ...section, children: insertAmong(section.children, moved, placement) }
+      : section,
+  );
+}
+
+function removeNode(nodes: DraftNode[], id: string): DraftNode[] {
+  return nodes
+    .filter((node) => node.id !== id)
+    .map((node) =>
+      node.type === "section" ? { ...node, children: removeNode(node.children, id) } : node,
+    );
+}
+
+function insertAmong(siblings: DraftNode[], node: DraftNode, placement: Placement): DraftNode[] {
+  if (placement.type === "inside") return [...siblings, node];
+  const index =
+    siblings.findIndex((sibling) => sibling.id === placement.siblingId) +
+    (placement.type === "after" ? 1 : 0);
+  return [...siblings.slice(0, index), node, ...siblings.slice(index)];
+}
+
 /**
  * Change la place d'un élément parmi ses voisins. L'ordre du tableau est l'ordre
- * d'empilement : le dernier est au premier plan. Un élément ne sort jamais de son parent.
+ * d'empilement : le dernier est au premier plan. Pour changer de parent, voir `placeNode`.
  */
 export function moveInDepth(nodes: DraftNode[], id: string, move: DepthMove): DraftNode[] {
   const index = nodes.findIndex((node) => node.id === id);
