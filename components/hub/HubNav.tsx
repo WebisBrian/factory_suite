@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { HubLogo } from "@/components/hub/HubAppIcon";
-import { HubNavSwitcher } from "@/components/hub/HubNavSwitcher";
 import { HubTextSizeControl } from "@/components/hub/HubTextSizeControl";
+import { hubPrimaryButton, hubSecondaryButton } from "@/components/hub/hub-styles";
 
 // Barre non collante : texte agrandi à 200 %, une barre fixe masquerait une grande partie de l'écran.
 export function HubNav() {
@@ -19,13 +18,23 @@ export function HubNav() {
             Factory<span className="text-zinc-300">Suite</span>
           </span>
         </Link>
-        <nav aria-label="Outils de la suite">
-          {/* useSearchParams (project_id) → Suspense obligatoire pour l'export statique. */}
-          <Suspense fallback={null}>
-            <HubNavSwitcher />
-          </Suspense>
-        </nav>
-        <HubTextSizeControl />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <nav aria-label="Actions principales" className="flex flex-wrap items-center gap-2">
+            {/* Commencer : création / ouverture d'un projet sur le tableau de bord du Hub. */}
+            <Link href="/#hub-projects-title" className={hubPrimaryButton}>
+              Commencer
+            </Link>
+            {/* Démo : premier outil du pipeline sans project_id, donc contre les fixtures. */}
+            <Link
+              href="/screendraft"
+              aria-label="Démo : ouvrir ScreenDraft avec la maquette d'exemple"
+              className={hubSecondaryButton}
+            >
+              Démo
+            </Link>
+          </nav>
+          <HubTextSizeControl />
+        </div>
       </div>
     </header>
   );

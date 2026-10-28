@@ -5,6 +5,23 @@ export const maquetteFixture: Maquette = {
   schemaVersion: 2,
   id: "doc_landing_example",
   name: "Landing page — exemple",
+  theme: {
+    colors: {
+      primary: "#4f46e5",
+      onPrimary: "#ffffff",
+      text: "#0f172a",
+      background: "#ffffff",
+      surface: "#ffffff",
+      border: "#e2e8f0"
+    },
+    textSizes: {
+      heading1: 56,
+      heading2: 36,
+      heading3: 24,
+      body: 16
+    },
+    radius: 12
+  },
   screens: [
     {
       id: "screen_home",
@@ -14,7 +31,10 @@ export const maquetteFixture: Maquette = {
         device: "desktop",
         width: 1440,
         height: 1200,
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
+        themeLinks: {
+          backgroundColor: "background"
+        }
       },
       nodes: [
         {
@@ -56,6 +76,9 @@ export const maquetteFixture: Maquette = {
                 fontSize: 56,
                 fontWeight: 700
               },
+              themeLinks: {
+                fontSize: "heading1"
+              },
               props: {
                 text: "Donnez vie à vos idées de site web",
                 level: 1
@@ -91,6 +114,11 @@ export const maquetteFixture: Maquette = {
                 textAlign: "center",
                 borderRadius: 12
               },
+              themeLinks: {
+                backgroundColor: "primary",
+                color: "onPrimary",
+                borderRadius: "radius"
+              },
               props: {
                 label: "Commencer",
                 href: "#features"
@@ -121,6 +149,10 @@ export const maquetteFixture: Maquette = {
                 fontSize: 36,
                 fontWeight: 700
               },
+              themeLinks: {
+                color: "text",
+                fontSize: "heading2"
+              },
               props: {
                 text: "Pensé pour les équipes web",
                 level: 2
@@ -139,6 +171,10 @@ export const maquetteFixture: Maquette = {
                 borderWidth: 1,
                 borderColor: "#e2e8f0"
               },
+              themeLinks: {
+                backgroundColor: "surface",
+                borderColor: "border"
+              },
               children: [
                 {
                   id: "card_components_title",
@@ -151,6 +187,10 @@ export const maquetteFixture: Maquette = {
                     color: "#0f172a",
                     fontSize: 24,
                     fontWeight: 600
+                  },
+                  themeLinks: {
+                    color: "text",
+                    fontSize: "heading3"
                   },
                   props: {
                     text: "Composants de base",
@@ -167,6 +207,9 @@ export const maquetteFixture: Maquette = {
                   style: {
                     color: "#475569",
                     fontSize: 16
+                  },
+                  themeLinks: {
+                    fontSize: "body"
                   },
                   props: {
                     text: "Texte, image, bouton, section et titre, à placer librement."
@@ -187,6 +230,10 @@ export const maquetteFixture: Maquette = {
                 borderWidth: 1,
                 borderColor: "#e2e8f0"
               },
+              themeLinks: {
+                backgroundColor: "surface",
+                borderColor: "border"
+              },
               children: [
                 {
                   id: "card_positioning_title",
@@ -199,6 +246,10 @@ export const maquetteFixture: Maquette = {
                     color: "#0f172a",
                     fontSize: 24,
                     fontWeight: 600
+                  },
+                  themeLinks: {
+                    color: "text",
+                    fontSize: "heading3"
                   },
                   props: {
                     text: "Positionnement libre",
@@ -215,6 +266,9 @@ export const maquetteFixture: Maquette = {
                   style: {
                     color: "#475569",
                     fontSize: 16
+                  },
+                  themeLinks: {
+                    fontSize: "body"
                   },
                   props: {
                     text: "Placez chaque élément au pixel près, sur un format fixe."
@@ -235,6 +289,10 @@ export const maquetteFixture: Maquette = {
                 borderWidth: 1,
                 borderColor: "#e2e8f0"
               },
+              themeLinks: {
+                backgroundColor: "surface",
+                borderColor: "border"
+              },
               children: [
                 {
                   id: "card_export_title",
@@ -247,6 +305,10 @@ export const maquetteFixture: Maquette = {
                     color: "#0f172a",
                     fontSize: 24,
                     fontWeight: 600
+                  },
+                  themeLinks: {
+                    color: "text",
+                    fontSize: "heading3"
                   },
                   props: {
                     text: "Export JSON",
@@ -263,6 +325,9 @@ export const maquetteFixture: Maquette = {
                   style: {
                     color: "#475569",
                     fontSize: 16
+                  },
+                  themeLinks: {
+                    fontSize: "body"
                   },
                   props: {
                     text: "Un format standard, repris par l'équipe HTML pour générer le site."
@@ -303,7 +368,10 @@ export const maquetteFixture: Maquette = {
         device: "mobile",
         width: 393,
         height: 852,
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
+        themeLinks: {
+          backgroundColor: "background"
+        }
       },
       nodes: [
         {
@@ -323,7 +391,15 @@ export const maquetteFixture: Maquette = {
             borderWidth: 1,
             borderColor: "#4f46e5"
           },
-          props: { label: "← Accueil", href: "index.html", targetScreenId: "screen_home" }
+          themeLinks: {
+            color: "primary",
+            borderColor: "primary"
+          },
+          props: {
+            label: "← Accueil",
+            href: "index.html",
+            targetScreenId: "screen_home"
+          }
         },
         {
           id: "title_contact",
@@ -338,7 +414,13 @@ export const maquetteFixture: Maquette = {
             fontWeight: 700,
             textAlign: "left"
           },
-          props: { text: "Contact", level: 1 }
+          themeLinks: {
+            color: "text"
+          },
+          props: {
+            text: "Contact",
+            level: 1
+          }
         },
         {
           id: "text_contact",
@@ -353,7 +435,12 @@ export const maquetteFixture: Maquette = {
             fontWeight: 400,
             textAlign: "left"
           },
-          props: { text: "Une question sur la maquette ? Écrivez-nous, réponse sous 24 h." }
+          themeLinks: {
+            fontSize: "body"
+          },
+          props: {
+            text: "Une question sur la maquette ? Écrivez-nous, réponse sous 24 h."
+          }
         },
         {
           id: "button_contact_send",
@@ -370,7 +457,13 @@ export const maquetteFixture: Maquette = {
             textAlign: "center",
             borderRadius: 10
           },
-          props: { label: "Nous écrire" }
+          themeLinks: {
+            backgroundColor: "primary",
+            color: "onPrimary"
+          },
+          props: {
+            label: "Nous écrire"
+          }
         }
       ]
     }

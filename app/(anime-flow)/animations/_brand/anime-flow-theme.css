@@ -1,0 +1,59 @@
+/*
+ * Identité visuelle d'Anime Flow (charte : _brand/BRAND.md).
+ * Les variables sont portées par .anime-flow et non par :root, pour ne fuir
+ * ni vers le Hub ni vers les autres outils.
+ * Thème clair par défaut, sombre selon prefers-color-scheme.
+ */
+
+.anime-flow {
+  color-scheme: light;
+  --surface: #f7f5fc;
+  --surface-raised: #ffffff;
+  --line: #ddd6ee;
+  --line-strong: #7d7497;
+  --ink: #1a1033;
+  --ink-muted: #4a4263;
+  --motion: #6d28d9;
+  --motion-strong: #5b21b6;
+  --motion-soft: #ede9fe;
+  --on-motion: #ffffff;
+  --spark: #e879f9;
+  --on-spark: #1a1033;
+  --danger: #8f141d;
+  --danger-soft: #fdecec;
+  --focus-ring: #1a1033;
+
+  background: var(--surface);
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .anime-flow {
+    color-scheme: dark;
+    --surface: #120c1f;
+    --surface-raised: #1c1430;
+    --line: #352a52;
+    --line-strong: #8a7fae;
+    --ink: #f3effc;
+    --ink-muted: #c9c0e0;
+    --motion: #c4b5fd;
+    --motion-strong: #ddd6fe;
+    --motion-soft: #2e1f5c;
+    --on-motion: #1a1033;
+    --spark: #e879f9;
+    --on-spark: #1a1033;
+    --danger: #ffb4b4;
+    --danger-soft: #3a1220;
+    /* Le jaune du Hub : même repère de focus que dans le reste de la suite. */
+    --focus-ring: #fde047;
+  }
+}
+
+/*
+ * Le Hub pose un focus jaune sur toute l'app : invisible sur notre fond clair.
+ * Cette règle hors @layer passe devant les utilitaires Tailwind du Hub.
+ */
+.anime-flow :focus-visible {
+  outline: 4px solid var(--focus-ring);
+  outline-offset: 2px;
+}

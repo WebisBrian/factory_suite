@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import type { HexColor } from "@/components/screendraft/screendraft-schema";
+import { THEME_COLORS } from "@/components/screendraft/screendraft-mockup-theme";
+import type { HexColor, ThemeColor } from "@/components/screendraft/screendraft-schema";
 
 export const FIELD_CLASS =
   "w-full rounded-(--radius-sm) border border-(--line-strong) bg-(--surface-raised) px-(--space-2) py-(--space-1) text-(--ink)";
@@ -74,25 +75,62 @@ type ColorFieldProps = {
   onChange: (value: HexColor) => void;
   /** Proposé seulement si la couleur peut être retirée (ex. fond transparent). */
   onClear?: () => void;
+  /** Couleur de la charte suivie, et choix d'une autre (`undefined` : couleur personnalisée). */
+  themeLink?: {
+    value: ThemeColor | undefined;
+    onChange: (value: ThemeColor | undefined) => void;
+  };
 };
 
+// Valeur du menu de la charte quand la couleur est choisie à la main.
+const CUSTOM_COLOR = "";
+
 /** Le sélecteur natif ne gère que #rrggbb : la transparence éventuelle (#rrggbbaa) est conservée. */
-export function ScreendraftColorField({ label, value, fallback, onChange, onClear }: ColorFieldProps) {
+export function ScreendraftColorField({ label, value, fallback, onChange, onClear, themeLink }: ColorFieldProps) {
   const color = value ?? fallback;
   const alpha = color.length === 9 ? color.slice(7) : "";
+  const picker = (
+    <input
+      type="color"
+      aria-label={label}
+      value={color.slice(0, 7)}
+      onChange={(event) => onChange(`${event.target.value}${alpha}` as HexColor)}
+      className="size-7 shrink-0 cursor-pointer rounded-(--radius-sm) border border-(--line-strong) bg-(--surface-raised)"
+    />
+  );
+
+  // Avec la charte : le menu dit quelle couleur de la charte est suivie ; choisir au sélecteur la détache.
+  if (themeLink) {
+    return (
+      <ScreendraftField label={label}>
+        <span className="flex items-center gap-(--space-2)">
+          <select
+            aria-label={`${label} : couleur de la charte`}
+            value={themeLink.value ?? CUSTOM_COLOR}
+            onChange={(event) =>
+              themeLink.onChange(event.target.value === CUSTOM_COLOR ? undefined : (event.target.value as ThemeColor))
+            }
+            className={`${FIELD_CLASS} min-w-0`}
+          >
+            <option value={CUSTOM_COLOR}>Personnalisée ({value ?? "aucune"})</option>
+            {THEME_COLORS.map(({ key, label: colorLabel }) => (
+              <option key={key} value={key}>
+                Charte : {colorLabel}
+              </option>
+            ))}
+          </select>
+          {picker}
+        </span>
+      </ScreendraftField>
+    );
+  }
 
   return (
     <div className="flex items-center justify-between gap-(--space-2)">
       <span className="text-(--ink-muted)">{label}</span>
       <span className="flex items-center gap-(--space-2)">
         <span className="text-code text-(--ink) uppercase">{value ?? "Aucune"}</span>
-        <input
-          type="color"
-          aria-label={label}
-          value={color.slice(0, 7)}
-          onChange={(event) => onChange(`${event.target.value}${alpha}` as HexColor)}
-          className="size-7 cursor-pointer rounded-(--radius-sm) border border-(--line-strong) bg-(--surface-raised)"
-        />
+        {picker}
         {onClear && value && (
           <button
             type="button"
