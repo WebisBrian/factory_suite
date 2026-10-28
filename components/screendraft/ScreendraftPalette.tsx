@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DraftNodeType } from "../_lib/schema";
+import type { DraftNodeType } from "@/components/screendraft/screendraft-schema";
 
 const BASE_COMPONENTS: { type: DraftNodeType; label: string; icon: ReactNode }[] = [
   { type: "section", label: "Section", icon: <rect x="3" y="5" width="18" height="14" rx="2" /> },
@@ -28,22 +28,22 @@ const BASE_COMPONENTS: { type: DraftNodeType; label: string; icon: ReactNode }[]
 ];
 
 /** Composants de base. L'insertion dans la maquette viendra avec SCRUM-4. */
-export default function Palette() {
+export function ScreendraftPalette() {
   return (
-    <aside className="w-56 shrink-0 border-r border-neutral-200 bg-white">
-      <h2 className="px-4 pt-4 pb-2 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+    <aside className="w-56 shrink-0 border-r border-white/10 bg-white/3">
+      <h2 className="px-4 pt-4 pb-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
         Composants
       </h2>
       <ul className="px-2">
         {BASE_COMPONENTS.map(({ type, label, icon }) => (
           <li
             key={type}
-            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-neutral-700"
+            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-300"
           >
             <svg
               aria-hidden
               viewBox="0 0 24 24"
-              className="size-5 shrink-0 fill-none stroke-neutral-500"
+              className="size-5 shrink-0 fill-none stroke-zinc-400"
               strokeWidth={1.5}
               strokeLinecap="round"
               strokeLinejoin="round"

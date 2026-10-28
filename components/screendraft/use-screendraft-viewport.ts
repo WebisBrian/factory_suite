@@ -14,7 +14,7 @@ import {
   type Size,
   type Viewport,
   type ZoomCommand,
-} from "../_lib/viewport";
+} from "@/components/screendraft/screendraft-viewport";
 
 const WHEEL_LINE_HEIGHT = 16;
 const WHEEL_ZOOM_SPEED = 0.01;
@@ -30,7 +30,7 @@ const MAX_WHEEL_ZOOM_DELTA = 25;
  *
  * `viewport` reste null tant que le canvas n'a pas été mesuré.
  */
-export function useCanvasViewport(frame: Size) {
+export function useScreendraftViewport(frame: Size) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
