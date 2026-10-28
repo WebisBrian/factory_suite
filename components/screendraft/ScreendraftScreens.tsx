@@ -2,6 +2,7 @@
 
 import { useState, type DragEvent } from "react";
 import { LAYER_DRAG_TYPE } from "@/components/screendraft/ScreendraftLayers";
+import { ScreendraftPanelSection } from "@/components/screendraft/ScreendraftPanelSection";
 import type { Screen } from "@/components/screendraft/screendraft-schema";
 
 type ScreendraftScreensProps = {
@@ -43,9 +44,12 @@ export function ScreendraftScreens({
   }
 
   return (
-    <section aria-labelledby="screendraft-ecrans" className="flex shrink-0 flex-col border-t border-(--line) p-(--space-4)">
-      <div className="flex items-center justify-between pb-(--space-2)">
-        <h2 id="screendraft-ecrans" className="text-label text-(--ink-muted)">Écrans</h2>
+    <ScreendraftPanelSection
+      id="screens"
+      headingId="screendraft-ecrans"
+      title="Écrans"
+      count={screens.length}
+      actions={
         <button
           type="button"
           onClick={onAdd}
@@ -63,7 +67,8 @@ export function ScreendraftScreens({
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
-      </div>
+      }
+    >
       <ul aria-labelledby="screendraft-ecrans" className="-mx-(--space-2)">
         {screens.map((screen) => {
           const isActive = screen.id === activeScreenId;
@@ -90,6 +95,6 @@ export function ScreendraftScreens({
           );
         })}
       </ul>
-    </section>
+    </ScreendraftPanelSection>
   );
 }

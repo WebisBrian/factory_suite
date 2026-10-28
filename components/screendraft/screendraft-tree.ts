@@ -164,8 +164,14 @@ function depthTarget(index: number, count: number, move: DepthMove): number {
   }
 }
 
-/** Nom affiché dans les calques : le contenu de l'élément quand il en a un. */
+/** Nom affiché dans les calques : le nom donné à l'élément, sinon son contenu. */
 export function nodeLabel(node: DraftNode): string {
+  if (node.name) return node.name;
+  return contentLabel(node);
+}
+
+/** Libellé tiré du contenu de l'élément : celui qu'il reprend quand on efface son nom. */
+export function contentLabel(node: DraftNode): string {
   switch (node.type) {
     case "section":
       return "Section";

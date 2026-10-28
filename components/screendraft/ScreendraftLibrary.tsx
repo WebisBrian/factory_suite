@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ScreendraftNodeIcon } from "@/components/screendraft/ScreendraftNodeIcon";
+import { ScreendraftPanelSection } from "@/components/screendraft/ScreendraftPanelSection";
 import type { CustomComponent } from "@/components/screendraft/screendraft-components";
 import type { LibraryStatus } from "@/components/screendraft/use-screendraft-library";
 
@@ -31,9 +32,12 @@ export function ScreendraftLibrary({
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   return (
-    <section aria-labelledby="screendraft-mes-composants" className="flex shrink-0 flex-col border-t border-(--line) p-(--space-4)">
-      <h2 id="screendraft-mes-composants" className="text-label pb-(--space-2) text-(--ink-muted)">Mes composants</h2>
-
+    <ScreendraftPanelSection
+      id="library"
+      headingId="screendraft-mes-composants"
+      title="Mes composants"
+      count={components.length}
+    >
       {status.kind === "error" && (
         <p role="alert" className="text-body-sm pb-(--space-2) text-(--danger)">
           Erreur : {status.message}{" "}
@@ -140,6 +144,6 @@ export function ScreendraftLibrary({
           </li>
         ))}
       </ul>
-    </section>
+    </ScreendraftPanelSection>
   );
 }
