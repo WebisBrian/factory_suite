@@ -28,6 +28,7 @@ import {
   patchTheme,
   type ThemePatch,
 } from "@/components/screendraft/screendraft-mockup-theme";
+import { groupNodes } from "@/components/screendraft/screendraft-group";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
   findNode,
@@ -71,6 +72,8 @@ export type ScreendraftAction =
   | { type: "reset-instance"; id: string; component: CustomComponent }
   | { type: "detach-instance"; id: string }
   | { type: "detach-component"; componentId: string }
+  | { type: "group-nodes"; ids: string[]; wrapperId: string; component?: CustomComponent }
+  | { type: "delete-nodes"; ids: string[] }
   /** Modifie la charte : tous les éléments qui la suivent sont mis à jour, sur tous les écrans. */
   | { type: "set-theme"; patch: ThemePatch }
   /** Lie des propriétés de l'élément à la charte ; une valeur `undefined` retire le lien. */
@@ -213,6 +216,23 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         mapInstances(nodes, (instance) =>
           instance.componentId === action.componentId ? detachInstance(instance) : null,
         ),
+      );
+    // Sélection multiple : les éléments, d'un même écran, passent dans une nouvelle section.
+    // Avec `component`, la section devient aussitôt son instance : une seule étape à annuler.
+    case "group-nodes": {
+      const { ids, wrapperId, component } = action;
+      if (ids.length === 0) return draft;
+      return withNodesOf(draft, ids[0], (nodes) => {
+        const grouped = groupNodes(nodes, ids, wrapperId);
+        if (!grouped) return nodes;
+        if (!component) return grouped.nodes;
+        return updateNode(grouped.nodes, wrapperId, (node) => buildInstance(component, node.id, node.x, node.y));
+      });
+    }
+    case "delete-nodes":
+      return action.ids.reduce(
+        (current, id) => withNodesOf(current, id, (nodes) => removeNode(nodes, id)),
+        draft,
       );
     case "set-theme":
       return applyTheme({ ...draft, theme: patchTheme(draft.theme, action.patch) });

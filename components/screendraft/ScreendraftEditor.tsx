@@ -8,6 +8,7 @@ import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
 import { ScreendraftHistoryControls } from "@/components/screendraft/ScreendraftHistoryControls";
 import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
 import { ScreendraftLibrary } from "@/components/screendraft/ScreendraftLibrary";
+import { ScreendraftMultiSelection } from "@/components/screendraft/ScreendraftMultiSelection";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import {
   ScreendraftPropertiesPanel,
@@ -36,7 +37,12 @@ import type {
   Maquette,
   ShapeKind,
 } from "@/components/screendraft/screendraft-schema";
-import { createScreen, findScreenNode } from "@/components/screendraft/screendraft-screens";
+import { groupNodes } from "@/components/screendraft/screendraft-group";
+import {
+  createScreen,
+  findScreenNode,
+  type ScreenNodeLocation,
+} from "@/components/screendraft/screendraft-screens";
 import { frameRect } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftLibrary } from "@/components/screendraft/use-screendraft-library";
@@ -59,7 +65,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const { draft, dispatch, undo, redo, canUndo, canRedo } = useScreendraftHistory(initialDraft);
   // L'écran actif et la sélection sont des états de l'éditeur : ils ne sont pas exportés dans le JSON.
   const [activeScreenId, setActiveScreenId] = useState(initialDraft.screens[0].id);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Plusieurs éléments avec Maj + clic, toujours dans un même écran.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isPrototypeOpen, setIsPrototypeOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [templateMessage, setTemplateMessage] = useState("");
@@ -68,12 +75,51 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const isOverlayOpen = isPrototypeOpen || isTemplatesOpen;
   // Après une annulation ou une suppression, l'écran actif peut ne plus exister : on revient au premier.
   const activeScreen = draft.screens.find((screen) => screen.id === activeScreenId) ?? draft.screens[0];
-  const selection = selectedId ? findScreenNode(draft.screens, selectedId) : null;
+  // Un élément supprimé (ou annulé) disparaît de la sélection.
+  const selections = selectedIds
+    .map((id) => findScreenNode(draft.screens, id))
+    .filter((found): found is ScreenNodeLocation => found !== null);
+  // Un seul élément : ses propriétés. Plusieurs : le panneau de sélection multiple.
+  const selection = selections.length === 1 ? selections[0] : null;
   const { save, status: saveStatus, savedDraft } = useScreendraftSave(projectId, initialDraft);
   const isDirty = projectId !== null && draft !== savedDraft;
   // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
   const clipboard = useRef<ScreendraftClipboard | null>(null);
   const library = useScreendraftLibrary(projectId);
+
+  function setSelectedId(id: string | null) {
+    setSelectedIds(id === null ? [] : [id]);
+  }
+
+  // Maj + clic : ajoute ou retire l'élément. Un élément d'un autre écran repart d'une sélection neuve.
+  function toggleSelected(id: string) {
+    const screenId = findScreenNode(draft.screens, id)?.screen.id;
+    setSelectedIds((current) => {
+      if (current.includes(id)) return current.filter((other) => other !== id);
+      const sameScreen = current.every((other) => findScreenNode(draft.screens, other)?.screen.id === screenId);
+      return sameScreen ? [...current, id] : [id];
+    });
+  }
+
+  // Sélection multiple : les éléments passent dans une nouvelle section, qui reste sélectionnée.
+  function groupSelection() {
+    const wrapperId = `section_${Date.now()}`;
+    dispatch({ type: "group-nodes", ids: selections.map(({ location }) => location.node.id), wrapperId });
+    setSelectedId(wrapperId);
+  }
+
+  // Comme le groupement, mais la section devient un composant (enregistré d'abord) et sa première instance.
+  async function createComponentFromSelection(name: string) {
+    const ids = selections.map(({ location }) => location.node.id);
+    const screen = selections[0]?.screen;
+    const wrapperId = `section_${Date.now()}`;
+    const grouped = screen ? groupNodes(screen.nodes, ids, wrapperId) : null;
+    if (!grouped) return;
+    const component = await library.add(name, grouped.wrapper);
+    if (!component) return;
+    dispatch({ type: "group-nodes", ids, wrapperId, component });
+    setSelectedId(wrapperId);
+  }
 
   function addNode(type: DraftNodeType, shape?: ShapeKind) {
     const node = createNode(type, activeScreen.nodes.length, shape);
@@ -131,10 +177,10 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     activateScreen(screen.id);
   }
 
-  // Changer d'écran désélectionne l'élément s'il appartient à un autre écran.
+  // Changer d'écran désélectionne les éléments d'un autre écran.
   function activateScreen(screenId: string) {
     setActiveScreenId(screenId);
-    if (selection && selection.screen.id !== screenId) setSelectedId(null);
+    if (selections.some((found) => found.screen.id !== screenId)) setSelectedId(null);
   }
 
   // L'élément passe dans un autre écran, qui devient actif : il reste sélectionné.
@@ -158,9 +204,11 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   }
 
   // Clic sur le canvas : l'écran cliqué devient actif, l'élément cliqué est sélectionné.
-  function pick(screenId: string | null, nodeId: string | null) {
+  // Maj + clic sur le fond garde la sélection, pour ne pas la perdre sur un clic manqué.
+  function pick(screenId: string | null, nodeId: string | null, additive: boolean) {
     if (screenId) setActiveScreenId(screenId);
-    setSelectedId(nodeId);
+    if (additive && nodeId) toggleSelected(nodeId);
+    else if (!additive) setSelectedId(nodeId);
   }
 
   useEffect(() => {
@@ -181,9 +229,9 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         if (shortcut === "undo") undo();
         else redo();
       }
-      if (isDeleteShortcut(event) && selection) {
+      if (isDeleteShortcut(event) && selections.length > 0) {
         event.preventDefault();
-        dispatch({ type: "delete-node", id: selection.location.node.id });
+        dispatch({ type: "delete-nodes", ids: selections.map(({ location }) => location.node.id) });
         setSelectedId(null);
       }
       const clipboardAction = clipboardShortcut(event);
@@ -212,7 +260,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save, undo, redo, dispatch, selection, activeScreen.id, isOverlayOpen]);
+  }, [draft, projectId, save, undo, redo, dispatch, selection, selections, activeScreen.id, isPrototypeOpen]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {
@@ -311,8 +359,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             />
             <ScreendraftLayers
               nodes={activeScreen.nodes}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
+              selectedIds={selectedIds}
+              onSelect={(id, additive) => (additive ? toggleSelected(id) : setSelectedId(id))}
               onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
             />
           </div>
@@ -322,7 +370,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             key={draft.screens.map((screen) => `${screen.id}:${screen.frame.width}`).join(",")}
             screens={draft.screens}
             activeScreenId={activeScreen.id}
-            selection={selection}
+            selections={selections}
             onPick={pick}
             onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
             onDropInto={(id, parentId) =>
@@ -341,6 +389,21 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             dispatch={dispatch}
             components={library.components}
             componentHandlers={componentHandlers}
+            multiSelection={
+              selections.length > 1 && (
+                <ScreendraftMultiSelection
+                  // Une nouvelle sélection repart du nom par défaut.
+                  key={selectedIds.join(",")}
+                  count={selections.length}
+                  onCreateComponent={(name) => void createComponentFromSelection(name)}
+                  onGroup={groupSelection}
+                  onDelete={() => {
+                    dispatch({ type: "delete-nodes", ids: selections.map(({ location }) => location.node.id) });
+                    setSelectedId(null);
+                  }}
+                />
+              )
+            }
           />
         </div>
       </div>
