@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { HubNav } from "@/components/hub/HubNav";
+import { HubToolDock } from "@/components/hub/HubToolDock";
 import { hubTextScaleBootScript } from "@/components/hub/hub-text-scale";
 
 // Atkinson Hyperlegible : police conçue pour les personnes malvoyantes (Braille Institute).
@@ -53,9 +55,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           />
           <div className="relative flex flex-1 flex-col">
             <HubNav />
-            <div id="contenu" tabIndex={-1} className="flex flex-1 flex-col outline-none">
+            {/* --hub-dock-space : hauteur de la barre flottante des outils (posée par HubToolDock), 0 sur le Hub. */}
+            <div id="contenu" tabIndex={-1} className="flex flex-1 flex-col pb-[var(--hub-dock-space,0px)] outline-none">
               {children}
             </div>
+            {/* useSearchParams (project_id) → Suspense obligatoire pour l'export statique. */}
+            <Suspense fallback={null}>
+              <HubToolDock />
+            </Suspense>
           </div>
         </div>
       </body>
