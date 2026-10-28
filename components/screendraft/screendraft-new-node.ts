@@ -3,6 +3,8 @@ import type { DraftNode, DraftNodeType, ShapeKind } from "@/components/screendra
 /**
  * Nouvel élément inséré depuis la palette, au premier niveau du frame.
  * Chaque insertion est un peu décalée pour ne pas empiler les éléments au même endroit.
+ * Couleurs par défaut conformes WCAG AA sur le fond blanc du frame et sur une section :
+ * texte ≥ 4.5:1, formes et bordures ≥ 3:1.
  */
 export function createNode(type: DraftNodeType, index: number, shape: ShapeKind = "rectangle"): DraftNode {
   const offset = 40 + (index % 5) * 32;
@@ -33,7 +35,7 @@ export function createNode(type: DraftNodeType, index: number, shape: ShapeKind 
         type,
         width: 420,
         height: 220,
-        style: { backgroundColor: "#e0f2fe", borderRadius: 16, borderWidth: 1, borderColor: "#7dd3fc" },
+        style: { backgroundColor: "#e0f2fe", borderRadius: 16, borderWidth: 1, borderColor: "#0284c7" },
         children: [],
       };
     case "image":
@@ -55,7 +57,7 @@ export function createNode(type: DraftNodeType, index: number, shape: ShapeKind 
         type,
         width: 160,
         height: 160,
-        style: { backgroundColor: "#38bdf8", borderWidth: 0, borderColor: "#0284c7" },
+        style: { backgroundColor: "#0284c7", borderWidth: 0, borderColor: "#0369a1" },
         props: { shape },
       };
     case "button":
@@ -65,7 +67,7 @@ export function createNode(type: DraftNodeType, index: number, shape: ShapeKind 
         width: 180,
         height: 52,
         style: {
-          backgroundColor: "#0284c7",
+          backgroundColor: "#0369a1",
           color: "#ffffff",
           fontSize: 16,
           fontWeight: 600,

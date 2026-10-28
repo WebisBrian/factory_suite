@@ -79,7 +79,7 @@ export const maquetteFixture: Maquette = {
           width: 200,
           height: 56,
           style: {
-            backgroundColor: "#6366f1",
+            backgroundColor: "#4f46e5",
             color: "#ffffff",
             fontSize: 18,
             fontWeight: 600,
