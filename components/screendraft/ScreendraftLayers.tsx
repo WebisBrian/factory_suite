@@ -18,8 +18,9 @@ type DropTarget = { id: string; zone: DropZone };
 
 type ScreendraftLayersProps = {
   nodes: DraftNode[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedIds: string[];
+  /** `additive` : Maj + clic, ajouter ou retirer le calque de la sélection. */
+  onSelect: (id: string, additive: boolean) => void;
   onPlace: (id: string, placement: Placement) => void;
 };
 
@@ -33,9 +34,9 @@ type RowDragHandlers = {
 type LayerRowsProps = {
   nodes: DraftNode[];
   depth: number;
-  selectedId: string | null;
+  selectedIds: string[];
   dropTarget: DropTarget | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, additive: boolean) => void;
   drag: RowDragHandlers;
 };
 
@@ -44,7 +45,7 @@ type LayerRowsProps = {
  * l'inverse de l'ordre du JSON. Les enfants d'une section sont décalés vers la droite.
  * Glisser un calque le place devant ou derrière un autre, ou dans une section.
  */
-export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: ScreendraftLayersProps) {
+export function ScreendraftLayers({ nodes, selectedIds, onSelect, onPlace }: ScreendraftLayersProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
 
@@ -60,7 +61,7 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
       // Type propre à Screendraft : la liste des écrans n'accepte que les calques.
       event.dataTransfer.setData(LAYER_DRAG_TYPE, node.id);
       setDraggedId(node.id);
-      onSelect(node.id);
+      onSelect(node.id, false);
     },
     over(node, event) {
       // Pas de dépôt sur l'élément glissé ni dans ses propres enfants.
@@ -85,7 +86,7 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
         <LayerRows
           nodes={nodes}
           depth={0}
-          selectedId={selectedId}
+          selectedIds={selectedIds}
           dropTarget={dropTarget}
           onSelect={onSelect}
           drag={drag}
@@ -95,11 +96,11 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
   );
 }
 
-function LayerRows({ nodes, depth, selectedId, dropTarget, onSelect, drag }: LayerRowsProps) {
+function LayerRows({ nodes, depth, selectedIds, dropTarget, onSelect, drag }: LayerRowsProps) {
   const indent = `calc(var(--space-2) + var(--space-4) * ${depth})`;
 
   return [...nodes].reverse().map((node) => {
-    const isSelected = node.id === selectedId;
+    const isSelected = selectedIds.includes(node.id);
     const zone = dropTarget?.id === node.id ? dropTarget.zone : null;
     return (
       <Fragment key={node.id}>
@@ -109,7 +110,7 @@ function LayerRows({ nodes, depth, selectedId, dropTarget, onSelect, drag }: Lay
             type="button"
             draggable
             aria-current={isSelected || undefined}
-            onClick={() => onSelect(node.id)}
+            onClick={(event) => onSelect(node.id, event.shiftKey)}
             onDragStart={(event) => drag.start(node, event)}
             onDragOver={(event) => drag.over(node, event)}
             onDrop={drag.drop}
@@ -129,7 +130,7 @@ function LayerRows({ nodes, depth, selectedId, dropTarget, onSelect, drag }: Lay
           <LayerRows
             nodes={node.children}
             depth={depth + 1}
-            selectedId={selectedId}
+            selectedIds={selectedIds}
             dropTarget={dropTarget}
             onSelect={onSelect}
             drag={drag}

@@ -1,4 +1,4 @@
-import type { ChangeEvent, Dispatch } from "react";
+import type { ChangeEvent, Dispatch, ReactNode } from "react";
 import { ScreendraftCreateComponent } from "@/components/screendraft/ScreendraftCreateComponent";
 import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDepthControls";
 import { ScreendraftInstanceControls } from "@/components/screendraft/ScreendraftInstanceControls";
@@ -43,6 +43,8 @@ type ScreendraftPropertiesPanelProps = {
   /** Bibliothèque du projet, pour retrouver le composant d'une instance. */
   components: CustomComponent[];
   componentHandlers: ScreendraftComponentHandlers;
+  /** Panneau d'une sélection multiple (`selection` est alors null), ou null. */
+  multiSelection: ReactNode;
 };
 
 /** Actions sur les composants custom : elles écrivent la bibliothèque avant de modifier la maquette. */
@@ -68,6 +70,7 @@ export function ScreendraftPropertiesPanel({
   dispatch,
   components,
   componentHandlers,
+  multiSelection,
 }: ScreendraftPropertiesPanelProps) {
   const { frame } = screen;
   const preset = findPreset(frame);
@@ -113,7 +116,8 @@ export function ScreendraftPropertiesPanel({
           dispatch={dispatch}
         />
       )}
-      {!selection && <ScreendraftThemePanel theme={theme} dispatch={dispatch} />}
+      {multiSelection}
+      {!selection && !multiSelection && <ScreendraftThemePanel theme={theme} dispatch={dispatch} />}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       {/* Équivalent clavier du glisser vers un autre écran. */}
       {selection && selectionScreenId && screens.length > 1 && (
