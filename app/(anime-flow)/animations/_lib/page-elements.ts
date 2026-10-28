@@ -49,8 +49,8 @@ export function listPageElements(html: string): PageElement[] {
   return collect(doc.body);
 }
 
-/** Les éléments à plat, dans l'ordre de la page. */
-export function flattenElements(elements: PageElement[]): PageElement[] {
+/** Tous les éléments de l'arbre, à plat, dans l'ordre de la page. */
+export function flattenElements(elements: readonly PageElement[]): PageElement[] {
   return elements.flatMap((element) => [element, ...flattenElements(element.children)]);
 }
 

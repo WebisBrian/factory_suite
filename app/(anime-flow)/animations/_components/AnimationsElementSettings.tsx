@@ -1,95 +1,124 @@
 "use client";
 
-import {
-  AnimationsChoiceGroup,
-  type AnimationsChoice,
-} from "@/app/(anime-flow)/animations/_components/AnimationsChoiceGroup";
+import { useId } from "react";
 import { AnimationsSecondsField } from "@/app/(anime-flow)/animations/_components/AnimationsSecondsField";
-import { ANIMATION_PRESETS, describeEffect } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  ANIMATION_PRESETS,
+  describeEffect,
+  findPreset,
+  type AnimationPreset,
+} from "@/app/(anime-flow)/animations/_lib/animation-library";
 import {
   DELAY_LIMITS,
   DURATION_LIMITS,
   type ElementAnimation,
 } from "@/app/(anime-flow)/animations/_lib/element-animation";
-import { TRIGGER_EVENTS, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
+import { FIELD_CLASS, SECONDARY_BUTTON } from "@/app/(anime-flow)/animations/_lib/field-styles";
+import {
+  findTriggerEvent,
+  TRIGGER_EVENTS,
+  type TriggerEventId,
+} from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 const NO_ANIMATION = "none";
 
-const PRESET_CHOICES: readonly AnimationsChoice<string>[] = [
-  { value: NO_ANIMATION, name: "Aucune animation", description: "L'élément reste immobile." },
-  ...ANIMATION_PRESETS.map((preset) => ({ value: preset.id, name: preset.name, description: describeEffect(preset) })),
-];
-
-const EVENT_CHOICES: readonly AnimationsChoice<TriggerEventId>[] = TRIGGER_EVENTS.map((event) => ({
-  value: event.id,
-  name: event.name,
-  description: event.description,
-}));
-
-/** id du panneau, pour y amener le focus depuis « Modifier ». */
+/** id des réglages, pour y amener le focus depuis « Modifier ». */
 export const SETTINGS_ID = "animations-settings";
 
 type Props = {
-  elementName: string;
   /** null : aucune animation. */
   animation: ElementAnimation | null;
+  customAnimations: readonly AnimationPreset[];
   onPresetChange: (presetId: string | null) => void;
   onEventChange: (event: TriggerEventId) => void;
   onTimingChange: (timing: Partial<Pick<ElementAnimation, "duration" | "delay">>) => void;
   onPreview: () => void;
 };
 
-/** Réglages de l'élément sélectionné : l'animation, ce qui la déclenche, puis sa durée et son délai. */
+/**
+ * Réglages de l'élément sélectionné : l'animation et son déclencheur (deux listes déroulantes,
+ * avec la description du choix courant), puis sa durée et son délai.
+ */
 export function AnimationsElementSettings({
-  elementName,
   animation,
+  customAnimations,
   onPresetChange,
   onEventChange,
   onTimingChange,
   onPreview,
 }: Props) {
+  const uid = useId();
+  const preset = animation ? findPreset(animation.animation, customAnimations) : null;
+  const presetDescription = preset ? describeEffect(preset, animation?.duration) : "L'élément reste immobile.";
+
   return (
-    <section
-      id={SETTINGS_ID}
-      tabIndex={-1}
-      aria-labelledby="animations-settings-title"
-      className="flex flex-col gap-5 rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="animations-settings-title" className="text-lg font-semibold">
-          Réglages de : {elementName}
-        </h2>
-        {animation && (
-          <button
-            type="button"
-            onClick={onPreview}
-            className="min-h-10 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-sm font-semibold hover:bg-(--motion-soft)"
-          >
-            Prévisualiser
-          </button>
-        )}
+    <div id={SETTINGS_ID} tabIndex={-1} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${uid}-animation`} className="text-sm font-semibold">
+          Animation
+        </label>
+        <select
+          id={`${uid}-animation`}
+          value={animation?.animation ?? NO_ANIMATION}
+          onChange={(e) => onPresetChange(e.target.value === NO_ANIMATION ? null : e.target.value)}
+          aria-describedby={`${uid}-animation-description`}
+          className={FIELD_CLASS}
+        >
+          <option value={NO_ANIMATION}>Aucune animation</option>
+          <optgroup label="Bibliothèque">
+            {ANIMATION_PRESETS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </optgroup>
+          {customAnimations.length > 0 && (
+            <optgroup label="Mes animations">
+              {customAnimations.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+        <p id={`${uid}-animation-description`} className="text-sm text-(--ink-muted)">
+          {presetDescription}
+        </p>
       </div>
-      <AnimationsChoiceGroup
-        legend="Animation"
-        name="animations-preset"
-        choices={PRESET_CHOICES}
-        value={animation?.animation ?? NO_ANIMATION}
-        onChange={(value) => onPresetChange(value === NO_ANIMATION ? null : value)}
-      />
+
       {/* Sans animation, il n'y a rien à déclencher ni à régler. */}
       {animation && (
         <>
-          <AnimationsChoiceGroup
-            legend="Déclencheur"
-            name="animations-event"
-            choices={EVENT_CHOICES}
-            value={animation.event}
-            onChange={onEventChange}
-          />
+          <div className="flex flex-col gap-1">
+            <label htmlFor={`${uid}-event`} className="text-sm font-semibold">
+              Déclencheur
+            </label>
+            <select
+              id={`${uid}-event`}
+              value={animation.event}
+              onChange={(e) => {
+                const next = TRIGGER_EVENTS.find((trigger) => trigger.id === e.target.value);
+                if (next) onEventChange(next.id);
+              }}
+              aria-describedby={`${uid}-event-description`}
+              className={FIELD_CLASS}
+            >
+              {TRIGGER_EVENTS.map((trigger) => (
+                <option key={trigger.id} value={trigger.id}>
+                  {trigger.name}
+                </option>
+              ))}
+            </select>
+            <p id={`${uid}-event-description`} className="text-sm text-(--ink-muted)">
+              {findTriggerEvent(animation.event).description}
+            </p>
+          </div>
+
           {/* key : la durée repart de celle de l'animation quand on en change. */}
           <fieldset key={animation.animation}>
-            <legend className="text-base font-semibold">Durée et délai</legend>
-            <div className="mt-2 flex flex-wrap gap-6">
+            <legend className="text-sm font-semibold">Durée et délai</legend>
+            <div className="mt-2 flex flex-wrap gap-4">
               <AnimationsSecondsField
                 label="Durée"
                 valueMs={animation.duration}
@@ -104,8 +133,15 @@ export function AnimationsElementSettings({
               />
             </div>
           </fieldset>
+
+          <button type="button" onClick={onPreview} className={`${SECONDARY_BUTTON} self-start`}>
+            <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
+              <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+            </svg>
+            Prévisualiser
+          </button>
         </>
       )}
-    </section>
+    </div>
   );
 }
