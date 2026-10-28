@@ -13,14 +13,17 @@ const TEXT_DEFAULTS: CSSProperties = {
 type ScreendraftFrameProps = {
   screen: Screen;
   style?: CSSProperties;
+  /** Masqué aux lecteurs d'écran (aperçu de l'éditeur). */
+  hidden?: boolean;
 };
 
 /** Un écran de la maquette à l'échelle 1. Le contenu qui dépasse du frame est masqué. */
-export function ScreendraftFrame({ screen, style }: ScreendraftFrameProps) {
+export function ScreendraftFrame({ screen, style, hidden = false }: ScreendraftFrameProps) {
   const { frame } = screen;
   return (
     <div
       data-screen-id={screen.id}
+      aria-hidden={hidden || undefined}
       style={{
         ...TEXT_DEFAULTS,
         position: "absolute",

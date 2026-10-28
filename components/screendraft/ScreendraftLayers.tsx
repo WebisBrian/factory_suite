@@ -79,9 +79,11 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col border-t border-(--line) p-(--space-4)">
-      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">Calques</h2>
-      <ul className="-mx-(--space-2) min-h-0 flex-1 overflow-y-auto">
+    <section aria-labelledby="screendraft-calques" className="flex shrink-0 flex-col border-t border-(--line) p-(--space-4)">
+      <h2 id="screendraft-calques" className="text-label pb-(--space-2) text-(--ink-muted)">
+        Calques
+      </h2>
+      <ul aria-labelledby="screendraft-calques" className="-mx-(--space-2)">
         <LayerRows
           nodes={nodes}
           depth={0}
@@ -115,14 +117,20 @@ function LayerRows({ nodes, depth, selectedId, dropTarget, onSelect, drag }: Lay
             onDrop={drag.drop}
             onDragEnd={drag.end}
             className={`text-body-sm flex w-full items-center gap-(--space-2) rounded-(--radius-md) py-(--space-1) pr-(--space-2) text-left ${
-              isSelected || zone === "inside" ? "bg-(--draft-soft) text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
+              isSelected || zone === "inside" ? "bg-(--draft-soft) font-semibold text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
             } ${zone === "inside" ? "outline-[1.5px] outline-(--draft) outline-solid" : ""}`}
             style={{ paddingLeft: indent }}
           >
             <span className={isSelected ? undefined : "text-(--ink-muted)"}>
               <ScreendraftNodeIcon type={node.type} />
             </span>
-            <span className="truncate">{nodeLabel(node)}</span>
+            <span className="min-w-0 break-words">{nodeLabel(node)}</span>
+            {/* Sélection signalée autrement que par la couleur (RGAA 3.1). */}
+            {isSelected && (
+              <span aria-hidden className="ml-auto shrink-0">
+                ✓
+              </span>
+            )}
           </button>
         </li>
         {node.type === "section" && (

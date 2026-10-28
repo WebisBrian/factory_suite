@@ -24,8 +24,8 @@ export function ScreendraftPalette({
   onAdd: (type: DraftNodeType, shape?: ShapeKind) => void;
 }) {
   return (
-    <section className="p-(--space-4)">
-      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
+    <section aria-labelledby="screendraft-composants" className="p-(--space-4)">
+      <h2 id="screendraft-composants" className="text-label pb-(--space-2) text-(--ink-muted)">
         Composants
       </h2>
       <ul className="-mx-(--space-2)">
@@ -44,10 +44,10 @@ export function ScreendraftPalette({
           </li>
         ))}
       </ul>
-      <h2 className="text-label mt-(--space-4) pb-(--space-2) text-(--ink-muted)">
+      <h3 className="text-label mt-(--space-4) pb-(--space-2) text-(--ink-muted)">
         Formes
-      </h2>
-      <div className="flex gap-(--space-2)">
+      </h3>
+      <div role="group" aria-label="Formes" className="flex flex-wrap gap-(--space-2)">
         {SHAPES.map(({ shape, icon }) => (
           <button
             key={shape}
@@ -55,7 +55,7 @@ export function ScreendraftPalette({
             onClick={() => onAdd("shape", shape)}
             aria-label={`Ajouter : ${SHAPE_LABELS[shape]}`}
             title={SHAPE_LABELS[shape]}
-            className="grid size-9 place-items-center rounded-(--radius-md) border border-(--line) text-lg text-(--ink) hover:bg-(--canvas)"
+            className="grid size-10 place-items-center rounded-(--radius-md) border border-(--line-strong) text-lg text-(--ink) hover:bg-(--canvas)"
           >
             <span aria-hidden>{icon}</span>
           </button>

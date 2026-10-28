@@ -205,7 +205,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   return (
     // Le Hub n'impose pas de hauteur à la page : seul, l'éditeur grandirait avec la liste des calques
     // et ferait défiler la page. Le conteneur absolu occupe exactement l'espace sous la barre du Hub.
-    <div className="relative min-h-0 flex-1">
+    <main className="relative min-h-0 flex-1">
       <div className="screendraft absolute inset-0 flex flex-col bg-(--surface) text-(--ink)">
         {isPrototypeOpen && (
           <ScreendraftPrototype
@@ -215,17 +215,21 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
           />
         )}
         {/* Pendant l'aperçu, l'éditeur est inerte : ni clic, ni focus clavier. */}
-        <header inert={isPrototypeOpen} className="flex min-h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
-          {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
-          <span aria-hidden className="text-body-sm text-(--ink-muted)">
-            /
-          </span>
-          <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
-          <div className="ml-auto flex items-center gap-(--space-3)">
+        <header inert={isPrototypeOpen} className="flex min-h-14 shrink-0 flex-wrap items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
+          {/* Titre unique de la page (RGAA 9.1) : l'outil et la maquette ouverte. */}
+          <h1 className="flex min-w-0 flex-wrap items-center gap-(--space-3)">
+            {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={wordmarkWhite.src} alt="Screen draft" className="sd-only-dark h-8 w-auto" />
+            <span aria-hidden className="text-body-sm text-(--ink-muted)">
+              /
+            </span>
+            <span className="sr-only">, maquette </span>
+            <span className="text-body-sm min-w-0 break-words text-(--ink-muted)">{draft.name}</span>
+          </h1>
+          <div className="ml-auto flex flex-wrap items-center gap-(--space-3)">
             <button
               type="button"
               onClick={() => setIsPrototypeOpen(true)}
@@ -254,7 +258,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         </header>
 
         <div inert={isPrototypeOpen} className="flex min-h-0 flex-1">
-          <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
+          <div className="flex w-60 max-w-[30vw] shrink-0 flex-col overflow-y-auto border-r border-(--line) bg-(--surface-raised)">
             <ScreendraftPalette onAdd={addNode} />
             <ScreendraftScreens
               screens={draft.screens}
@@ -306,7 +310,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
           />
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

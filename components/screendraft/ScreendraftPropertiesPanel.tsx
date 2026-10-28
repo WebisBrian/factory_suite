@@ -93,7 +93,7 @@ export function ScreendraftPropertiesPanel({
   }
 
   return (
-    <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+    <aside aria-label="Propriétés" className="w-72 max-w-[32vw] shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
       {selection?.node.componentId !== undefined && (
         <ScreendraftInstanceControls
           node={selection.node}
