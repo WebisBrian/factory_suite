@@ -153,6 +153,8 @@ test("le bouton télécharge le site entier en démo et enregistre tous les écr
     "@/app/codeforge/generator/_lib/generate-html": generator,
     "@/app/codeforge/generator/_lib/export-site": exporter,
     "@/app/codeforge/generator/_components/GeneratorPreview": {},
+    // Classes de style : sans effet sur la logique testée ici.
+    "@/app/codeforge/generator/_lib/generator-styles": new Proxy({}, { get: (_, key) => (key === "toolHref" ? (path) => path : "") }),
   }, {
     document: { createElement: () => link, body: { appendChild() {} } },
     URL: { createObjectURL(value) { if (fail) throw Error("Échec simulé"); blob = value; return "blob:test"; }, revokeObjectURL() {} },
@@ -161,7 +163,7 @@ test("le bouton télécharge le site entier en démo et enregistre tous les écr
   function find(node, predicate) {
     if (Array.isArray(node)) return node.map((n) => find(n, predicate)).find(Boolean);
     if (!node || typeof node !== "object") return;
-    return predicate(node) ? node : find(node.props?.children, predicate);
+    return predicate(node) ? node : find(node.props?.children, predicate) ?? find(node.props?.leading, predicate);
   }
   for (const projectId of [null, 7]) {
     const tree = GeneratorOutput({ maquette: parse(fixture), projectId, sourceLabel: "Test" });
