@@ -4,6 +4,7 @@ import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDe
 import { ScreendraftInstanceControls } from "@/components/screendraft/ScreendraftInstanceControls";
 import type { CustomComponent } from "@/components/screendraft/screendraft-components";
 import { ScreendraftNodeProperties } from "@/components/screendraft/ScreendraftNodeProperties";
+import { ScreendraftThemePanel } from "@/components/screendraft/ScreendraftThemePanel";
 import {
   FRAME_PRESETS,
   MAX_FRAME_HEIGHT,
@@ -12,7 +13,7 @@ import {
   isValidFrameHeight,
 } from "@/components/screendraft/screendraft-formats";
 import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { DraftNode, Frame, Screen } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Frame, Screen, Theme } from "@/components/screendraft/screendraft-schema";
 import type { NodeLocation } from "@/components/screendraft/screendraft-tree";
 
 const DEVICE_GROUPS: { device: Frame["device"]; label: string }[] = [
@@ -35,6 +36,8 @@ type ScreendraftPropertiesPanelProps = {
   /** Écran de l'élément sélectionné. */
   selectionScreenId: string | null;
   screens: Screen[];
+  /** Charte graphique de la maquette, montrée quand rien n'est sélectionné. */
+  theme: Theme;
   onSendToScreen: (nodeId: string, screenId: string) => void;
   dispatch: Dispatch<ScreendraftAction>;
   /** Bibliothèque du projet, pour retrouver le composant d'une instance. */
@@ -60,6 +63,7 @@ export function ScreendraftPropertiesPanel({
   selection,
   selectionScreenId,
   screens,
+  theme,
   onSendToScreen,
   dispatch,
   components,
@@ -105,9 +109,11 @@ export function ScreendraftPropertiesPanel({
           node={selection.node}
           screens={screens}
           screenId={selectionScreenId}
+          theme={theme}
           dispatch={dispatch}
         />
       )}
+      {!selection && <ScreendraftThemePanel theme={theme} dispatch={dispatch} />}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       {/* Équivalent clavier du glisser vers un autre écran. */}
       {selection && selectionScreenId && screens.length > 1 && (

@@ -1,4 +1,5 @@
 import { syncLinks } from "@/components/screendraft/screendraft-links";
+import { DEFAULT_THEME, readTheme } from "@/components/screendraft/screendraft-mockup-theme";
 import { SCHEMA_VERSION, type Frame, type Maquette } from "@/components/screendraft/screendraft-schema";
 
 /** Fichier écrit dans le dossier du projet, lu ensuite par le Générateur. */
@@ -30,7 +31,8 @@ export function parseMaquette(text: string): ParsedMaquette {
       error: `${MAQUETTE_FILE} n'est pas une maquette Screendraft (version ${SCHEMA_VERSION}).`,
     };
   }
-  return { ok: true, draft: syncLinks(data) };
+  // Un fichier écrit avant la charte graphique reçoit la charte par défaut.
+  return { ok: true, draft: syncLinks({ ...data, theme: readTheme(data.theme) }) };
 }
 
 /** Maquette de départ d'un projet qui n'a pas encore de `maquette.json`. */
@@ -39,12 +41,19 @@ export function createEmptyMaquette(projectId: number): Maquette {
     schemaVersion: SCHEMA_VERSION,
     id: `maquette_${projectId}`,
     name: "Nouvelle maquette",
+    theme: DEFAULT_THEME,
     screens: [
       {
         id: "screen_1",
         name: "Écran 1",
         path: "index.html",
-        frame: { device: "desktop", width: 1440, height: 1024, backgroundColor: "#ffffff" },
+        frame: {
+          device: "desktop",
+          width: 1440,
+          height: 1024,
+          backgroundColor: DEFAULT_THEME.colors.background,
+          themeLinks: { backgroundColor: "background" },
+        },
         nodes: [],
       },
     ],
@@ -80,7 +89,7 @@ function looksLikeMaquette(data: unknown): data is Maquette {
 }
 
 /** Version 1 : un seul écran, `frame` et `nodes` au premier niveau. */
-type MaquetteV1 = Omit<Maquette, "schemaVersion" | "screens"> & {
+type MaquetteV1 = Omit<Maquette, "schemaVersion" | "screens" | "theme"> & {
   schemaVersion: 1;
   frame: Frame;
   nodes: Maquette["screens"][number]["nodes"];
@@ -102,6 +111,7 @@ function migrateV1({ id, name, frame, nodes }: MaquetteV1): Maquette {
     schemaVersion: SCHEMA_VERSION,
     id,
     name,
+    theme: DEFAULT_THEME,
     screens: [{ id: "screen_1", name: "Écran 1", path: "", frame, nodes }],
   };
 }

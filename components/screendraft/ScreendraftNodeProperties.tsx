@@ -14,8 +14,12 @@ import type {
   DraftNodeType,
   NodeStyle,
   Screen,
+  Theme,
+  ThemeLinks,
+  ThemeTextSize,
   VideoNode,
 } from "@/components/screendraft/screendraft-schema";
+import { THEME_TEXT_SIZES } from "@/components/screendraft/screendraft-mockup-theme";
 import { SHAPE_LABELS } from "@/components/screendraft/screendraft-tree";
 import { parseVideoUrl } from "@/components/screendraft/screendraft-video";
 
@@ -47,6 +51,9 @@ const FONT_WEIGHTS: { value: NonNullable<NodeStyle["fontWeight"]>; label: string
   { value: 700, label: "Gras" },
 ];
 
+// Valeur du menu « Style de texte » quand la taille est choisie à la main.
+const CUSTOM_TEXT_SIZE = "custom";
+
 const TEXT_ALIGNS: { value: NonNullable<NodeStyle["textAlign"]>; label: string }[] = [
   { value: "left", label: "Gauche" },
   { value: "center", label: "Centre" },
@@ -58,6 +65,8 @@ type ScreendraftNodePropertiesProps = {
   /** Écrans de la maquette et écran de l'élément, pour lier un bouton à un autre écran. */
   screens: Screen[];
   screenId: string | null;
+  /** Charte de la maquette, que l'élément peut suivre pour ses couleurs, tailles et arrondi. */
+  theme: Theme;
   dispatch: Dispatch<ScreendraftAction>;
 };
 
@@ -65,16 +74,22 @@ type ScreendraftNodePropertiesProps = {
 const NO_SCREEN = "";
 
 /** Tout ce qui se modifie sur l'élément sélectionné : contenu, position et taille, apparence. */
-export function ScreendraftNodeProperties({ node, screens, screenId, dispatch }: ScreendraftNodePropertiesProps) {
+export function ScreendraftNodeProperties({ node, screens, screenId, theme, dispatch }: ScreendraftNodePropertiesProps) {
   const { style } = node;
+  const links = node.themeLinks ?? {};
 
+  // Une valeur choisie à la main détache la propriété de la charte (voir le réducteur).
   function setStyle(next: NodeStyle) {
     dispatch({ type: "set-style", id: node.id, style: next });
   }
 
+  function linkStyle(next: ThemeLinks) {
+    dispatch({ type: "link-style", id: node.id, links: next });
+  }
+
   return (
     <>
-      <ContentFields node={node} screens={screens} screenId={screenId} dispatch={dispatch} />
+      <ContentFields node={node} screens={screens} screenId={screenId} theme={theme} dispatch={dispatch} />
 
       <ScreendraftFieldGroup title="Position et taille">
         <div className="grid grid-cols-2 gap-(--space-3)">
@@ -98,6 +113,19 @@ export function ScreendraftNodeProperties({ node, screens, screenId, dispatch }:
             value={style.color}
             fallback={DEFAULT_TEXT_COLOR}
             onChange={(color) => setStyle({ color })}
+            themeLink={{ value: links.color, onChange: (color) => linkStyle({ color }) }}
+          />
+          <ScreendraftSelectField<ThemeTextSize | typeof CUSTOM_TEXT_SIZE>
+            label="Style de texte"
+            value={links.fontSize ?? CUSTOM_TEXT_SIZE}
+            options={[
+              { value: CUSTOM_TEXT_SIZE, label: "Taille personnalisée" },
+              ...THEME_TEXT_SIZES.map(({ key, label }) => ({
+                value: key,
+                label: `Charte : ${label} (${theme.textSizes[key]} px)`,
+              })),
+            ]}
+            onChange={(fontSize) => linkStyle({ fontSize: fontSize === CUSTOM_TEXT_SIZE ? undefined : fontSize })}
           />
           <div className="grid grid-cols-2 gap-(--space-3)">
             <ScreendraftNumberField
@@ -132,6 +160,7 @@ export function ScreendraftNodeProperties({ node, screens, screenId, dispatch }:
               fallback="#ffffff"
               onChange={(backgroundColor) => setStyle({ backgroundColor })}
               onClear={() => setStyle({ backgroundColor: undefined })}
+              themeLink={{ value: links.backgroundColor, onChange: (backgroundColor) => linkStyle({ backgroundColor }) }}
             />
           )}
           <div className="grid grid-cols-2 gap-(--space-3)">
@@ -153,12 +182,24 @@ export function ScreendraftNodeProperties({ node, screens, screenId, dispatch }:
               onCommit={(borderWidth) => setStyle({ borderWidth })}
             />
           </div>
+          {!(node.type === "shape" && node.props.shape !== "rectangle") && (
+            <label className="flex items-center gap-(--space-2)">
+              <input
+                type="checkbox"
+                checked={links.borderRadius === "radius"}
+                onChange={(event) => linkStyle({ borderRadius: event.target.checked ? "radius" : undefined })}
+                className="size-4 accent-(--draft)"
+              />
+              <span>Arrondi de la charte ({theme.radius} px)</span>
+            </label>
+          )}
           {Boolean(style.borderWidth) && (
             <ScreendraftColorField
               label="Couleur de bordure"
               value={style.borderColor}
               fallback={style.color ?? DEFAULT_TEXT_COLOR}
               onChange={(borderColor) => setStyle({ borderColor })}
+              themeLink={{ value: links.borderColor, onChange: (borderColor) => linkStyle({ borderColor }) }}
             />
           )}
         </ScreendraftFieldGroup>
@@ -348,7 +389,7 @@ function VideoFields({ node, dispatch }: { node: VideoNode; dispatch: Dispatch<S
   );
 }
 
-type ScreenLinkFieldProps = Omit<ScreendraftNodePropertiesProps, "node"> & { node: ButtonNode };
+type ScreenLinkFieldProps = Omit<ScreendraftNodePropertiesProps, "node" | "theme"> & { node: ButtonNode };
 
 /**
  * Prototype : écran ouvert au clic sur le bouton. Le `href` devient alors le fichier HTML
