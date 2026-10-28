@@ -22,7 +22,7 @@ type Props<T extends string> = {
 export function AnimationsChoiceGroup<T extends string>({ legend, name, choices, value, onChange }: Props<T>) {
   return (
     <fieldset>
-      <legend className="text-lg font-semibold text-zinc-100">{legend}</legend>
+      <legend className="text-lg font-semibold">{legend}</legend>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {choices.map((choice) => {
           const checked = choice.value === value;
@@ -30,8 +30,8 @@ export function AnimationsChoiceGroup<T extends string>({ legend, name, choices,
           return (
             <label
               key={choice.value}
-              className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border-2 p-3 has-focus-visible:outline-4 has-focus-visible:outline-offset-2 has-focus-visible:outline-white ${
-                checked ? "border-fuchsia-300 bg-fuchsia-500/15" : "border-white/15 hover:bg-white/10"
+              className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border-2 p-3 has-focus-visible:outline-4 has-focus-visible:outline-offset-2 has-focus-visible:outline-(--focus-ring) ${
+                checked ? "border-(--motion) bg-(--motion-soft)" : "border-(--line) hover:border-(--line-strong)"
               }`}
             >
               <input
@@ -40,11 +40,11 @@ export function AnimationsChoiceGroup<T extends string>({ legend, name, choices,
                 checked={checked}
                 onChange={() => onChange(choice.value)}
                 aria-describedby={descriptionId}
-                className="mt-1 size-6 shrink-0 accent-fuchsia-400"
+                className="mt-1 size-6 shrink-0 accent-(--motion)"
               />
               <span className="flex flex-col">
-                <span className={`text-lg text-zinc-100 ${checked ? "font-semibold" : ""}`}>{choice.name}</span>
-                <span id={descriptionId} className="text-lg text-zinc-300">
+                <span className={`text-lg ${checked ? "font-semibold" : ""}`}>{choice.name}</span>
+                <span id={descriptionId} className="text-lg text-(--ink-muted)">
                   {choice.description}
                 </span>
               </span>

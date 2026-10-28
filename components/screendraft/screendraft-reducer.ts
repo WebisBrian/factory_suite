@@ -1,3 +1,9 @@
+import {
+  buildInstance,
+  detachInstance,
+  mapInstances,
+  type CustomComponent,
+} from "@/components/screendraft/screendraft-components";
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
 import type {
   ButtonNode,
@@ -8,10 +14,18 @@ import type {
   Screen,
   ShapeNode,
   TextNode,
+  ThemeLinks,
   TitleNode,
   VideoNode,
 } from "@/components/screendraft/screendraft-schema";
 import { syncLinks } from "@/components/screendraft/screendraft-links";
+import {
+  applyTheme,
+  applyThemeToNode,
+  followTitleLevel,
+  patchTheme,
+  type ThemePatch,
+} from "@/components/screendraft/screendraft-mockup-theme";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
   findNode,
@@ -46,7 +60,15 @@ export type ScreendraftAction =
   | { type: "set-image"; id: string; src: string; alt: string }
   | { type: "set-geometry"; id: string; geometry: Partial<Geometry> }
   | { type: "set-style"; id: string; style: NodeStyle }
-  | ({ type: "set-props"; id: string } & PropsPatch);
+  | ({ type: "set-props"; id: string } & PropsPatch)
+  | { type: "sync-component"; component: CustomComponent }
+  | { type: "reset-instance"; id: string; component: CustomComponent }
+  | { type: "detach-instance"; id: string }
+  | { type: "detach-component"; componentId: string }
+  /** Modifie la charte : tous les éléments qui la suivent sont mis à jour, sur tous les écrans. */
+  | { type: "set-theme"; patch: ThemePatch }
+  /** Lie des propriétés de l'élément à la charte ; une valeur `undefined` retire le lien. */
+  | { type: "link-style"; id: string; links: ThemeLinks };
 
 /** Position (relative au parent) et taille d'un élément, en px. */
 export type Geometry = Pick<DraftNode, "x" | "y" | "width" | "height">;
@@ -72,7 +94,7 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
     // Ajouté après les autres, donc à droite sur le canvas.
     case "add-screen":
-      return { ...draft, screens: [...draft.screens, action.screen] };
+      return applyTheme({ ...draft, screens: [...draft.screens, action.screen] });
     case "rename-screen":
       return withScreen(draft, action.screenId, (screen) =>
         screen.name === action.name ? screen : { ...screen, name: action.name },
@@ -94,11 +116,11 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         ...screen,
         frame: { ...screen.frame, height: action.height },
       }));
-    // Ajouté au premier plan, au premier niveau du frame.
+    // Ajouté au premier plan, au premier niveau du frame, aux couleurs de la charte actuelle.
     case "add-node":
       return withScreen(draft, action.screenId, (screen) => ({
         ...screen,
-        nodes: [...screen.nodes, action.node],
+        nodes: [...screen.nodes, applyThemeToNode(action.node, draft.theme)],
       }));
     // Collé au premier plan de son ancienne section si elle est dans cet écran, sinon au
     // premier niveau du frame (section supprimée, ou élément copié depuis un autre écran).
@@ -106,7 +128,8 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
       return withScreen(draft, action.screenId, (screen) => {
         const parent = action.parentId === null ? null : findNode(screen.nodes, action.parentId);
         const parentId = parent?.node.type === "section" ? parent.node.id : null;
-        return { ...screen, nodes: insertInto(screen.nodes, action.node, parentId) };
+        const node = applyThemeToNode(action.node, draft.theme);
+        return { ...screen, nodes: insertInto(screen.nodes, node, parentId) };
       });
     // Supprimer une section supprime aussi ses enfants.
     case "delete-node":
@@ -136,14 +159,74 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
     case "set-geometry":
       return withNode(draft, action.id, (node) => ({ ...node, ...action.geometry }));
     // Une valeur `undefined` retire la propriété : le rendu par défaut s'applique.
+    // Une valeur choisie à la main détache la propriété de la charte.
     case "set-style":
-      return withNode(draft, action.id, (node) => ({
-        ...node,
-        style: withoutUndefined({ ...node.style, ...action.style }),
-      }));
+      return withNode(draft, action.id, (node) =>
+        withLinks(
+          { ...node, style: withoutUndefined({ ...node.style, ...action.style }) },
+          Object.fromEntries(Object.keys(action.style).map((key) => [key, undefined])),
+        ),
+      );
+    // Le niveau d'un titre lié à la charte décide de sa taille.
     case "set-props":
-      return withNode(draft, action.id, (node) => mergeProps(node, action));
+      return withNode(draft, action.id, (node) => followTitleLevel(mergeProps(node, action), draft.theme));
+    // Composant mis à jour : toutes ses instances, dans tous les écrans, reprennent son contenu
+    // (aux valeurs de la charte de la maquette pour ce qui la suit).
+    case "sync-component": {
+      const { component } = action;
+      return withAllNodes(draft, (nodes) =>
+        mapInstances(nodes, (instance) =>
+          instance.componentId === component.id
+            ? applyThemeToNode(buildInstance(component, instance.id, instance.x, instance.y), draft.theme)
+            : null,
+        ),
+      );
+    }
+    // Annule les modifications locales d'une instance ; lie aussi un élément au composant créé depuis lui.
+    case "reset-instance":
+      return withNode(draft, action.id, (node) =>
+        applyThemeToNode(buildInstance(action.component, node.id, node.x, node.y), draft.theme),
+      );
+    case "detach-instance":
+      return withNode(draft, action.id, (node) =>
+        node.componentId === undefined ? node : detachInstance(node),
+      );
+    // Composant retiré de la bibliothèque : ses instances deviennent des éléments ordinaires.
+    case "detach-component":
+      return withAllNodes(draft, (nodes) =>
+        mapInstances(nodes, (instance) =>
+          instance.componentId === action.componentId ? detachInstance(instance) : null,
+        ),
+      );
+    case "set-theme":
+      return applyTheme({ ...draft, theme: patchTheme(draft.theme, action.patch) });
+    case "link-style":
+      return withNode(draft, action.id, (node) =>
+        applyThemeToNode(withLinks(node, action.links), draft.theme),
+      );
   }
+}
+
+/** Fusionne des liens vers la charte ; un lien `undefined` est retiré, et `themeLinks` vide aussi. */
+function withLinks(node: DraftNode, links: ThemeLinks): DraftNode {
+  const merged = withoutUndefined({ ...node.themeLinks, ...links });
+  if (Object.keys(merged).length > 0) return { ...node, themeLinks: merged };
+  if (!node.themeLinks) return node;
+  const unlinked = { ...node };
+  delete unlinked.themeLinks;
+  return unlinked;
+}
+
+/** Modifie les éléments de chaque écran. Renvoie la même maquette si rien ne change. */
+function withAllNodes(draft: Maquette, update: (nodes: DraftNode[]) => DraftNode[]): Maquette {
+  let changed = false;
+  const screens = draft.screens.map((screen) => {
+    const nodes = update(screen.nodes);
+    if (nodes === screen.nodes) return screen;
+    changed = true;
+    return { ...screen, nodes };
+  });
+  return changed ? { ...draft, screens } : draft;
 }
 
 function mergeProps(node: DraftNode, patch: PropsPatch): DraftNode {

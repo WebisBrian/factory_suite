@@ -1,7 +1,10 @@
 import type { ChangeEvent, Dispatch } from "react";
 import { ScreendraftCreateComponent } from "@/components/screendraft/ScreendraftCreateComponent";
 import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDepthControls";
+import { ScreendraftInstanceControls } from "@/components/screendraft/ScreendraftInstanceControls";
+import type { CustomComponent } from "@/components/screendraft/screendraft-components";
 import { ScreendraftNodeProperties } from "@/components/screendraft/ScreendraftNodeProperties";
+import { ScreendraftThemePanel } from "@/components/screendraft/ScreendraftThemePanel";
 import {
   FRAME_PRESETS,
   MAX_FRAME_HEIGHT,
@@ -10,7 +13,7 @@ import {
   isValidFrameHeight,
 } from "@/components/screendraft/screendraft-formats";
 import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { DraftNode, Frame, Screen } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Frame, Screen, Theme } from "@/components/screendraft/screendraft-schema";
 import type { NodeLocation } from "@/components/screendraft/screendraft-tree";
 
 const DEVICE_GROUPS: { device: Frame["device"]; label: string }[] = [
@@ -33,13 +36,25 @@ type ScreendraftPropertiesPanelProps = {
   /** Écran de l'élément sélectionné. */
   selectionScreenId: string | null;
   screens: Screen[];
+  /** Charte graphique de la maquette, montrée quand rien n'est sélectionné. */
+  theme: Theme;
   onSendToScreen: (nodeId: string, screenId: string) => void;
   dispatch: Dispatch<ScreendraftAction>;
-  onCreateComponent: (name: string, node: DraftNode) => void;
+  /** Bibliothèque du projet, pour retrouver le composant d'une instance. */
+  components: CustomComponent[];
+  componentHandlers: ScreendraftComponentHandlers;
+};
+
+/** Actions sur les composants custom : elles écrivent la bibliothèque avant de modifier la maquette. */
+export type ScreendraftComponentHandlers = {
+  create: (name: string, node: DraftNode) => void;
+  update: (node: DraftNode) => void;
+  reset: (id: string, component: CustomComponent) => void;
+  detach: (id: string) => void;
 };
 
 /**
- * Propriétés, profondeur, écran et création de composant pour l'élément sélectionné,
+ * Composant, propriétés, profondeur et écran de l'élément sélectionné,
  * puis propriétés de l'écran actif.
  */
 export function ScreendraftPropertiesPanel({
@@ -48,9 +63,11 @@ export function ScreendraftPropertiesPanel({
   selection,
   selectionScreenId,
   screens,
+  theme,
   onSendToScreen,
   dispatch,
-  onCreateComponent,
+  components,
+  componentHandlers,
 }: ScreendraftPropertiesPanelProps) {
   const { frame } = screen;
   const preset = findPreset(frame);
@@ -77,14 +94,26 @@ export function ScreendraftPropertiesPanel({
 
   return (
     <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+      {selection?.node.componentId !== undefined && (
+        <ScreendraftInstanceControls
+          node={selection.node}
+          component={components.find((item) => item.id === selection.node.componentId)}
+          screens={screens}
+          onUpdate={componentHandlers.update}
+          onReset={componentHandlers.reset}
+          onDetach={componentHandlers.detach}
+        />
+      )}
       {selection && (
         <ScreendraftNodeProperties
           node={selection.node}
           screens={screens}
           screenId={selectionScreenId}
+          theme={theme}
           dispatch={dispatch}
         />
       )}
+      {!selection && <ScreendraftThemePanel theme={theme} dispatch={dispatch} />}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       {/* Équivalent clavier du glisser vers un autre écran. */}
       {selection && selectionScreenId && screens.length > 1 && (
@@ -105,11 +134,11 @@ export function ScreendraftPropertiesPanel({
           </label>
         </section>
       )}
-      {selection && (
+      {selection && selection.node.componentId === undefined && (
         <ScreendraftCreateComponent
           key={selection.node.id}
           node={selection.node}
-          onCreate={onCreateComponent}
+          onCreate={componentHandlers.create}
         />
       )}
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">

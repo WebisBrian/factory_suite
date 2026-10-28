@@ -1,12 +1,11 @@
 /**
  * Liste les éléments animables d'une page HTML produite par le Générateur.
  *
- * Convention (à valider avec le Générateur) : un élément animable porte un
- * attribut `id`, repris de l'id du composant dans la maquette. C'est cet id
- * qui sera stocké dans la config des animations (`elementId`).
+ * Convention du Générateur : chaque élément porte un `id` CSS, plus
+ * `data-node-id` (id dans la maquette) et `data-node-type` (section, title,
+ * text, image, button). Un élément animable est un élément qui a un `id` ;
+ * c'est cet id qui sera stocké dans la config des animations (`elementId`).
  */
-
-export const PAGE_FILE = "page.html";
 
 export type PageElement = {
   id: string;
@@ -36,6 +35,14 @@ const KIND_BY_TAG: Record<string, string> = {
   li: "Élément de liste",
 };
 
+/** Le type de la maquette prime sur la balise : un bouton avec lien est généré en <a>. */
+const KIND_BY_NODE_TYPE: Record<string, string> = {
+  section: "Section",
+  text: "Texte",
+  image: "Image",
+  button: "Bouton",
+};
+
 /** Arbre des éléments qui ont un id, dans l'ordre de la page. */
 export function listPageElements(html: string): PageElement[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -52,7 +59,7 @@ function collect(parent: Element): PageElement[] {
 
 function describe(element: Element): string {
   const tag = element.tagName.toLowerCase();
-  const kind = KIND_BY_TAG[tag] ?? "Élément";
+  const kind = KIND_BY_NODE_TYPE[element.getAttribute("data-node-type") ?? ""] ?? KIND_BY_TAG[tag] ?? "Élément";
   const label = labelOf(element, tag);
   return label ? `${kind} « ${truncate(label)} »` : kind;
 }

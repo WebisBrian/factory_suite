@@ -49,7 +49,8 @@ export function createScreen(screens: Screen[], format: FrameFormat): Screen {
     name: `Écran ${number}`,
     // Calculé par syncLinks dès que l'écran est ajouté à la maquette.
     path: "",
-    frame: { ...format, backgroundColor: "#ffffff" },
+    // Fond repris de la charte à l'ajout dans la maquette.
+    frame: { ...format, backgroundColor: "#ffffff", themeLinks: { backgroundColor: "background" } },
     nodes: [],
   };
 }

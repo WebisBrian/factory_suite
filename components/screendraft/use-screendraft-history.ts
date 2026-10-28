@@ -53,6 +53,11 @@ function groupKey(action: ScreendraftAction): string | null {
       return `style:${action.id}:${Object.keys(action.style).join()}`;
     case "set-props":
       return `props:${action.id}:${Object.keys(action.props).join()}`;
+    // Glisser dans un sélecteur de couleur de la charte.
+    case "set-theme":
+      return `theme:${Object.entries(action.patch)
+        .map(([group, value]) => (typeof value === "object" ? `${group}.${Object.keys(value).join()}` : group))
+        .join()}`;
     default:
       return null;
   }
