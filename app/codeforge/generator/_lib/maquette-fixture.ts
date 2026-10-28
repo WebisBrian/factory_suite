@@ -1,5 +1,5 @@
-import type { Maquette } from "@/app/(codeforg)/generator/_lib/maquette";
-import fixture from "@/app/(codeforg)/generator/_lib/maquette.fixture.json";
+import type { Maquette } from "@/app/codeforge/generator/_lib/maquette";
+import fixture from "@/app/codeforge/generator/_lib/maquette.fixture.json";
 
 // Maquette de démo (copie de l'exemple Screendraft), utilisée sans project_id.
 // À remplacer par `maquetteFixture` de `@/lib/fixtures` dès que le Hub le publie.

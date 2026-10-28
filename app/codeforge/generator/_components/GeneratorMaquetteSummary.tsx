@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { countNodes, type Maquette, type MaquetteNode } from "@/app/(codeforg)/generator/_lib/maquette";
+import { countNodes, type Maquette, type MaquetteNode } from "@/app/codeforge/generator/_lib/maquette";
 
 const NODE_LABELS: Record<MaquetteNode["type"], string> = {
   section: "Section",
