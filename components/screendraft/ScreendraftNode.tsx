@@ -2,6 +2,7 @@ import { useContext, type CSSProperties } from "react";
 import { a11yAttributes } from "@/components/screendraft/screendraft-a11y";
 import { CarouselPreviewContext, wrapSlideIndex } from "@/components/screendraft/screendraft-carousel";
 import { TILE_SIZE, pointInMap, visibleTiles } from "@/components/screendraft/screendraft-map";
+import { MapViewOverrideContext } from "@/components/screendraft/screendraft-map-context";
 import type {
   ButtonNode,
   CarouselNode,
@@ -80,7 +81,10 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
  * Les tuiles et les points sont placés par calcul (screendraft-map) : ni bibliothèque, ni API.
  */
 function MapNodeView({ node, style }: { node: MapNode; style: CSSProperties }) {
-  const { latitude, longitude, zoom, markers, title } = node.props;
+  const viewOverride = useContext(MapViewOverrideContext);
+  const { markers, title } = node.props;
+  // Dans le prototype, la carte explorée montre sa propre vue sans toucher à la maquette.
+  const { latitude, longitude, zoom } = viewOverride(node.id) ?? node.props;
   const center = { latitude, longitude };
   const size = { width: node.width, height: node.height };
 

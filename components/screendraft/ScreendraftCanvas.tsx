@@ -1,9 +1,13 @@
 "use client";
 
-import { Fragment, useRef, useState, type PointerEvent } from "react";
+import { Fragment, useContext, useRef, useState, type Dispatch, type PointerEvent } from "react";
 import { ScreendraftFrame } from "@/components/screendraft/ScreendraftFrame";
+import { ScreendraftMapExplorer } from "@/components/screendraft/ScreendraftMapExplorer";
 import { ScreendraftSelection } from "@/components/screendraft/ScreendraftSelection";
 import { ScreendraftZoomControls } from "@/components/screendraft/ScreendraftZoomControls";
+import { createMarker } from "@/components/screendraft/screendraft-map";
+import { MapExplorationContext } from "@/components/screendraft/screendraft-map-context";
+import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
 import type { Screen } from "@/components/screendraft/screendraft-schema";
 import {
   findScreenNode,
@@ -31,6 +35,8 @@ type ScreendraftCanvasProps = {
   onDropInto: (id: string, parentId: string | null) => void;
   /** Fin d'un déplacement au-dessus d'un autre écran : x / y relatifs au nouveau parent. */
   onMoveToScreen: (id: string, screenId: string, parentId: string | null, x: number, y: number) => void;
+  /** Modifications faites en explorant une carte (vue, points d'intérêt). */
+  dispatch: Dispatch<ScreendraftAction>;
 };
 
 /** Où lâcher l'élément déplacé : un écran, et une de ses sections (null : le premier niveau). */
@@ -56,7 +62,16 @@ export function ScreendraftCanvas({
   onMove,
   onDropInto,
   onMoveToScreen,
+  dispatch,
 }: ScreendraftCanvasProps) {
+  const exploration = useContext(MapExplorationContext);
+  // Carte explorée : sélectionnée seule, et ouverte par double-clic ou « Explorer la carte ».
+  const single = selections.length === 1 ? selections[0] : null;
+  const singleNode = single?.location.node;
+  const explored =
+    single && singleNode?.type === "map" && singleNode.id === exploration.exploringId
+      ? { node: singleNode, location: single.location, screenId: single.screen.id }
+      : null;
   // « Ajuster » montre tous les écrans à la fois.
   const { canvasRef, viewport, zoom, cursor, panHandlers } = useScreendraftViewport(screensSize(screens));
   const origins = screenOrigins(screens);
@@ -163,6 +178,12 @@ export function ScreendraftCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      // Double-clic sur une carte : on l'explore (glisser, zoomer, poser des points). Le canvas a
+      // capturé le pointeur au premier clic : le double-clic le vise lui, on cherche donc sous le pointeur.
+      onDoubleClick={(event) => {
+        const id = nodeIdAt(event.clientX, event.clientY);
+        if (id && findScreenNode(screens, id)?.location.node.type === "map") exploration.explore(id);
+      }}
     >
       {viewport &&
         screens.map((screen) => {
@@ -223,6 +244,52 @@ export function ScreendraftCanvas({
           {selections.length === 1 && (
             <LinkArrow selection={selections[0]} screens={screens} origins={origins} viewport={viewport} />
           )}
+          {/* Carte sélectionnée : le bouton dit qu'elle s'explore (comme le double-clic). */}
+          {singleNode?.type === "map" && single && !explored && (
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => exploration.explore(singleNode.id)}
+              className="sd-free-size text-body-sm absolute min-h-10 rounded-(--radius-md) bg-(--draft) px-(--space-3) font-semibold text-(--on-draft) shadow-(--shadow-panel) hover:bg-(--draft-strong)"
+              style={{
+                ...cornerOf(rectToScreen(offsetRect(frameRect(single.location), origins.get(single.screen.id)), viewport)),
+                transform: "translate(calc(-100% - 8px), 8px)",
+              }}
+            >
+              Explorer la carte
+            </button>
+          )}
+          {explored && (
+            <ScreendraftMapExplorer
+              node={explored.node}
+              view={explored.node.props}
+              rect={rectToScreen(offsetRect(frameRect(explored.location), origins.get(explored.screenId)), viewport)}
+              onView={(view) => dispatch({ type: "set-props", id: explored.node.id, nodeType: "map", props: view })}
+              markers={{
+                onAdd: (coordinates) =>
+                  dispatch({
+                    type: "set-map-markers",
+                    id: explored.node.id,
+                    markers: [
+                      ...explored.node.props.markers,
+                      createMarker(explored.node.props.markers.length + 1, coordinates),
+                    ],
+                  }),
+                onMove: (markerId, coordinates) =>
+                  dispatch({
+                    type: "set-props",
+                    id: explored.node.id,
+                    nodeType: "map",
+                    props: {
+                      markers: explored.node.props.markers.map((marker) =>
+                        marker.id === markerId ? { ...marker, ...coordinates } : marker,
+                      ),
+                    },
+                  }),
+              }}
+              onExit={() => exploration.explore(null)}
+            />
+          )}
           <ScreendraftZoomControls zoom={viewport.zoom} onCommand={zoom} />
         </>
       )}
@@ -280,6 +347,20 @@ function LinkArrow({ selection, screens, origins, viewport }: LinkArrowProps) {
 }
 
 /** Rectangle d'un élément dans son écran, converti en position sur l'ensemble des écrans. */
+/** Coin haut droit d'un rectangle écran, où poser un bouton dans l'élément. */
+function cornerOf(rect: Point & Size): { left: number; top: number } {
+  return { left: rect.x + rect.width, top: rect.y };
+}
+
+/** Élément de la maquette le plus haut sous le pointeur. */
+function nodeIdAt(x: number, y: number): string | null {
+  for (const element of document.elementsFromPoint(x, y)) {
+    const id = element.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId;
+    if (id) return id;
+  }
+  return null;
+}
+
 function offsetRect<R extends Point>(rect: R, origin: Point | undefined): R {
   return origin ? { ...rect, x: rect.x + origin.x, y: rect.y + origin.y } : rect;
 }

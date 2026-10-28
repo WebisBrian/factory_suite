@@ -2,12 +2,15 @@
 
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ScreendraftFrame } from "@/components/screendraft/ScreendraftFrame";
+import { ScreendraftMapExplorer } from "@/components/screendraft/ScreendraftMapExplorer";
 import {
   CarouselPreviewContext,
   screenCarousels,
   useCarouselPreviewState,
   wrapSlideIndex,
 } from "@/components/screendraft/screendraft-carousel";
+import type { MapView } from "@/components/screendraft/screendraft-map";
+import { MapViewOverrideContext, screenMaps } from "@/components/screendraft/screendraft-map-context";
 import { screenLinks } from "@/components/screendraft/screendraft-links";
 import type { Screen } from "@/components/screendraft/screendraft-schema";
 import { fitToScreen, type Size } from "@/components/screendraft/screendraft-viewport";
@@ -41,6 +44,9 @@ export function ScreendraftPrototype({ screens, startScreenId, onClose }: Screen
   const carouselPreview = useCarouselPreviewState();
   const carousels = screenCarousels(screen).filter(({ node }) => node.props.slides.length > 1);
   const [slideAnnouncement, setSlideAnnouncement] = useState("");
+  // Cartes : explorables comme sur la page générée, sans modifier la maquette.
+  const [mapViews, setMapViews] = useState<ReadonlyMap<string, MapView>>(new Map());
+  const maps = screenMaps(screen);
   const screenNames = new Map(screens.map((candidate) => [candidate.id, candidate.name]));
 
   useEffect(() => {
@@ -140,17 +146,28 @@ export function ScreendraftPrototype({ screens, startScreenId, onClose }: Screen
             style={{ left, top, width: screen.frame.width * zoom, height: screen.frame.height * zoom }}
           >
             <CarouselPreviewContext value={carouselPreview}>
-              <ScreendraftFrame
-                screen={screen}
-                style={{
-                  top: 0,
-                  left: 0,
-                  transformOrigin: "0 0",
-                  transform: `scale(${zoom})`,
-                  boxShadow: "var(--shadow-frame)",
-                }}
-              />
+              <MapViewOverrideContext value={(nodeId) => mapViews.get(nodeId) ?? null}>
+                <ScreendraftFrame
+                  screen={screen}
+                  style={{
+                    top: 0,
+                    left: 0,
+                    transformOrigin: "0 0",
+                    transform: `scale(${zoom})`,
+                    boxShadow: "var(--shadow-frame)",
+                  }}
+                />
+              </MapViewOverrideContext>
             </CarouselPreviewContext>
+            {maps.map(({ node, rect }) => (
+              <ScreendraftMapExplorer
+                key={node.id}
+                node={node}
+                view={mapViews.get(node.id) ?? node.props}
+                rect={{ x: rect.x * zoom, y: rect.y * zoom, width: rect.width * zoom, height: rect.height * zoom }}
+                onView={(view) => setMapViews((current) => new Map(current).set(node.id, view))}
+              />
+            ))}
             {carousels.map(({ node, rect }) => {
               const { slides, title } = node.props;
               const index = wrapSlideIndex(carouselPreview.slideIndex(node.id), slides.length);

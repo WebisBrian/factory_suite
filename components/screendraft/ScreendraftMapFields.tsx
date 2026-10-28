@@ -1,20 +1,11 @@
-import { useId, useState, type Dispatch, type FormEvent } from "react";
+import { useContext, type Dispatch } from "react";
 import {
   FIELD_CLASS,
-  ScreendraftDecimalField,
   ScreendraftField,
   ScreendraftFieldGroup,
-  ScreendraftNumberField,
 } from "@/components/screendraft/ScreendraftFields";
-import {
-  MAX_MAP_ZOOM,
-  MIN_MAP_ZOOM,
-  createMarker,
-  fitMarkers,
-  isValidLatitude,
-  isValidLongitude,
-  parseMapLocation,
-} from "@/components/screendraft/screendraft-map";
+import { createMarker, fitMarkers } from "@/components/screendraft/screendraft-map";
+import { MapExplorationContext } from "@/components/screendraft/screendraft-map-context";
 import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
 import type { MapMarker, MapNode } from "@/components/screendraft/screendraft-schema";
 
@@ -26,15 +17,13 @@ type ScreendraftMapFieldsProps = {
 const BUTTON_CLASS = `${FIELD_CLASS} min-h-10 hover:bg-(--canvas)`;
 
 /**
- * Contenu d'une carte (SCRUM-32) : description, centre (lien collé ou coordonnées), zoom
- * et points d'intérêt. Pas de recherche par adresse : le guide du Hub interdit d'appeler une API.
+ * Contenu d'une carte (SCRUM-32) : description, exploration de la carte (se déplacer, zoomer,
+ * poser des points directement dessus) et liste des points d'intérêt.
  */
 export function ScreendraftMapFields({ node, dispatch }: ScreendraftMapFieldsProps) {
+  const { exploringId, explore } = useContext(MapExplorationContext);
   const { latitude, longitude, zoom, markers, title } = node.props;
-  const [location, setLocation] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState("");
-  const errorId = useId();
+  const isExploring = exploringId === node.id;
 
   function setProps(props: Partial<MapNode["props"]>) {
     dispatch({ type: "set-props", id: node.id, nodeType: "map", props });
@@ -45,31 +34,10 @@ export function ScreendraftMapFields({ node, dispatch }: ScreendraftMapFieldsPro
     dispatch({ type: "set-map-markers", id: node.id, markers: next });
   }
 
-  function updateMarker(index: number, patch: Partial<MapMarker>) {
-    setProps({ markers: markers.map((marker, position) => (position === index ? { ...marker, ...patch } : marker)) });
-  }
-
   // Recentre et zoome pour que tous les points tiennent dans la carte.
   function showAllMarkers() {
     const fit = fitMarkers(markers, { width: node.width, height: node.height });
     if (fit) setProps(fit);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const parsed = parseMapLocation(location);
-    if (!parsed.ok) {
-      setError(parsed.error);
-      setStatus("");
-      return;
-    }
-    setError(null);
-    setProps({
-      latitude: parsed.latitude,
-      longitude: parsed.longitude,
-      ...(parsed.zoom !== undefined && { zoom: parsed.zoom }),
-    });
-    setStatus(`Carte centrée sur ${parsed.latitude}, ${parsed.longitude}.`);
   }
 
   return (
@@ -84,56 +52,25 @@ export function ScreendraftMapFields({ node, dispatch }: ScreendraftMapFieldsPro
         />
       </ScreendraftField>
 
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-(--space-3)">
-        <ScreendraftField label="Lien de carte ou coordonnées du centre">
-          <input
-            type="text"
-            inputMode="url"
-            placeholder="Lien Google Maps ou OpenStreetMap"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            aria-invalid={error !== null}
-            aria-describedby={error ? errorId : undefined}
-            className={FIELD_CLASS}
-          />
-        </ScreendraftField>
-        {error && (
-          <p id={errorId} role="alert" className="text-(--danger)">
-            Erreur : {error}
-          </p>
-        )}
-        <button type="submit" className={BUTTON_CLASS}>
-          Centrer la carte
-        </button>
-        <p role="status" className="text-(--ink-muted)">
-          {status}
-        </p>
-      </form>
-
-      <div className="grid grid-cols-2 gap-(--space-3)">
-        <ScreendraftDecimalField
-          label="Latitude du centre"
-          value={latitude}
-          isValid={isValidLatitude}
-          onCommit={(value) => setProps({ latitude: value })}
-        />
-        <ScreendraftDecimalField
-          label="Longitude du centre"
-          value={longitude}
-          isValid={isValidLongitude}
-          onCommit={(value) => setProps({ longitude: value })}
-        />
-      </div>
-      <ScreendraftNumberField
-        label={`Zoom (${MIN_MAP_ZOOM} : monde, ${MAX_MAP_ZOOM} : rue)`}
-        value={zoom}
-        min={MIN_MAP_ZOOM}
-        max={MAX_MAP_ZOOM}
-        onCommit={(value) => setProps({ zoom: value })}
-      />
+      <button
+        type="button"
+        aria-pressed={isExploring}
+        onClick={() => explore(isExploring ? null : node.id)}
+        className="min-h-10 rounded-(--radius-md) bg-(--draft) px-(--space-4) py-(--space-2) font-semibold text-(--on-draft) hover:bg-(--draft-strong)"
+      >
+        {isExploring ? "Terminer l’exploration" : "Explorer la carte"}
+      </button>
+      <p className="text-(--ink-muted)">
+        Ou double-cliquez sur la carte. Glissez pour vous déplacer, molette pour zoomer, cliquez pour
+        poser un point ; un point se déplace en le glissant.
+      </p>
+      <p className="text-(--ink-muted)">
+        Centre <span className="text-code text-(--ink)">{latitude.toFixed(4)}, {longitude.toFixed(4)}</span>, zoom{" "}
+        <span className="text-code text-(--ink)">{zoom}</span>
+      </p>
 
       <h3 className="text-label pt-(--space-2) text-(--ink-muted)">Points d’intérêt</h3>
-      {markers.length === 0 && <p className="text-(--ink-muted)">Aucun point d’intérêt.</p>}
+      {markers.length === 0 && <p className="text-(--ink-muted)">Aucun point : cliquez sur la carte pour en poser.</p>}
       <ol className="flex flex-col gap-(--space-3)">
         {markers.map((marker, index) => {
           const name = marker.label.trim() || `point ${index + 1}`;
@@ -146,25 +83,20 @@ export function ScreendraftMapFields({ node, dispatch }: ScreendraftMapFieldsPro
                 <input
                   type="text"
                   value={marker.label}
-                  onChange={(event) => updateMarker(index, { label: event.target.value })}
+                  onChange={(event) =>
+                    setProps({
+                      markers: markers.map((other) =>
+                        other.id === marker.id ? { ...other, label: event.target.value } : other,
+                      ),
+                    })
+                  }
                   aria-invalid={marker.label.trim() === "" || undefined}
                   className={FIELD_CLASS}
                 />
               </ScreendraftField>
-              <div className="grid grid-cols-2 gap-(--space-2)">
-                <ScreendraftDecimalField
-                  label={`Latitude du point ${index + 1}`}
-                  value={marker.latitude}
-                  isValid={isValidLatitude}
-                  onCommit={(value) => updateMarker(index, { latitude: value })}
-                />
-                <ScreendraftDecimalField
-                  label={`Longitude du point ${index + 1}`}
-                  value={marker.longitude}
-                  isValid={isValidLongitude}
-                  onCommit={(value) => updateMarker(index, { longitude: value })}
-                />
-              </div>
+              <p className="text-code text-(--ink-muted)">
+                {marker.latitude.toFixed(5)}, {marker.longitude.toFixed(5)}
+              </p>
               <div className="grid grid-cols-2 gap-(--space-2)">
                 <button
                   type="button"
@@ -177,7 +109,7 @@ export function ScreendraftMapFields({ node, dispatch }: ScreendraftMapFieldsPro
                 <button
                   type="button"
                   aria-label={`Retirer ${name}`}
-                  onClick={() => setMarkers(markers.filter((_, position) => position !== index))}
+                  onClick={() => setMarkers(markers.filter((other) => other.id !== marker.id))}
                   className={BUTTON_CLASS}
                 >
                   Retirer
