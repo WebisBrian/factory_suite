@@ -64,9 +64,14 @@ Plus strict que les autres outils de la suite :
 
 ## Motifs propres à l'outil
 
-- **En-tête d'outil** : logo AnimFlow en 40 px (`size-10`), titre « Animations », phrase d'aide en `--ink-muted`, et à droite le badge du mode (« Mode démo » ou « Projet #N »). Le même logo que dans la barre du Hub.
+- **Disposition (comme Screendraft)** : l'outil occupe exactement l'écran sous la barre du Hub, et la page ne défile pas. En-tête compact, bandeau de messages si besoin, puis 3 colonnes : à gauche le panneau de sections (`w-72`), au centre l'aperçu en pleine hauteur, à droite le panneau de réglages (`w-80`). Seuls les panneaux défilent, à l'intérieur. Largeurs en rem, plafonnées en `vw` : elles suivent le réglage A+. Sous `lg`, les colonnes s'empilent et la page défile (sinon le texte à 200 % ne tiendrait pas).
+- **En-tête d'outil** : un seul `h1`, qui contient le logo AnimFlow en 40 px (`alt=""`), « Animations », puis `/` et la page affichée en `--ink-muted`. À côté, le badge du mode (« Mode démo » ou « Projet #N »). À droite, les actions : Importer une page, Recharger / Annuler l'import, Enregistrer (principal, mode projet), Télécharger. Le même logo que dans la barre du Hub.
+- **Section repliable** (`AnimationsPanelSection`) : le titre `h2` est un bouton `aria-expanded`, avec un chevron (qui tourne en `motion-safe`) et un compteur. L'état est mémorisé dans le navigateur (`anime-flow:panel:<id>`).
+- **Réglages en listes déroulantes** : « Animation » (« Aucune animation », groupes Bibliothèque / Mes animations) et « Déclencheur », chacun un `<select>` avec son label. La description du choix courant s'affiche dessous, liée par `aria-describedby`. Puis « Durée et délai » (en secondes, bornés à 5 s) et le bouton « Prévisualiser », qui joue l'animation dans l'aperçu et lit son audiodescription.
+- **Animations posées** : section du panneau gauche qui récapitule les animations de la page (« Rebond, au clic, 0,8 s »), avec « Modifier » (ouvre les réglages et y amène le focus) et « Retirer ».
+- **Dépôt de fichiers** : dès que des fichiers sont glissés dans la fenêtre, une surcouche pointillée `--motion` recouvre l'aperçu (une iframe garderait les évènements de dépôt pour elle).
 - **Élément sélectionné dans l'aperçu** : double contour, blanc à l'intérieur et violet `#6d28d9` à l'extérieur. Le violet seul ne ressort pas sur une page sombre (2,5:1) ; le double contour est visible sur n'importe quel fond.
-- **Élément survolé dans l'aperçu (inspecteur)** : contour en pointillés `#6d28d9` et étiquette en aplat `spark` qui donne le nom de l'élément (« Bouton « Contact » »), en texte `on-spark`.
+- **Élément survolé dans l'aperçu (inspecteur)** : surcouche posée par-dessus l'élément (pointillés `#6d28d9`, fond violet très léger), comme l'inspecteur F12 : elle n'est ni coupée ni masquée par le style de la page. Étiquette en aplat `spark` qui donne le nom et la taille de l'élément (« Bouton « Contact » · 120 × 40 »), en texte `on-spark`. Elle suit l'élément au défilement. La ligne de la liste « Éléments de la page » correspondante passe en pointillés, et inversement : survoler ou atteindre au clavier une ligne de la liste entoure l'élément dans l'aperçu. Code : `_lib/preview-inspector.ts`.
 
 ## Logo
 
@@ -76,3 +81,11 @@ Plus strict que les autres outils de la suite :
 ## Ton des textes
 
 Français, direct, impératif pour les actions (« Importer une page », « Choisir une animation »), sans emoji. Les éléments de la page sont nommés comme l'utilisateur les voit : « Bouton « Contact » », « Titre principal », jamais par leur id technique.
+
+## Fichiers du projet
+
+| Fichier | Rôle |
+| --- | --- |
+| `page.html` | Lu (produit par le Générateur). Seuls les éléments avec un `id` sont animables. |
+| `animations.json` | Écrit. Config : `{ version: 1, page, animations: { <id>: { name, description, keyframes, duration, easing, custom } }, elements: [{ elementId, animation, event }] }`. Relu à l'ouverture pour reprendre le travail. |
+| `animations.js` | Écrit. Script autonome à charger dans la page (`<script src="animations.js" defer></script>`) : lit `animations.json` (ou un bloc `<script type="application/json" id="anime-flow-config">` si le site est ouvert en `file://`), ne joue rien si « réduire les animations » est activé. |

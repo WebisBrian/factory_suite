@@ -17,6 +17,8 @@ export type AnimationPreset = {
   /** Durée par défaut, en ms. */
   duration: number;
   easing: string;
+  /** Créée par l'utilisateur, absente de la bibliothèque. */
+  custom?: true;
 };
 
 export const ANIMATION_PRESETS: readonly AnimationPreset[] = [
@@ -129,8 +131,13 @@ export function playAnimation(element: Element, preset: AnimationPreset, duratio
   return element.animate(preset.keyframes, { duration, delay, easing: preset.easing, fill: "backwards" });
 }
 
-export function findPreset(id: string): AnimationPreset | null {
-  return ANIMATION_PRESETS.find((preset) => preset.id === id) ?? null;
+/** Cherche dans la bibliothèque, puis dans les animations personnalisées. */
+export function findPreset(id: string, customAnimations: readonly AnimationPreset[] = []): AnimationPreset | null {
+  return (
+    ANIMATION_PRESETS.find((preset) => preset.id === id) ??
+    customAnimations.find((preset) => preset.id === id) ??
+    null
+  );
 }
 
 /** Audiodescription : « Fondu : l'élément apparaît progressivement en 0,6 seconde. » */
