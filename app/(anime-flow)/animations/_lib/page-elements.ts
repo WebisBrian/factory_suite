@@ -42,6 +42,11 @@ export function listPageElements(html: string): PageElement[] {
   return collect(doc.body);
 }
 
+/** Tous les éléments de l'arbre, à plat, dans l'ordre de la page. */
+export function flattenElements(elements: readonly PageElement[]): PageElement[] {
+  return elements.flatMap((element) => [element, ...flattenElements(element.children)]);
+}
+
 function collect(parent: Element): PageElement[] {
   return Array.from(parent.children).flatMap((child) => {
     // Un conteneur sans id n'est pas animable, mais ses descendants peuvent l'être.

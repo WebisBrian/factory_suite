@@ -18,7 +18,7 @@ import {
   type RestoredConfig,
 } from "@/app/(anime-flow)/animations/_lib/animation-config";
 import { ANIMATION_PRESETS, findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
-import { listPageElements, PAGE_FILE, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
+import { flattenElements, listPageElements, PAGE_FILE, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
   DEFAULT_TRIGGER_EVENT,
@@ -107,6 +107,8 @@ export function AnimationsApp() {
   const html = projectId === null ? pageHtmlFixture : projectLoad?.status === "ok" ? projectLoad.html : null;
   // DOMParser n'existe que dans le navigateur.
   const elements = useMemo(() => (html === null || !isBrowser ? null : listPageElements(html)), [html, isBrowser]);
+  const elementById = useMemo(() => new Map(flattenElements(elements ?? []).map((e) => [e.id, e])), [elements]);
+  const elementNames = useMemo(() => new Map([...elementById].map(([id, e]) => [id, e.name])), [elementById]);
 
   // Relance depuis un clic : déclenche l'invite d'autorisation si besoin.
   async function handleReload() {
@@ -125,6 +127,12 @@ export function AnimationsApp() {
   function handleSelect(element: PageElement) {
     setSelected(element);
     setAnnouncement(`${element.name} sélectionné. ${describeAnimation(animationByElement[element.id], customAnimations)}`);
+  }
+
+  // Clic dans l'aperçu : même sélection (et même annonce) que depuis la liste.
+  function handleSelectId(id: string) {
+    const element = elementById.get(id);
+    if (element) handleSelect(element);
   }
 
   function handlePresetChange(presetId: string | null) {
@@ -239,7 +247,8 @@ export function AnimationsApp() {
                 />
               ) : (
                 <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-lg text-(--ink-muted)">
-                  Sélectionnez un élément dans la liste pour lui choisir une animation.
+                  Sélectionnez un élément dans la liste ou cliquez dessus dans l&apos;aperçu pour lui choisir une
+                  animation.
                 </p>
               )}
               <AnimationsCustomEditor
@@ -249,7 +258,13 @@ export function AnimationsApp() {
                 onTest={handleTest}
                 onCreate={handleCreate}
               />
-              <AnimationsPreview html={html} selectedId={selected?.id ?? null} play={previewPlay} />
+              <AnimationsPreview
+                html={html}
+                selectedId={selected?.id ?? null}
+                elementNames={elementNames}
+                onSelectId={handleSelectId}
+                play={previewPlay}
+              />
               <AnimationsExport projectId={projectId} config={config} />
             </div>
           </div>

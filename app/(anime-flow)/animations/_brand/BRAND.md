@@ -76,3 +76,11 @@ Plus strict que les autres outils de la suite :
 ## Ton des textes
 
 Français, direct, impératif pour les actions (« Importer une page », « Choisir une animation »), sans emoji. Les éléments de la page sont nommés comme l'utilisateur les voit : « Bouton « Contact » », « Titre principal », jamais par leur id technique.
+
+## Fichiers du projet
+
+| Fichier | Rôle |
+| --- | --- |
+| `page.html` | Lu (produit par le Générateur). Seuls les éléments avec un `id` sont animables. |
+| `animations.json` | Écrit. Config : `{ version: 1, page, animations: { <id>: { name, description, keyframes, duration, easing, custom } }, elements: [{ elementId, animation, event }] }`. Relu à l'ouverture pour reprendre le travail. |
+| `animations.js` | Écrit. Script autonome à charger dans la page (`<script src="animations.js" defer></script>`) : lit `animations.json` (ou un bloc `<script type="application/json" id="anime-flow-config">` si le site est ouvert en `file://`), ne joue rien si « réduire les animations » est activé. |
