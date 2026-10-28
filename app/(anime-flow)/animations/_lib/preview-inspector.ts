@@ -51,11 +51,18 @@ export type InspectorCallbacks = {
   onMissedClick: () => void;
   /** Échap dans l'aperçu. */
   onEscape: () => void;
+  /** Navigation au clavier dans l'aperçu (flèches, Entrée), comme dans l'inspecteur F12. */
+  onNavigate: (key: NavigationKey) => void;
 };
+
+export type NavigationKey = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Enter";
+const NAVIGATION_KEYS: readonly string[] = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter"];
 
 export type Inspector = {
   /** Entoure et nomme l'élément (null : rien). */
   highlight: (id: string | null) => void;
+  /** Fait défiler l'aperçu jusqu'à l'élément (navigation au clavier). */
+  reveal: (id: string) => void;
   /** Marque l'élément sélectionné (double contour). */
   select: (id: string | null) => void;
   destroy: () => void;
@@ -157,6 +164,11 @@ export function createInspector(doc: Document, getCallbacks: () => InspectorCall
     "keydown",
     (event) => {
       if (event.key === "Escape") getCallbacks().onEscape();
+      else if (NAVIGATION_KEYS.includes(event.key)) {
+        // Les flèches parcourent les éléments au lieu de faire défiler la page.
+        event.preventDefault();
+        getCallbacks().onNavigate(event.key as NavigationKey);
+      }
     },
     { signal },
   );
@@ -164,6 +176,10 @@ export function createInspector(doc: Document, getCallbacks: () => InspectorCall
   return {
     highlight(id) {
       highlighted = id ? doc.getElementById(id) : null;
+      render();
+    },
+    reveal(id) {
+      doc.getElementById(id)?.scrollIntoView({ block: "nearest" });
       render();
     },
     select(id) {
