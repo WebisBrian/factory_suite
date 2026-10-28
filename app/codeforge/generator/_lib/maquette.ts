@@ -1,12 +1,12 @@
 /**
  * Contrat de la maquette reçue de Screendraft (fichier `maquette.json`).
  *
- * Copie locale de app/screen-draft/_lib/schema.ts : un squad n'importe pas le
+ * Contrat local compatible Screendraft v2 : un squad n'importe pas le
  * code d'un autre. À remplacer par `@/lib/contracts` dès que le Hub le publie.
  */
 
 export const MAQUETTE_FILE = "maquette.json";
-export const SUPPORTED_SCHEMA_VERSION = 1;
+export const SUPPORTED_SCHEMA_VERSION = 2;
 
 export type HexColor = `#${string}`;
 
@@ -14,6 +14,13 @@ export type Maquette = {
   schemaVersion: typeof SUPPORTED_SCHEMA_VERSION;
   id: string;
   name: string;
+  screens: [MaquetteScreen, ...MaquetteScreen[]];
+};
+
+export type MaquetteScreen = {
+  id: string;
+  name: string;
+  path: string;
   frame: MaquetteFrame;
   nodes: MaquetteNode[];
 };
@@ -50,7 +57,9 @@ export type MaquetteNode =
   | (BaseNode & { type: "title"; props: { text: string; level: 1 | 2 | 3 } })
   | (BaseNode & { type: "text"; props: { text: string } })
   | (BaseNode & { type: "image"; props: { src: string; alt: string; fit: "cover" | "contain" } })
-  | (BaseNode & { type: "button"; props: { label: string; href?: string } });
+  | (BaseNode & { type: "button"; props: { label: string; href?: string; targetScreenId?: string } })
+  | (BaseNode & { type: "shape"; props: { shape: "circle" | "rectangle" | "triangle" } })
+  | (BaseNode & { type: "video"; props: { src: string; kind: "embed" | "file"; title: string } });
 
 export type MaquetteNodeType = MaquetteNode["type"];
 
@@ -58,7 +67,7 @@ export type ParseResult = { ok: true; maquette: Maquette } | { ok: false; errors
 
 type Json = Record<string, unknown>;
 
-const NODE_TYPES: readonly string[] = ["section", "title", "text", "image", "button"];
+const NODE_TYPES: readonly string[] = ["section", "title", "text", "image", "button", "shape", "video"];
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const MAX_ERRORS = 20;
 
@@ -80,40 +89,78 @@ export function validateMaquette(data: unknown): ParseResult {
 
   if (!isObject(data)) return { ok: false, errors: ["La racine du JSON doit être un objet."] };
 
-  if (data.schemaVersion !== SUPPORTED_SCHEMA_VERSION) {
+  if (data.schemaVersion !== 1 && data.schemaVersion !== SUPPORTED_SCHEMA_VERSION) {
     return {
       ok: false,
       errors: [
-        `schemaVersion ${JSON.stringify(data.schemaVersion)} non pris en charge (attendu : ${SUPPORTED_SCHEMA_VERSION}).`,
+        `schemaVersion ${JSON.stringify(data.schemaVersion)} non pris en charge (attendu : 1 ou ${SUPPORTED_SCHEMA_VERSION}).`,
       ],
     };
   }
   checkString(data, "id", "racine", fail);
   checkString(data, "name", "racine", fail);
 
-  if (!isObject(data.frame)) {
-    fail("frame", "objet attendu");
+  // Les anciennes maquettes à un écran restent importables.
+  const screens = data.schemaVersion === 1
+    ? [{ id: data.id, name: data.name, path: "page.html", frame: data.frame, nodes: data.nodes }]
+    : data.screens;
+  const ids = new Set<string>();
+  const screenIds = new Set<string>();
+  const paths = new Set<string>();
+  if (!Array.isArray(screens) || screens.length === 0) {
+    fail("screens", "au moins un écran attendu");
   } else {
-    const frame = data.frame;
-    if (frame.device !== "desktop" && frame.device !== "mobile") fail("frame.device", '"desktop" ou "mobile" attendu');
-    checkPositive(frame, "width", "frame", fail);
-    checkPositive(frame, "height", "frame", fail);
-    checkColor(frame, "backgroundColor", "frame", fail);
-  }
-
-  if (!Array.isArray(data.nodes)) {
-    fail("nodes", "tableau attendu");
-  } else {
-    const ids = new Set<string>();
-    data.nodes.forEach((node, i) => validateNode(node, `nodes[${i}]`, ids, fail));
+    screens.forEach((screen, i) => {
+      const at = `screens[${i}]`;
+      if (!isObject(screen)) { fail(at, "objet attendu"); return; }
+      checkString(screen, "name", at, fail);
+      if (typeof screen.id !== "string" || screen.id.length === 0 || screenIds.has(screen.id)) {
+        fail(`${at}.id`, "identifiant non vide et unique attendu");
+      } else screenIds.add(screen.id);
+      // Noms plats compatibles avec le ZIP, les liens locaux et project-fs.
+      if (typeof screen.path !== "string" || !/^[a-z0-9][a-z0-9_-]*\.html$/i.test(screen.path) || screen.path.length > 200) {
+        fail(`${at}.path`, "nom de fichier HTML attendu (ex. contact.html)");
+      } else if (paths.has(screen.path.toLowerCase())) {
+        fail(`${at}.path`, "nom de fichier déjà utilisé");
+      } else paths.add(screen.path.toLowerCase());
+      validateScreen(screen, at, ids, fail);
+    });
+    const checkTargets = (nodes: unknown) => {
+      if (!Array.isArray(nodes)) return;
+      for (const node of nodes) {
+        if (!isObject(node)) continue;
+        if (node.type === "button" && isObject(node.props) && typeof node.props.targetScreenId === "string" && !screenIds.has(node.props.targetScreenId)) {
+          fail(`bouton ${String(node.id)}`, "écran cible introuvable");
+        }
+        if (node.type === "section") checkTargets(node.children);
+      }
+    };
+    screens.forEach((screen) => { if (isObject(screen)) checkTargets(screen.nodes); });
   }
 
   if (errors.length > 0) {
     const extra = errors.length - MAX_ERRORS;
     return { ok: false, errors: extra > 0 ? [...errors.slice(0, MAX_ERRORS), `… et ${extra} autre(s) erreur(s).`] : errors };
   }
-  // Toute la structure vient d'être vérifiée champ par champ.
-  return { ok: true, maquette: data as Maquette };
+  return { ok: true, maquette: { schemaVersion: SUPPORTED_SCHEMA_VERSION, id: data.id as string, name: data.name as string, screens: screens as Maquette["screens"] } };
+}
+
+function validateScreen(data: Json, path: string, ids: Set<string>, fail: (path: string, message: string) => void) {
+  if (!isObject(data.frame)) {
+    fail(`${path}.frame`, "objet attendu");
+  } else {
+    const frame = data.frame;
+    if (frame.device !== "desktop" && frame.device !== "mobile") fail(`${path}.frame.device`, '"desktop" ou "mobile" attendu');
+    checkPositive(frame, "width", `${path}.frame`, fail);
+    checkPositive(frame, "height", `${path}.frame`, fail);
+    checkColor(frame, "backgroundColor", `${path}.frame`, fail);
+  }
+
+  if (!Array.isArray(data.nodes)) {
+    fail(`${path}.nodes`, "tableau attendu");
+  } else {
+    data.nodes.forEach((node, i) => validateNode(node, `${path}.nodes[${i}]`, ids, fail));
+  }
 }
 
 function validateNode(node: unknown, path: string, ids: Set<string>, fail: (path: string, message: string) => void) {
@@ -170,6 +217,15 @@ function validateNode(node: unknown, path: string, ids: Set<string>, fail: (path
     case "button":
       checkString(props, "label", at, fail);
       if (props.href !== undefined && typeof props.href !== "string") fail(`${at}.href`, "texte attendu");
+      if (props.targetScreenId !== undefined && typeof props.targetScreenId !== "string") fail(`${at}.targetScreenId`, "texte attendu");
+      break;
+    case "shape":
+      if (!["circle", "rectangle", "triangle"].includes(props.shape as string)) fail(`${at}.shape`, "circle, rectangle ou triangle attendu");
+      break;
+    case "video":
+      checkString(props, "src", at, fail);
+      checkString(props, "title", at, fail);
+      if (props.kind !== "embed" && props.kind !== "file") fail(`${at}.kind`, "embed ou file attendu");
       break;
   }
 }

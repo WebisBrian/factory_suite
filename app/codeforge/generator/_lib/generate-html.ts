@@ -7,21 +7,28 @@
  * les attributs `data-node-id` / `data-node-type` pour que le squad Animations
  * puisse cibler les éléments.
  */
-import type { Maquette, MaquetteNode, MaquetteNodeStyle } from "@/app/codeforge/generator/_lib/maquette";
+import type { Maquette, MaquetteScreen, MaquetteNode, MaquetteNodeStyle } from "@/app/codeforge/generator/_lib/maquette";
 
 export const HTML_FILE = "page.html";
 export const CSS_FILE = "page.css";
 
 export type GeneratedPage = {
-  /** Contenu de page.html : lie page.css, à placer dans le même dossier. */
+  screen: MaquetteScreen;
+  cssPath: string;
+  /** HTML qui lie le fichier cssPath, à placer dans le même dossier. */
   html: string;
-  /** Contenu de page.css. */
+  /** Feuille de style de cet écran. */
   css: string;
   /** Page autonome (CSS intégré), pour l'aperçu en iframe. */
   standaloneHtml: string;
 };
 
-export function generatePage(maquette: Maquette): GeneratedPage {
+export function generateSite(maquette: Maquette): GeneratedPage[] {
+  const paths = new Map(maquette.screens.map((screen) => [screen.id, screen.path]));
+  return maquette.screens.map((screen) => generatePage(screen, maquette.id, paths));
+}
+
+export function generatePage(maquette: MaquetteScreen, documentId = maquette.id, paths: ReadonlyMap<string, string> = new Map()): GeneratedPage {
   const cssIds = new Map<string, string>();
   const usedCssIds = new Set<string>();
   const cssIdOf = (node: MaquetteNode) => {
@@ -33,7 +40,8 @@ export function generatePage(maquette: Maquette): GeneratedPage {
     return cssId;
   };
 
-  const body = renderNodes(maquette.nodes, cssIdOf, 2);
+  const cssPath = maquette.path.replace(/\.html$/i, ".css");
+  const body = renderNodes(maquette.nodes, cssIdOf, 2, paths);
   const css = [baseCss(maquette), ...collectRules(maquette.nodes, cssIdOf)].join("\n\n") + "\n";
 
   const page = (head: string) =>
@@ -47,7 +55,7 @@ export function generatePage(maquette: Maquette): GeneratedPage {
       head,
       "</head>",
       "<body>",
-      `  <div class="maquette-frame" data-maquette-id="${escapeAttr(maquette.id)}">`,
+      `  <div class="maquette-frame" data-maquette-id="${escapeAttr(documentId)}" data-screen-id="${escapeAttr(maquette.id)}">`,
       body,
       "  </div>",
       "</body>",
@@ -56,13 +64,15 @@ export function generatePage(maquette: Maquette): GeneratedPage {
     ].join("\n");
 
   return {
-    html: page(`  <link rel="stylesheet" href="${CSS_FILE}">`),
+    screen: maquette,
+    cssPath,
+    html: page(`  <link rel="stylesheet" href="${cssPath}">`),
     css,
     standaloneHtml: page(`  <style>\n${css}  </style>`),
   };
 }
 
-function baseCss(maquette: Maquette): string {
+function baseCss(maquette: MaquetteScreen): string {
   const { frame } = maquette;
   return `*, *::before, *::after {
   box-sizing: border-box;
@@ -93,6 +103,11 @@ body {
   display: block;
 }
 
+.maquette-frame iframe, .maquette-frame video {
+  display: block;
+  border: 0;
+}
+
 .maquette-frame [data-node-type="button"] {
   display: flex;
   align-items: center;
@@ -105,28 +120,40 @@ body {
 }`;
 }
 
-function renderNodes(nodes: MaquetteNode[], cssIdOf: (node: MaquetteNode) => string, depth: number): string {
-  return nodes.map((node) => renderNode(node, cssIdOf, depth)).join("\n");
+function renderNodes(nodes: MaquetteNode[], cssIdOf: (node: MaquetteNode) => string, depth: number, paths: ReadonlyMap<string, string>): string {
+  return nodes.map((node) => renderNode(node, cssIdOf, depth, paths)).join("\n");
 }
 
-function renderNode(node: MaquetteNode, cssIdOf: (node: MaquetteNode) => string, depth: number): string {
+function renderNode(node: MaquetteNode, cssIdOf: (node: MaquetteNode) => string, depth: number, paths: ReadonlyMap<string, string>): string {
   const indent = "  ".repeat(depth);
   const attrs = `id="${cssIdOf(node)}" data-node-id="${escapeAttr(node.id)}" data-node-type="${node.type}"`;
 
   switch (node.type) {
     case "section":
       if (node.children.length === 0) return `${indent}<section ${attrs}></section>`;
-      return `${indent}<section ${attrs}>\n${renderNodes(node.children, cssIdOf, depth + 1)}\n${indent}</section>`;
+      return `${indent}<section ${attrs}>\n${renderNodes(node.children, cssIdOf, depth + 1, paths)}\n${indent}</section>`;
     case "title":
       return `${indent}<h${node.props.level} ${attrs}>${escapeHtml(node.props.text)}</h${node.props.level}>`;
     case "text":
       return `${indent}<p ${attrs}>${escapeHtml(node.props.text)}</p>`;
     case "image":
       return `${indent}<img ${attrs} src="${escapeAttr(node.props.src)}" alt="${escapeAttr(node.props.alt)}">`;
-    case "button":
-      return node.props.href === undefined
+    case "button": {
+      const href = (node.props.targetScreenId ? paths.get(node.props.targetScreenId) : undefined) ?? node.props.href;
+      return href === undefined
         ? `${indent}<button type="button" ${attrs}>${escapeHtml(node.props.label)}</button>`
-        : `${indent}<a ${attrs} href="${escapeAttr(node.props.href)}">${escapeHtml(node.props.label)}</a>`;
+        : `${indent}<a ${attrs} href="${escapeAttr(href)}">${escapeHtml(node.props.label)}</a>`;
+    }
+    case "shape":
+      if (node.props.shape === "triangle") {
+        return `${indent}<svg ${attrs} aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="50,0 100,100 0,100" fill="${node.style.backgroundColor ?? "none"}" stroke="${node.style.borderColor ?? "none"}" stroke-width="${node.style.borderWidth ?? 0}" vector-effect="non-scaling-stroke" /></svg>`;
+      }
+      return `${indent}<div ${attrs} aria-hidden="true"></div>`;
+    case "video":
+      if (!node.props.src) return `${indent}<div ${attrs} role="img" aria-label="${escapeAttr(node.props.title)}"></div>`;
+      return node.props.kind === "embed"
+        ? `${indent}<iframe ${attrs} src="${escapeAttr(node.props.src)}" title="${escapeAttr(node.props.title)}" loading="lazy" allowfullscreen></iframe>`
+        : `${indent}<video ${attrs} src="${escapeAttr(node.props.src)}" aria-label="${escapeAttr(node.props.title)}" controls preload="metadata">${escapeHtml(node.props.title)}</video>`;
   }
 }
 
@@ -137,9 +164,10 @@ function collectRules(nodes: MaquetteNode[], cssIdOf: (node: MaquetteNode) => st
       `top: ${node.y}px;`,
       `width: ${node.width}px;`,
       `height: ${node.height}px;`,
-      ...styleDeclarations(node.style),
+      ...(node.type === "shape" && node.props.shape === "triangle" ? ["overflow: visible;"] : styleDeclarations(node.style)),
     ];
     if (node.type === "image") declarations.push(`object-fit: ${node.props.fit};`);
+    if (node.type === "shape" && node.props.shape === "circle") declarations.push("border-radius: 50%;");
     const rule = `#${cssIdOf(node)} {\n${declarations.map((d) => `  ${d}`).join("\n")}\n}`;
     return node.type === "section" ? [rule, ...collectRules(node.children, cssIdOf)] : [rule];
   });
