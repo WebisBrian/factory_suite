@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HubContinueLink } from "@/components/hub/HubContinueLink";
 import type { SaveStatus } from "@/components/screendraft/use-screendraft-save";
 
 type ScreendraftSaveControlsProps = {
@@ -53,6 +54,9 @@ export function ScreendraftSaveControls({
           Enregistrer
         </button>
       )}
+      <HubContinueLink
+        className={`${BUTTON_CLASS} inline-flex items-center border border-(--line-strong) bg-(--surface-raised) text-(--ink) hover:bg-(--canvas)`}
+      />
     </div>
   );
 }

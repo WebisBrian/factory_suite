@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { HubContinueLink } from "@/components/hub/HubContinueLink";
 import { ProjectFsError, readProjectText, useProjectId } from "@/lib/project-fs";
 import { MAQUETTE_FILE, parseMaquette, type Maquette } from "@/app/codeforge/generator/_lib/maquette";
 import { maquetteFixture } from "@/app/codeforge/generator/_lib/maquette-fixture";
@@ -103,6 +104,7 @@ export function GeneratorApp() {
   return (
     <div className="flex flex-col gap-12">
       <header className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Chaîne FactorySuite">
           <ol className="flex flex-wrap items-center gap-x-2 text-sm text-[#454545]">
             <li>
@@ -128,6 +130,8 @@ export function GeneratorApp() {
             </li>
           </ol>
         </nav>
+        <HubContinueLink className={generatorPrimaryButton} />
+        </div>
         <h1 className={`${generatorDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>CodeForge</h1>
         <p className="max-w-prose text-lg text-[#454545]">
           Transforme la maquette de ScreenDraft en pages HTML/CSS, à télécharger ou à passer à AnimFlow.
