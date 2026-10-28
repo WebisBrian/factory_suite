@@ -1,4 +1,5 @@
 import type { ChangeEvent, Dispatch } from "react";
+import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDepthControls";
 import {
   FRAME_PRESETS,
   MAX_FRAME_HEIGHT,
@@ -8,6 +9,7 @@ import {
 } from "@/components/screendraft/screendraft-formats";
 import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
 import type { Frame } from "@/components/screendraft/screendraft-schema";
+import type { NodeLocation } from "@/components/screendraft/screendraft-tree";
 
 const DEVICE_GROUPS: { device: Frame["device"]; label: string }[] = [
   { device: "desktop", label: "Desktop" },
@@ -22,11 +24,16 @@ const FIELD_CLASS =
 
 type ScreendraftPropertiesPanelProps = {
   frame: Frame;
+  selection: NodeLocation | null;
   dispatch: Dispatch<ScreendraftAction>;
 };
 
-/** Propriétés de la maquette. Celles d'un élément viendront avec la sélection (SCRUM-8). */
-export function ScreendraftPropertiesPanel({ frame, dispatch }: ScreendraftPropertiesPanelProps) {
+/** Profondeur de l'élément sélectionné et propriétés de la maquette. Le reste viendra avec SCRUM-8. */
+export function ScreendraftPropertiesPanel({
+  frame,
+  selection,
+  dispatch,
+}: ScreendraftPropertiesPanelProps) {
   const preset = findPreset(frame);
 
   function handleFormatChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -45,7 +52,8 @@ export function ScreendraftPropertiesPanel({ frame, dispatch }: ScreendraftPrope
   }
 
   return (
-    <aside className="w-64 shrink-0 border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+    <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+      {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
         Maquette
       </h2>
