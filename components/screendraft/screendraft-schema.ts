@@ -7,16 +7,29 @@
  * Conventions :
  * - Positions et dimensions en px, à l'échelle 1 de la maquette. Le zoom et le
  *   déplacement du canvas sont un état de l'éditeur et ne sont jamais exportés.
- * - x / y sont relatifs au parent : le frame pour un élément de premier niveau,
- *   la section pour ses enfants.
+ * - Une maquette contient un ou plusieurs écrans (`screens`), chacun avec son frame
+ *   et ses éléments. L'ordre du tableau est l'ordre d'affichage des écrans.
+ * - x / y sont relatifs au parent : le frame de l'écran pour un élément de premier
+ *   niveau, la section pour ses enfants.
  * - L'ordre des tableaux `nodes` et `children` est l'ordre d'empilement :
  *   le premier élément est au fond, le dernier au premier plan.
+ *
+ * Version 2 : `frame` et `nodes` passent du premier niveau à chaque écran de `screens`.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export type Maquette = {
   schemaVersion: typeof SCHEMA_VERSION;
+  id: string;
+  name: string;
+  /** Au moins un écran. */
+  screens: Screen[];
+};
+
+/** Un écran de la maquette, ex. « Accueil » ou « Contact ». */
+export type Screen = {
+  /** Unique dans le document. */
   id: string;
   name: string;
   frame: Frame;
@@ -46,7 +59,7 @@ export type NodeStyle = {
 };
 
 type BaseNode = {
-  /** Unique dans le document. */
+  /** Unique dans le document, tous écrans confondus. */
   id: string;
   x: number;
   y: number;

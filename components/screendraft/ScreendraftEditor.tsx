@@ -1,7 +1,7 @@
 "use client";
 
 import "@/components/screendraft/screendraft-theme.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import wordmark from "@/components/screendraft/brand/logos/screen-draft-wordmark.svg";
 import wordmarkWhite from "@/components/screendraft/brand/logos/screen-draft-wordmark-white.svg";
 import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
@@ -10,14 +10,31 @@ import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
+import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
 import { downloadMaquette } from "@/components/screendraft/screendraft-file";
-import { historyShortcut, isEditableTarget } from "@/components/screendraft/screendraft-keyboard";
-import { createNode } from "@/components/screendraft/screendraft-new-node";
-import type { DraftNodeType, Maquette, ShapeKind } from "@/components/screendraft/screendraft-schema";
-import { findNode } from "@/components/screendraft/screendraft-tree";
+import {
+  clipboardShortcut,
+  historyShortcut,
+  isDeleteShortcut,
+  isEditableTarget,
+} from "@/components/screendraft/screendraft-keyboard";
+import { cloneNode, createNode } from "@/components/screendraft/screendraft-new-node";
+import type {
+  DraftNode,
+  DraftNodeType,
+  Maquette,
+  ShapeKind,
+} from "@/components/screendraft/screendraft-schema";
+import { createScreen, findScreenNode } from "@/components/screendraft/screendraft-screens";
+import { frameRect } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
+
+/** Élément copié ou coupé, son ancien parent et le décalage à appliquer au prochain collage. */
+type ScreendraftClipboard = { node: DraftNode; parentId: string | null; offset: number };
+
+const PASTE_OFFSET = 16;
 
 type ScreendraftEditorProps = {
   initialDraft: Maquette;
@@ -28,16 +45,60 @@ type ScreendraftEditorProps = {
 /** Éditeur plein écran, dans l'espace laissé sous la barre du Hub. */
 export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditorProps) {
   const { draft, dispatch, undo, redo, canUndo, canRedo } = useScreendraftHistory(initialDraft);
-  // La sélection est un état de l'éditeur : elle n'est pas exportée dans le JSON.
+  // L'écran actif et la sélection sont des états de l'éditeur : ils ne sont pas exportés dans le JSON.
+  const [activeScreenId, setActiveScreenId] = useState(initialDraft.screens[0].id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selection = selectedId ? findNode(draft.nodes, selectedId) : null;
+  // Après une annulation ou une suppression, l'écran actif peut ne plus exister : on revient au premier.
+  const activeScreen = draft.screens.find((screen) => screen.id === activeScreenId) ?? draft.screens[0];
+  const selection = selectedId ? findScreenNode(draft.screens, selectedId) : null;
   const { save, status: saveStatus, savedDraft } = useScreendraftSave(projectId, initialDraft);
   const isDirty = projectId !== null && draft !== savedDraft;
+  // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
+  const clipboard = useRef<ScreendraftClipboard | null>(null);
 
   function addNode(type: DraftNodeType, shape?: ShapeKind) {
-    const node = createNode(type, draft.nodes.length, shape);
-    dispatch({ type: "add-node", node });
+    const node = createNode(type, activeScreen.nodes.length, shape);
+    dispatch({ type: "add-node", screenId: activeScreen.id, node });
     setSelectedId(node.id);
+  }
+
+  // Nouvel écran au format de l'écran actif, ajouté à droite et activé.
+  function addScreen() {
+    const screen = createScreen(draft.screens, activeScreen.frame);
+    dispatch({ type: "add-screen", screen });
+    activateScreen(screen.id);
+  }
+
+  // Changer d'écran désélectionne l'élément s'il appartient à un autre écran.
+  function activateScreen(screenId: string) {
+    setActiveScreenId(screenId);
+    if (selection && selection.screen.id !== screenId) setSelectedId(null);
+  }
+
+  // L'élément passe dans un autre écran, qui devient actif : il reste sélectionné.
+  function moveToScreen(id: string, screenId: string, parentId: string | null, x: number, y: number) {
+    dispatch({ type: "move-to-screen", id, screenId, parentId, x, y });
+    setActiveScreenId(screenId);
+  }
+
+  /**
+   * Depuis la liste des écrans ou le panneau de propriétés : l'élément passe au premier niveau
+   * de l'autre écran, à la même place dans le frame, ramené à l'intérieur si l'écran est plus petit.
+   */
+  function sendToScreen(id: string, screenId: string) {
+    const found = findScreenNode(draft.screens, id);
+    const target = draft.screens.find((screen) => screen.id === screenId);
+    if (!found || !target || found.screen.id === screenId) return;
+    const rect = frameRect(found.location);
+    const x = clamp(rect.x, 0, Math.max(0, target.frame.width - rect.width));
+    const y = clamp(rect.y, 0, Math.max(0, target.frame.height - rect.height));
+    moveToScreen(id, screenId, null, x, y);
+  }
+
+  // Clic sur le canvas : l'écran cliqué devient actif, l'élément cliqué est sélectionné.
+  function pick(screenId: string | null, nodeId: string | null) {
+    if (screenId) setActiveScreenId(screenId);
+    setSelectedId(nodeId);
   }
 
   useEffect(() => {
@@ -48,17 +109,46 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         event.preventDefault();
         void save(draft);
       }
-      // Dans un champ de saisie, Ctrl/⌘ + Z annule la frappe : le navigateur s'en charge.
-      const shortcut = isEditableTarget(event.target) ? null : historyShortcut(event);
+      // Dans un champ de saisie, ces raccourcis agissent sur le texte : le navigateur s'en charge.
+      if (isEditableTarget(event.target)) return;
+      const shortcut = historyShortcut(event);
       if (shortcut) {
         event.preventDefault();
         if (shortcut === "undo") undo();
         else redo();
       }
+      if (isDeleteShortcut(event) && selection) {
+        event.preventDefault();
+        dispatch({ type: "delete-node", id: selection.location.node.id });
+        setSelectedId(null);
+      }
+      const clipboardAction = clipboardShortcut(event);
+      if (clipboardAction === "paste" && clipboard.current) {
+        event.preventDefault();
+        const { node, parentId, offset } = clipboard.current;
+        const pasted = cloneNode(node, offset);
+        // Collé dans l'écran actif : copier dans un écran puis coller dans un autre duplique l'élément.
+        dispatch({ type: "paste-node", screenId: activeScreen.id, node: pasted, parentId });
+        setSelectedId(pasted.id);
+        // Coller plusieurs fois décale chaque copie de la précédente.
+        clipboard.current = { node: pasted, parentId, offset: PASTE_OFFSET };
+      } else if (clipboardAction && selection) {
+        event.preventDefault();
+        // Une copie se colle décalée de l'original ; un élément coupé revient à sa place.
+        clipboard.current = {
+          node: selection.location.node,
+          parentId: selection.location.parentId,
+          offset: clipboardAction === "copy" ? PASTE_OFFSET : 0,
+        };
+        if (clipboardAction === "cut") {
+          dispatch({ type: "delete-node", id: selection.location.node.id });
+          setSelectedId(null);
+        }
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save, undo, redo]);
+  }, [draft, projectId, save, undo, redo, dispatch, selection, activeScreen.id]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {
@@ -106,27 +196,49 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         <div className="flex min-h-0 flex-1">
           <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
             <ScreendraftPalette onAdd={addNode} />
+            <ScreendraftScreens
+              screens={draft.screens}
+              activeScreenId={activeScreen.id}
+              onActivate={activateScreen}
+              onAdd={addScreen}
+              onDropNode={sendToScreen}
+            />
             <ScreendraftLayers
-              nodes={draft.nodes}
+              nodes={activeScreen.nodes}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
             />
           </div>
-          {/* Changer de format (donc de largeur) recrée le canvas, qui se réajuste à l'écran. */}
+          {/* Ajouter, supprimer un écran ou changer de format (donc de largeur) recrée le canvas,
+              qui se réajuste pour montrer tous les écrans. */}
           <ScreendraftCanvas
-            key={draft.frame.width}
-            draft={draft}
+            key={draft.screens.map((screen) => screen.frame.width).join(",")}
+            screens={draft.screens}
+            activeScreenId={activeScreen.id}
             selection={selection}
-            onSelect={setSelectedId}
+            onPick={pick}
             onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
             onDropInto={(id, parentId) =>
               dispatch({ type: "place-node", id, placement: { type: "inside", parentId } })
             }
+            onMoveToScreen={moveToScreen}
           />
-          <ScreendraftPropertiesPanel frame={draft.frame} selection={selection} dispatch={dispatch} />
+          <ScreendraftPropertiesPanel
+            screen={activeScreen}
+            canDeleteScreen={draft.screens.length > 1}
+            selection={selection?.location ?? null}
+            selectionScreenId={selection?.screen.id ?? null}
+            screens={draft.screens}
+            onSendToScreen={sendToScreen}
+            dispatch={dispatch}
+          />
         </div>
       </div>
     </div>
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

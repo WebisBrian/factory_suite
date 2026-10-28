@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { Maquette } from "@/components/screendraft/screendraft-schema";
+import type { Screen } from "@/components/screendraft/screendraft-schema";
 import { ScreendraftNode } from "@/components/screendraft/ScreendraftNode";
 
 // Rendu par défaut de ce que le schéma ne précise pas encore.
@@ -11,15 +11,16 @@ const TEXT_DEFAULTS: CSSProperties = {
 };
 
 type ScreendraftFrameProps = {
-  draft: Maquette;
+  screen: Screen;
   style?: CSSProperties;
 };
 
-/** La maquette à l'échelle 1. Le contenu qui dépasse du frame est masqué. */
-export function ScreendraftFrame({ draft, style }: ScreendraftFrameProps) {
-  const { frame } = draft;
+/** Un écran de la maquette à l'échelle 1. Le contenu qui dépasse du frame est masqué. */
+export function ScreendraftFrame({ screen, style }: ScreendraftFrameProps) {
+  const { frame } = screen;
   return (
     <div
+      data-screen-id={screen.id}
       style={{
         ...TEXT_DEFAULTS,
         position: "absolute",
@@ -30,7 +31,7 @@ export function ScreendraftFrame({ draft, style }: ScreendraftFrameProps) {
         ...style,
       }}
     >
-      {draft.nodes.map((node) => (
+      {screen.nodes.map((node) => (
         <ScreendraftNode key={node.id} node={node} />
       ))}
     </div>

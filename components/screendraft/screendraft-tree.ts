@@ -96,12 +96,21 @@ export function placeNode(nodes: DraftNode[], id: string, placement: Placement):
   );
 }
 
-function removeNode(nodes: DraftNode[], id: string): DraftNode[] {
+/** Retire un élément (et ses enfants), où qu'il soit dans l'arbre. */
+export function removeNode(nodes: DraftNode[], id: string): DraftNode[] {
   return nodes
     .filter((node) => node.id !== id)
     .map((node) =>
       node.type === "section" ? { ...node, children: removeNode(node.children, id) } : node,
     );
+}
+
+/** Ajoute un élément au premier plan d'une section, ou du frame si `parentId` est null. */
+export function insertInto(nodes: DraftNode[], node: DraftNode, parentId: string | null): DraftNode[] {
+  if (parentId === null) return [...nodes, node];
+  return updateNode(nodes, parentId, (section) =>
+    section.type === "section" ? { ...section, children: [...section.children, node] } : section,
+  );
 }
 
 function insertAmong(siblings: DraftNode[], node: DraftNode, placement: Placement): DraftNode[] {

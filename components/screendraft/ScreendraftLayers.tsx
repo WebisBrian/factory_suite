@@ -9,6 +9,9 @@ import {
   type Placement,
 } from "@/components/screendraft/screendraft-tree";
 
+/** Type des données glissées depuis un calque (son id), reconnu par la liste des écrans. */
+export const LAYER_DRAG_TYPE = "application/x-screendraft-node";
+
 /** Où lâcher un calque par rapport à une ligne : devant (au-dessus), derrière (en dessous) ou dans une section. */
 type DropZone = "front" | "back" | "inside";
 type DropTarget = { id: string; zone: DropZone };
@@ -54,6 +57,8 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
     start(node, event) {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", node.id);
+      // Type propre à Screendraft : la liste des écrans n'accepte que les calques.
+      event.dataTransfer.setData(LAYER_DRAG_TYPE, node.id);
       setDraggedId(node.id);
       onSelect(node.id);
     },

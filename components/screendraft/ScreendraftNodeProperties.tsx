@@ -1,46 +1,272 @@
 import { useId, useRef, useState, type Dispatch, type FormEvent } from "react";
-import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { DraftNode, VideoNode } from "@/components/screendraft/screendraft-schema";
+import {
+  FIELD_CLASS,
+  ScreendraftColorField,
+  ScreendraftField,
+  ScreendraftFieldGroup,
+  ScreendraftNumberField,
+  ScreendraftSelectField,
+} from "@/components/screendraft/ScreendraftFields";
+import type { Geometry, ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
+import type { DraftNode, DraftNodeType, NodeStyle, VideoNode } from "@/components/screendraft/screendraft-schema";
+import { SHAPE_LABELS } from "@/components/screendraft/screendraft-tree";
 import { parseVideoUrl } from "@/components/screendraft/screendraft-video";
 
-const FIELD_CLASS =
-  "w-full rounded-(--radius-sm) border border-(--line-strong) bg-(--surface-raised) px-(--space-2) py-(--space-1) text-(--ink)";
+// Bornes des champs, en px.
+const MAX_POSITION = 10000;
+const MAX_SIZE = 10000;
+const MAX_FONT_SIZE = 400;
+const MAX_BORDER = 100;
+
+// Rendu par défaut quand le style ne précise rien (voir ScreendraftFrame).
+const DEFAULT_TEXT_COLOR = "#000000";
+const DEFAULT_FONT_SIZE = 16;
+
+const HAS_FILL: DraftNodeType[] = ["section", "button", "shape"];
+const HAS_TEXT_STYLE: DraftNodeType[] = ["title", "text", "button"];
+const HAS_BOX_STYLE: DraftNodeType[] = ["section", "image", "video", "button", "shape"];
+
+const GEOMETRY_FIELDS: { key: keyof Geometry; label: string; min: number; max: number }[] = [
+  { key: "x", label: "X", min: 0, max: MAX_POSITION },
+  { key: "y", label: "Y", min: 0, max: MAX_POSITION },
+  { key: "width", label: "Largeur", min: 1, max: MAX_SIZE },
+  { key: "height", label: "Hauteur", min: 1, max: MAX_SIZE },
+];
+
+const FONT_WEIGHTS: { value: NonNullable<NodeStyle["fontWeight"]>; label: string }[] = [
+  { value: 400, label: "Normal" },
+  { value: 500, label: "Moyen" },
+  { value: 600, label: "Semi-gras" },
+  { value: 700, label: "Gras" },
+];
+
+const TEXT_ALIGNS: { value: NonNullable<NodeStyle["textAlign"]>; label: string }[] = [
+  { value: "left", label: "Gauche" },
+  { value: "center", label: "Centre" },
+  { value: "right", label: "Droite" },
+];
 
 type ScreendraftNodePropertiesProps = {
   node: DraftNode;
   dispatch: Dispatch<ScreendraftAction>;
 };
 
-/** Contenu de l'élément sélectionné : texte d'un titre ou d'un texte, fichier d'une image, lien d'une vidéo. */
+/** Tout ce qui se modifie sur l'élément sélectionné : contenu, position et taille, apparence. */
 export function ScreendraftNodeProperties({ node, dispatch }: ScreendraftNodePropertiesProps) {
-  if (node.type === "text" || node.type === "title") {
-    return (
-      <section className="mb-(--space-4) border-b border-(--line) pb-(--space-4)">
-        <label className="text-body-sm flex flex-col gap-(--space-1)">
-          <span className="text-label text-(--ink-muted)">Contenu</span>
+  const { style } = node;
+
+  function setStyle(next: NodeStyle) {
+    dispatch({ type: "set-style", id: node.id, style: next });
+  }
+
+  return (
+    <>
+      <ContentFields node={node} dispatch={dispatch} />
+
+      <ScreendraftFieldGroup title="Position et taille">
+        <div className="grid grid-cols-2 gap-(--space-3)">
+          {GEOMETRY_FIELDS.map(({ key, label, min, max }) => (
+            <ScreendraftNumberField
+              key={key}
+              label={label}
+              value={node[key]}
+              min={min}
+              max={max}
+              onCommit={(value) => dispatch({ type: "set-geometry", id: node.id, geometry: { [key]: value } })}
+            />
+          ))}
+        </div>
+      </ScreendraftFieldGroup>
+
+      {HAS_TEXT_STYLE.includes(node.type) && (
+        <ScreendraftFieldGroup title="Texte">
+          <ScreendraftColorField
+            label="Couleur"
+            value={style.color}
+            fallback={DEFAULT_TEXT_COLOR}
+            onChange={(color) => setStyle({ color })}
+          />
+          <div className="grid grid-cols-2 gap-(--space-3)">
+            <ScreendraftNumberField
+              label="Taille (px)"
+              value={style.fontSize ?? DEFAULT_FONT_SIZE}
+              min={1}
+              max={MAX_FONT_SIZE}
+              onCommit={(fontSize) => setStyle({ fontSize })}
+            />
+            <ScreendraftSelectField
+              label="Graisse"
+              value={style.fontWeight ?? 400}
+              options={FONT_WEIGHTS}
+              onChange={(fontWeight) => setStyle({ fontWeight })}
+            />
+          </div>
+          <ScreendraftSelectField
+            label="Alignement"
+            value={style.textAlign ?? (node.type === "button" ? "center" : "left")}
+            options={TEXT_ALIGNS}
+            onChange={(textAlign) => setStyle({ textAlign })}
+          />
+        </ScreendraftFieldGroup>
+      )}
+
+      {HAS_BOX_STYLE.includes(node.type) && (
+        <ScreendraftFieldGroup title="Apparence">
+          {HAS_FILL.includes(node.type) && (
+            <ScreendraftColorField
+              label="Fond"
+              value={style.backgroundColor}
+              fallback="#ffffff"
+              onChange={(backgroundColor) => setStyle({ backgroundColor })}
+              onClear={() => setStyle({ backgroundColor: undefined })}
+            />
+          )}
+          <div className="grid grid-cols-2 gap-(--space-3)">
+            {/* Le rond et le triangle ont une forme fixe : l'arrondi ne s'y applique pas. */}
+            {!(node.type === "shape" && node.props.shape !== "rectangle") && (
+              <ScreendraftNumberField
+                label="Arrondi (px)"
+                value={style.borderRadius ?? 0}
+                min={0}
+                max={MAX_SIZE}
+                onCommit={(borderRadius) => setStyle({ borderRadius })}
+              />
+            )}
+            <ScreendraftNumberField
+              label="Bordure (px)"
+              value={style.borderWidth ?? 0}
+              min={0}
+              max={MAX_BORDER}
+              onCommit={(borderWidth) => setStyle({ borderWidth })}
+            />
+          </div>
+          {Boolean(style.borderWidth) && (
+            <ScreendraftColorField
+              label="Couleur de bordure"
+              value={style.borderColor}
+              fallback={style.color ?? DEFAULT_TEXT_COLOR}
+              onChange={(borderColor) => setStyle({ borderColor })}
+            />
+          )}
+        </ScreendraftFieldGroup>
+      )}
+    </>
+  );
+}
+
+/** Contenu propre à chaque type d'élément. Une section n'en a pas : ce sont ses enfants. */
+function ContentFields({ node, dispatch }: ScreendraftNodePropertiesProps) {
+  switch (node.type) {
+    case "section":
+      return null;
+    case "title":
+    case "text":
+      return (
+        <ScreendraftFieldGroup title="Contenu">
           <textarea
+            aria-label="Texte"
             value={node.props.text}
             onChange={(event) => dispatch({ type: "set-text", id: node.id, text: event.target.value })}
             className={`${FIELD_CLASS} min-h-24 resize-y`}
           />
-        </label>
-      </section>
-    );
+          {node.type === "title" && (
+            <ScreendraftSelectField
+              label="Niveau"
+              value={node.props.level}
+              options={[
+                { value: 1, label: "Titre 1 (h1)" },
+                { value: 2, label: "Titre 2 (h2)" },
+                { value: 3, label: "Titre 3 (h3)" },
+              ]}
+              onChange={(level) => dispatch({ type: "set-props", id: node.id, nodeType: "title", props: { level } })}
+            />
+          )}
+        </ScreendraftFieldGroup>
+      );
+    case "button":
+      return (
+        <ScreendraftFieldGroup title="Contenu">
+          <ScreendraftField label="Libellé">
+            <input
+              type="text"
+              value={node.props.label}
+              onChange={(event) =>
+                dispatch({ type: "set-props", id: node.id, nodeType: "button", props: { label: event.target.value } })
+              }
+              className={FIELD_CLASS}
+            />
+          </ScreendraftField>
+          <ScreendraftField label="Lien">
+            <input
+              type="url"
+              placeholder="https://… ou #ancre"
+              value={node.props.href ?? ""}
+              onChange={(event) =>
+                dispatch({
+                  type: "set-props",
+                  id: node.id,
+                  nodeType: "button",
+                  props: { href: event.target.value || undefined },
+                })
+              }
+              className={FIELD_CLASS}
+            />
+          </ScreendraftField>
+        </ScreendraftFieldGroup>
+      );
+    case "image":
+      return (
+        <ScreendraftFieldGroup title="Contenu">
+          <ImagePicker nodeId={node.id} dispatch={dispatch} />
+          <ScreendraftField label="Texte alternatif">
+            <input
+              type="text"
+              value={node.props.alt}
+              onChange={(event) =>
+                dispatch({ type: "set-props", id: node.id, nodeType: "image", props: { alt: event.target.value } })
+              }
+              className={FIELD_CLASS}
+            />
+          </ScreendraftField>
+          <ScreendraftSelectField
+            label="Cadrage"
+            value={node.props.fit}
+            options={[
+              { value: "cover", label: "Remplir (rogner)" },
+              { value: "contain", label: "Contenir (entière)" },
+            ]}
+            onChange={(fit) => dispatch({ type: "set-props", id: node.id, nodeType: "image", props: { fit } })}
+          />
+        </ScreendraftFieldGroup>
+      );
+    // Remonté à chaque changement d'élément pour repartir de son lien.
+    case "video":
+      return <VideoFields key={node.id} node={node} dispatch={dispatch} />;
+    case "shape":
+      return (
+        <ScreendraftFieldGroup title="Forme">
+          <ScreendraftSelectField
+            label="Type"
+            value={node.props.shape}
+            options={(["circle", "rectangle", "triangle"] as const).map((shape) => ({
+              value: shape,
+              label: SHAPE_LABELS[shape],
+            }))}
+            onChange={(shape) => dispatch({ type: "set-props", id: node.id, nodeType: "shape", props: { shape } })}
+          />
+        </ScreendraftFieldGroup>
+      );
   }
-  if (node.type === "image") return <ImageField nodeId={node.id} dispatch={dispatch} />;
-  // Remonté à chaque changement d'élément pour repartir de ses valeurs.
-  if (node.type === "video") return <VideoField key={node.id} node={node} dispatch={dispatch} />;
-  return null;
 }
 
-/** Lien et titre d'une vidéo, appliqués ensemble : un lien non reconnu ne modifie rien. */
-function VideoField({ node, dispatch }: { node: VideoNode; dispatch: Dispatch<ScreendraftAction> }) {
+/**
+ * Le lien n'est appliqué qu'à la validation : un lien non reconnu ne modifie rien.
+ * Le titre, lui, s'applique à la frappe comme les autres champs.
+ */
+function VideoFields({ node, dispatch }: { node: VideoNode; dispatch: Dispatch<ScreendraftAction> }) {
   const [url, setUrl] = useState(node.props.src);
-  const [title, setTitle] = useState(node.props.title);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
-  const urlId = useId();
-  const titleId = useId();
   const errorId = useId();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -53,63 +279,52 @@ function VideoField({ node, dispatch }: { node: VideoNode; dispatch: Dispatch<Sc
     }
     setError(null);
     setUrl(parsed.src);
-    dispatch({
-      type: "set-video",
-      id: node.id,
-      props: { src: parsed.src, kind: parsed.kind, title: title.trim() || "Vidéo" },
-    });
+    dispatch({ type: "set-props", id: node.id, nodeType: "video", props: { src: parsed.src, kind: parsed.kind } });
     setStatus("Vidéo mise à jour.");
   }
 
   return (
-    <section className="mb-(--space-4) border-b border-(--line) pb-(--space-4)">
-      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">Vidéo</h2>
-      <form onSubmit={handleSubmit} noValidate className="text-body-sm flex flex-col gap-(--space-3)">
-        <div className="flex flex-col gap-(--space-1)">
-          <label htmlFor={urlId} className="text-(--ink-muted)">
-            Lien de la vidéo
-          </label>
+    <ScreendraftFieldGroup title="Contenu">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-(--space-3)">
+        <ScreendraftField label="Lien de la vidéo">
           <input
-            id={urlId}
             type="url"
             inputMode="url"
+            placeholder="https://www.youtube.com/watch?v=…"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://www.youtube.com/watch?v=…"
             aria-invalid={error !== null}
             aria-describedby={error ? errorId : undefined}
             className={FIELD_CLASS}
           />
-          {error && (
-            <p id={errorId} role="alert" className="text-(--danger)">
-              Erreur : {error}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-(--space-1)">
-          <label htmlFor={titleId} className="text-(--ink-muted)">
-            Titre (lu par les lecteurs d’écran)
-          </label>
-          <input
-            id={titleId}
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className={FIELD_CLASS}
-          />
-        </div>
+        </ScreendraftField>
+        {error && (
+          <p id={errorId} role="alert" className="text-(--danger)">
+            Erreur : {error}
+          </p>
+        )}
         <button type="submit" className={`${FIELD_CLASS} min-h-10 hover:bg-(--canvas)`}>
-          Appliquer la vidéo
+          Appliquer le lien
         </button>
         <p role="status" className="text-(--ink-muted)">
           {status}
         </p>
       </form>
-    </section>
+      <ScreendraftField label="Titre (lu par les lecteurs d’écran)">
+        <input
+          type="text"
+          value={node.props.title}
+          onChange={(event) =>
+            dispatch({ type: "set-props", id: node.id, nodeType: "video", props: { title: event.target.value } })
+          }
+          className={FIELD_CLASS}
+        />
+      </ScreendraftField>
+    </ScreendraftFieldGroup>
   );
 }
 
-function ImageField({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<ScreendraftAction> }) {
+function ImagePicker({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<ScreendraftAction> }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // L'image est embarquée dans la maquette en data URL : pas de serveur pour l'héberger.
@@ -125,8 +340,7 @@ function ImageField({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<S
   }
 
   return (
-    <section className="mb-(--space-4) border-b border-(--line) pb-(--space-4)">
-      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">Image</h2>
+    <>
       <input
         ref={inputRef}
         type="file"
@@ -140,10 +354,10 @@ function ImageField({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<S
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className={`${FIELD_CLASS} text-body-sm hover:bg-(--canvas)`}
+        className={`${FIELD_CLASS} hover:bg-(--canvas)`}
       >
         Remplacer l’image
       </button>
-    </section>
+    </>
   );
 }

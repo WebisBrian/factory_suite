@@ -35,15 +35,24 @@ function historyReducer(history: History<Maquette>, event: HistoryEvent): Histor
 
 /**
  * Actions envoyées en continu pendant un même geste, à regrouper en une seule étape :
- * déplacer un élément (et le lâcher dans une section), taper son texte.
+ * déplacer un élément (et le lâcher dans une section), taper son texte ou le nom d'un écran,
+ * régler une couleur.
  */
 function groupKey(action: ScreendraftAction): string | null {
   switch (action.type) {
     case "move-node":
     case "place-node":
+    case "move-to-screen":
       return `move:${action.id}`;
     case "set-text":
       return `text:${action.id}`;
+    case "rename-screen":
+      return `screen-name:${action.screenId}`;
+    // Glisser dans un sélecteur de couleur, taper un libellé ou un lien.
+    case "set-style":
+      return `style:${action.id}:${Object.keys(action.style).join()}`;
+    case "set-props":
+      return `props:${action.id}:${Object.keys(action.props).join()}`;
     default:
       return null;
   }
