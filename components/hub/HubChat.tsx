@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { HubLogo } from "@/components/hub/HubAppIcon";
@@ -13,6 +14,8 @@ import {
   type HubChatMessage,
   type HubChatReply,
 } from "@/components/hub/hub-chat";
+import { checkHubGuide, stopHubGuide, type HubGuide } from "@/components/hub/hub-chat-guide";
+import { loadHubChatSession, saveHubChatSession } from "@/components/hub/hub-chat-session";
 import {
   hubDangerButton,
   hubInput,
@@ -20,12 +23,22 @@ import {
   hubSectionLabel,
   hubSmallButton,
 } from "@/components/hub/hub-styles";
+import { HUB_TOOLS } from "@/components/hub/hub-tools";
 
 const WELCOME: HubChatMessage = { id: 0, author: "assistant", text: HUB_CHAT_WELCOME };
 
 type PendingConfirmation = HubChatConfirmation & { messageId: number };
 
-function HubChatBubble({ message, children }: { message: HubChatMessage; children?: React.ReactNode }) {
+function HubChatBubble({
+  message,
+  showActions,
+  children,
+}: {
+  message: HubChatMessage;
+  /** Liens affichés sur le dernier message seulement : ceux des anciens messages seraient périmés. */
+  showActions: boolean;
+  children?: React.ReactNode;
+}) {
   const fromUser = message.author === "user";
   return (
     // L'auteur est écrit en toutes lettres : l'alignement et la couleur ne sont qu'un indice de plus.
@@ -44,6 +57,17 @@ function HubChatBubble({ message, children }: { message: HubChatMessage; childre
           {message.isError && <strong className="font-bold text-white">Erreur : </strong>}
           {message.text}
         </p>
+        {showActions && message.actions && message.actions.length > 0 && (
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {message.actions.map((action) => (
+              <li key={action.href}>
+                <Link href={action.href} className={hubPrimaryButton}>
+                  {action.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
         {children}
       </div>
     </li>
@@ -60,6 +84,10 @@ export function HubChat() {
   const [pending, setPending] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
+  const [guide, setGuide] = useState<HubGuide | null>(null);
+  /** Parcours en cours au chargement du Hub : l'utilisateur revient d'un outil, on vérifiera l'étape. */
+  const [guideCheckDue, setGuideCheckDue] = useState(false);
+  const [restored, setRestored] = useState(false);
   const router = useRouter();
   const nextId = useRef(1);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -78,10 +106,39 @@ export function HubChat() {
 
   useEffect(scrollToLastMessage, [messages, pending]);
 
+  // Reprise de la conversation après un passage dans un outil. Lue après le montage :
+  // le rendu de l'export statique n'a pas de sessionStorage.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(loadHubChatSession()).then((session) => {
+      if (cancelled) return;
+      if (session && session.messages.length > 0) {
+        setMessages(session.messages);
+        setGuide(session.guide);
+        setGuideCheckDue(session.guide !== null);
+        nextId.current = Math.max(...session.messages.map((message) => message.id)) + 1;
+      }
+      setRestored(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (restored) saveHubChatSession({ messages, guide });
+  }, [messages, guide, restored]);
+
   function openChat() {
     dialogRef.current?.showModal();
     scrollToLastMessage();
-    inputRef.current?.focus();
+    if (guide && guideCheckDue && !pending) {
+      setGuideCheckDue(false);
+      // Vérification lancée depuis ce clic : Chrome peut y redemander l'accès au dossier.
+      void answer(() => checkHubGuide(guide, false));
+    } else {
+      inputRef.current?.focus();
+    }
   }
 
   function closeChat() {
@@ -103,7 +160,8 @@ export function HubChat() {
     } catch (e) {
       reply = { text: e instanceof Error ? e.message : String(e), isError: true };
     }
-    const id = push({ author: "assistant", text: reply.text, isError: reply.isError });
+    const id = push({ author: "assistant", text: reply.text, isError: reply.isError, actions: reply.actions });
+    if (reply.guide !== undefined) setGuide(reply.guide);
     setAnnouncement(`Assistant : ${reply.isError ? "Erreur : " : ""}${reply.text}`);
     setPending(false);
     if (reply.navigateTo) {
@@ -127,7 +185,7 @@ export function HubChat() {
     if (awaiting && isHubChatYes(request)) void answer(awaiting.run);
     else if (awaiting && isHubChatNo(request)) void answer(async () => ({ text: awaiting.cancelText }));
     // Autre demande pendant une confirmation : l'action en attente est abandonnée.
-    else void answer(() => respondToHubChat(request));
+    else void answer(() => respondToHubChat(request, { guide }));
   }
 
   function handleConfirm(awaiting: PendingConfirmation) {
@@ -140,6 +198,11 @@ export function HubChat() {
     setConfirmation(null);
     push({ author: "user", text: "Annuler" });
     void answer(async () => ({ text: awaiting.cancelText }));
+  }
+
+  function handleStopGuide(current: HubGuide) {
+    push({ author: "user", text: "Arrêter le parcours" });
+    void answer(async () => stopHubGuide(current));
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -165,6 +228,11 @@ export function HubChat() {
       >
         <HubLogo size="sm" />
         Assistant
+        {guide && (
+          <span className="font-semibold text-zinc-200">
+            ({guideCheckDue ? "vérifier l'étape" : "étape"} {guide.step + 1} sur {HUB_TOOLS.length})
+          </span>
+        )}
       </button>
 
       <dialog
@@ -196,6 +264,24 @@ export function HubChat() {
             </div>
           </header>
 
+          {guide && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-sky-300 bg-sky-950/50 px-3 py-2">
+              <p className="text-base text-zinc-100">
+                <strong className="font-bold text-white">Parcours guidé :</strong> {guide.projectName}, étape{" "}
+                {guide.step + 1} sur {HUB_TOOLS.length} ({HUB_TOOLS[guide.step].label})
+              </p>
+              <button
+                type="button"
+                onClick={() => handleStopGuide(guide)}
+                disabled={pending}
+                aria-label={`Arrêter le parcours guidé du projet ${guide.projectName}`}
+                className={hubSmallButton}
+              >
+                Arrêter
+              </button>
+            </div>
+          )}
+
           {/* Zone défilante focusable : on peut la parcourir au clavier (flèches). */}
           <div
             ref={logRef}
@@ -204,8 +290,8 @@ export function HubChat() {
             className="min-h-32 flex-1 overflow-y-auto rounded-xl border border-zinc-700 bg-[#0f0f15] p-3"
           >
             <ol className="flex flex-col gap-3">
-              {messages.map((message) => (
-                <HubChatBubble key={message.id} message={message}>
+              {messages.map((message, index) => (
+                <HubChatBubble key={message.id} message={message} showActions={index === messages.length - 1}>
                   {confirmation?.messageId === message.id && (
                     <div role="group" aria-label="Confirmer l'action" className="mt-3 flex flex-wrap gap-2">
                       <button

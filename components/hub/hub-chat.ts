@@ -12,6 +12,14 @@ import {
   type ProjectFsErrorCode,
   type ProjectInfo,
 } from "@/lib/project-fs";
+import {
+  checkHubGuide,
+  describeProject,
+  skipHubGuideStep,
+  startHubGuide,
+  stopHubGuide,
+  type HubGuide,
+} from "@/components/hub/hub-chat-guide";
 import { notifyHubProjectsChanged } from "@/components/hub/hub-project-events";
 import { HUB_TOOLS, hubToolHref, type HubTool } from "@/components/hub/hub-tools";
 
@@ -23,6 +31,14 @@ export interface HubChatMessage {
   text: string;
   /** Réponse d'erreur : affichée avec le préfixe « Erreur : » (pas seulement en couleur). */
   isError?: boolean;
+  actions?: HubChatAction[];
+}
+
+/** Lien proposé sous une réponse (ex. ouvrir l'outil de l'étape du parcours guidé). */
+export interface HubChatAction {
+  /** Nom accessible précis : « Ouvrir CodeForge pour le projet Boulangerie ». */
+  label: string;
+  href: string;
 }
 
 /** Action irréversible en attente : exécutée seulement après confirmation explicite. */
@@ -39,18 +55,26 @@ export interface HubChatReply {
   /** Page à ouvrir après la réponse (outil de la suite). */
   navigateTo?: string;
   confirmation?: HubChatConfirmation;
+  actions?: HubChatAction[];
+  /** Nouvel état du parcours guidé : absent = inchangé, null = parcours terminé ou arrêté. */
+  guide?: HubGuide | null;
+}
+
+/** État de la conversation dont le moteur a besoin pour comprendre la demande. */
+export interface HubChatContext {
+  guide: HubGuide | null;
 }
 
 /** Exemples proposés à l'ouverture de l'assistant. */
 export const HUB_CHAT_SUGGESTIONS: readonly string[] = [
   "Aide",
   "Liste mes projets",
-  "Crée un projet Boulangerie",
-  "Où en est le dernier projet ?",
+  "Crée un projet Boulangerie et guide-moi",
+  "Guide-moi pour le dernier projet",
 ];
 
 export const HUB_CHAT_WELCOME =
-  "Bonjour, je suis l'assistant FactorySuite. Je peux créer, renommer ou supprimer un projet, donner son avancement et ouvrir un outil. Dites « aide » pour des exemples.";
+  "Bonjour, je suis l'assistant FactorySuite. Je peux gérer vos projets, ouvrir un outil et vous guider étape par étape de la maquette à la page animée. Dites « aide » pour des exemples.";
 
 const HELP_TEXT = [
   "Voici ce que je sais faire, avec des exemples :",
@@ -62,6 +86,8 @@ const HELP_TEXT = [
   "• Fichiers : « fichiers du projet 2 »",
   "• Historique : « historique du projet 2 »",
   "• Ouvrir un outil : « ouvre CodeForge pour le projet 2 » (sans projet : mode démo)",
+  "• Parcours guidé, d'outil en outil : « guide-moi pour le projet 2 », ou « crée un projet Boulangerie et guide-moi »",
+  "  Pendant le parcours : « terminé », « passe l'étape », « arrête le guide »",
   "Un projet se désigne par son numéro, son nom ou « le dernier projet ».",
 ].join("\n");
 
@@ -138,10 +164,6 @@ function findProject(text: string, projects: readonly ProjectInfo[]): ProjectRef
   return named ? { kind: "found", project: named } : { kind: "none" };
 }
 
-function describe(project: ProjectInfo): string {
-  return `« ${project.name} » (n°${project.id})`;
-}
-
 // --- Réponses ----------------------------------------------------------------
 
 const ERROR_HINTS: Partial<Record<ProjectFsErrorCode, string>> = {
@@ -188,21 +210,21 @@ async function projectStatus(project: ProjectInfo): Promise<HubChatReply> {
   const conclusion = next
     ? `Prochaine étape : ${next.tool.label}. Dites « ouvre ${next.tool.label} pour le projet ${project.id} ».`
     : "Les trois étapes sont faites.";
-  return { text: [`Avancement du projet ${describe(project)} :`, ...lines, conclusion].join("\n") };
+  return { text: [`Avancement du projet ${describeProject(project)} :`, ...lines, conclusion].join("\n") };
 }
 
 async function projectFiles(project: ProjectInfo): Promise<HubChatReply> {
   const files = await listProjectFiles(project.id);
-  if (files.length === 0) return { text: `Le projet ${describe(project)} n'a encore aucun fichier.` };
+  if (files.length === 0) return { text: `Le projet ${describeProject(project)} n'a encore aucun fichier.` };
   const lines = files.map((f) => `• ${f.name}, modifié le ${dateFormat.format(f.lastModified)}`);
-  return { text: [`Fichiers du projet ${describe(project)} :`, ...lines].join("\n") };
+  return { text: [`Fichiers du projet ${describeProject(project)} :`, ...lines].join("\n") };
 }
 
 const HISTORY_LIMIT = 5;
 
 async function projectHistory(project: ProjectInfo): Promise<HubChatReply> {
   const versions = await listProjectHistory(project.id);
-  if (versions.length === 0) return { text: `Aucun enregistrement dans l'historique du projet ${describe(project)}.` };
+  if (versions.length === 0) return { text: `Aucun enregistrement dans l'historique du projet ${describeProject(project)}.` };
   const lines = versions
     .slice(0, HISTORY_LIMIT)
     .map((v) => `• ${v.filename}, enregistré le ${dateFormat.format(v.savedAt)}`);
@@ -210,21 +232,25 @@ async function projectHistory(project: ProjectInfo): Promise<HubChatReply> {
     versions.length > HISTORY_LIMIT
       ? `Et ${versions.length - HISTORY_LIMIT} version(s) plus ancienne(s) : voir l'onglet Historique de la carte du projet.`
       : "Pour restaurer une version, ouvrez l'onglet Historique de la carte du projet.";
-  return { text: [`Derniers enregistrements du projet ${describe(project)} :`, ...lines, more].join("\n") };
+  return { text: [`Derniers enregistrements du projet ${describeProject(project)} :`, ...lines, more].join("\n") };
 }
 
-async function confirmDelete(project: ProjectInfo): Promise<HubChatReply> {
+async function confirmDelete(project: ProjectInfo, guide: HubGuide | null): Promise<HubChatReply> {
   const files = await listProjectFiles(project.id);
   return {
-    text: `Supprimer définitivement le projet ${describe(project)} et ses ${files.length} fichier(s) du disque ? Cette action est irréversible. Répondez « oui » ou « non », ou utilisez les boutons.`,
+    text: `Supprimer définitivement le projet ${describeProject(project)} et ses ${files.length} fichier(s) du disque ? Cette action est irréversible. Répondez « oui » ou « non », ou utilisez les boutons.`,
     confirmation: {
       label: `Supprimer « ${project.name} »`,
-      cancelText: `Suppression annulée : le projet ${describe(project)} est conservé.`,
+      cancelText: `Suppression annulée : le projet ${describeProject(project)} est conservé.`,
       run: async () => {
         try {
           await deleteProject(project.id);
           notifyHubProjectsChanged();
-          return { text: `Le projet ${describe(project)} a été supprimé.` };
+          const stopsGuide = guide?.projectId === project.id;
+          return {
+            text: `Le projet ${describeProject(project)} a été supprimé.${stopsGuide ? " Son parcours guidé est arrêté." : ""}`,
+            ...(stopsGuide && { guide: null }),
+          };
         } catch (error) {
           return errorReply(error);
         }
@@ -236,16 +262,35 @@ async function confirmDelete(project: ProjectInfo): Promise<HubChatReply> {
 function openTool(tool: HubTool, project: ProjectInfo | null): HubChatReply {
   return {
     text: project
-      ? `J'ouvre ${tool.label} pour le projet ${describe(project)}.`
+      ? `J'ouvre ${tool.label} pour le projet ${describeProject(project)}.`
       : `J'ouvre ${tool.label} en mode démo (sans projet).`,
     navigateTo: hubToolHref(tool, project?.id ?? null),
   };
 }
 
 const UNKNOWN_TEXT =
-  "Je n'ai pas compris cette demande. Je sais lister, créer, renommer et supprimer des projets, donner leur avancement et ouvrir un outil. Dites « aide » pour des exemples.";
+  "Je n'ai pas compris cette demande. Je sais lister, créer, renommer et supprimer des projets, donner leur avancement, ouvrir un outil et vous guider d'outil en outil. Dites « aide » pour des exemples.";
 
-export async function respondToHubChat(request: string): Promise<HubChatReply> {
+const GUIDE_REQUEST = /\b(guide[rsz]?|parcours|accompagne\w*|pas a pas)\b/;
+/** « … et guide-moi » à la fin d'une demande de création. */
+const GUIDE_SUFFIX = /\s+et\s+(?:guide|accompagne)\S*.*$/i;
+
+/** Commandes valables seulement pendant un parcours guidé. */
+function respondToGuide(text: string, guide: HubGuide): Promise<HubChatReply> | HubChatReply | null {
+  if (/\b(arrete[rsz]?|stop|quitte[rsz]?|annule[rsz]?)\b.*\b(guide|parcours)\b/.test(text)) return stopHubGuide(guide);
+  if (/\b(passe[rsz]?|saute[rsz]?|ignore[rsz]?)\b.*\betape\b|\bgarde[rsz]? (cette|la) version\b/.test(text)) {
+    return skipHubGuideStep(guide);
+  }
+  if (
+    /^(termine|fini|j'ai (fini|termine)|c'est (fait|bon|fini|termine)|fait|continue[rsz]?|suite|verifie[rsz]?|etape suivante|et maintenant)\b/.test(text) ||
+    /\bou en est (le )?(guide|parcours)\b/.test(text)
+  ) {
+    return checkHubGuide(guide, true);
+  }
+  return null;
+}
+
+export async function respondToHubChat(request: string, { guide }: HubChatContext): Promise<HubChatReply> {
   const text = normalize(request.trim());
 
   if (/^(aide|help|\?)|que (sais|peux)[- ]tu|qu.est.ce que tu (sais|peux)|comment (ca|tu) (marche|fonctionne)/.test(text)) {
@@ -253,17 +298,26 @@ export async function respondToHubChat(request: string): Promise<HubChatReply> {
   }
 
   try {
+    const guideReply = guide && respondToGuide(text, guide);
+    if (guideReply) return await guideReply;
+
     // Création d'abord : le nom du projet peut contenir un nom d'outil (« crée un projet AnimFlow »).
     const create = text.match(
       /\b(?:(?:cree[rsz]?|ajoute[rsz]?)\s+(?:un\s+)?(?:nouveau\s+)?|nouveau\s+)projet\b\s*(?:(?:nomme|appele|intitule)e?\s+|:\s*)?(.*)$/,
     );
     if (create) {
-      const name = trailingGroup(request.trim(), create, create[1]);
+      const wantsGuide = GUIDE_SUFFIX.test(create[1]);
+      const name = trailingGroup(request.trim(), create, create[1]).replace(GUIDE_SUFFIX, "");
       const id = await createProject(name);
       notifyHubProjectsChanged();
       const label = name || `Projet ${id}`;
+      const created = `Projet « ${label} » créé (n°${id}).`;
+      if (wantsGuide) {
+        const reply = await startHubGuide({ id, name: label });
+        return { ...reply, text: `${created}\n${reply.text}` };
+      }
       return {
-        text: `Projet « ${label} » créé (n°${id}). Prochaine étape : la maquette. Dites « ouvre ScreenDraft pour le projet ${id} ».`,
+        text: `${created} Prochaine étape : la maquette. Dites « ouvre ScreenDraft pour le projet ${id} », ou « guide-moi pour le projet ${id} ».`,
       };
     }
 
@@ -283,6 +337,14 @@ export async function respondToHubChat(request: string): Promise<HubChatReply> {
     });
     if (projects === null) return tool ? openTool(tool, null) : { text: UNKNOWN_TEXT };
 
+    // Avant les outils et l'avancement : « guide-moi pour le projet AnimFlow » démarre un parcours.
+    if (GUIDE_REQUEST.test(text)) {
+      const ref = findProject(text, projects);
+      if (ref.kind === "none" && projects.length === 1) return await startHubGuide(projects[0]);
+      if (ref.kind !== "found") return askWhichProject(ref, projects, "guide-moi pour le projet 1");
+      return await startHubGuide(ref.project);
+    }
+
     const rename = text.match(/\brenomm\w*\s+(?:le\s+)?(?:projet\s+)?(.+?)\s+en\s+(.+)$/);
     if (rename) {
       const ref = findProject(/^\d+$/.test(rename[1].trim()) ? `projet ${rename[1]}` : rename[1], projects);
@@ -291,13 +353,16 @@ export async function respondToHubChat(request: string): Promise<HubChatReply> {
       if (!name) return { text: "Quel nouveau nom ? Par exemple : « renomme le projet 2 en Pâtisserie »." };
       await renameProject(ref.project.id, name);
       notifyHubProjectsChanged();
-      return { text: `Le projet n°${ref.project.id} s'appelle maintenant « ${name} ».` };
+      return {
+        text: `Le projet n°${ref.project.id} s'appelle maintenant « ${name} ».`,
+        ...(guide?.projectId === ref.project.id && { guide: { ...guide, projectName: name } }),
+      };
     }
 
     if (/\b(supprim\w*|efface\w*|detrui\w*)\b/.test(text)) {
       const ref = findProject(text, projects);
       if (ref.kind !== "found") return askWhichProject(ref, projects, "supprime le projet 2");
-      return await confirmDelete(ref.project);
+      return await confirmDelete(ref.project, guide);
     }
 
     if (detail) {
