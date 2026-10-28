@@ -7,11 +7,16 @@ import wordmarkWhite from "@/components/screendraft/brand/logos/screen-draft-wor
 import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
 import { ScreendraftHistoryControls } from "@/components/screendraft/ScreendraftHistoryControls";
 import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
+import { ScreendraftLibrary } from "@/components/screendraft/ScreendraftLibrary";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
+import {
+  instantiateComponent,
+  type CustomComponent,
+} from "@/components/screendraft/screendraft-components";
 import { downloadMaquette } from "@/components/screendraft/screendraft-file";
 import {
   clipboardShortcut,
@@ -29,6 +34,7 @@ import type {
 import { createScreen, findScreenNode } from "@/components/screendraft/screendraft-screens";
 import { frameRect } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
+import { useScreendraftLibrary } from "@/components/screendraft/use-screendraft-library";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
 
 /** Élément copié ou coupé, son ancien parent et le décalage à appliquer au prochain collage. */
@@ -55,9 +61,17 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const isDirty = projectId !== null && draft !== savedDraft;
   // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
   const clipboard = useRef<ScreendraftClipboard | null>(null);
+  const library = useScreendraftLibrary(projectId);
 
   function addNode(type: DraftNodeType, shape?: ShapeKind) {
     const node = createNode(type, activeScreen.nodes.length, shape);
+    dispatch({ type: "add-node", screenId: activeScreen.id, node });
+    setSelectedId(node.id);
+  }
+
+  // Inséré dans l'écran actif, comme un composant de base.
+  function insertComponent(component: CustomComponent) {
+    const node = instantiateComponent(component, activeScreen.nodes.length);
     dispatch({ type: "add-node", screenId: activeScreen.id, node });
     setSelectedId(node.id);
   }
@@ -203,6 +217,14 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
               onAdd={addScreen}
               onDropNode={sendToScreen}
             />
+            <ScreendraftLibrary
+              components={library.components}
+              status={library.status}
+              isDemo={projectId === null}
+              onInsert={insertComponent}
+              onRename={(id, name) => void library.rename(id, name)}
+              onRemove={(id) => void library.remove(id)}
+            />
             <ScreendraftLayers
               nodes={activeScreen.nodes}
               selectedId={selectedId}
@@ -232,6 +254,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             screens={draft.screens}
             onSendToScreen={sendToScreen}
             dispatch={dispatch}
+            onCreateComponent={(name, node) => void library.add(name, node)}
           />
         </div>
       </div>

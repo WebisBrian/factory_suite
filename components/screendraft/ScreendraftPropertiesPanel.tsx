@@ -1,4 +1,5 @@
 import type { ChangeEvent, Dispatch } from "react";
+import { ScreendraftCreateComponent } from "@/components/screendraft/ScreendraftCreateComponent";
 import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDepthControls";
 import { ScreendraftNodeProperties } from "@/components/screendraft/ScreendraftNodeProperties";
 import {
@@ -9,7 +10,7 @@ import {
   isValidFrameHeight,
 } from "@/components/screendraft/screendraft-formats";
 import type { ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { Frame, Screen } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Frame, Screen } from "@/components/screendraft/screendraft-schema";
 import type { NodeLocation } from "@/components/screendraft/screendraft-tree";
 
 const DEVICE_GROUPS: { device: Frame["device"]; label: string }[] = [
@@ -34,9 +35,13 @@ type ScreendraftPropertiesPanelProps = {
   screens: Screen[];
   onSendToScreen: (nodeId: string, screenId: string) => void;
   dispatch: Dispatch<ScreendraftAction>;
+  onCreateComponent: (name: string, node: DraftNode) => void;
 };
 
-/** Propriétés et profondeur de l'élément sélectionné (SCRUM-8), puis propriétés de l'écran actif. */
+/**
+ * Propriétés, profondeur, écran et création de composant pour l'élément sélectionné,
+ * puis propriétés de l'écran actif.
+ */
 export function ScreendraftPropertiesPanel({
   screen,
   canDeleteScreen,
@@ -45,6 +50,7 @@ export function ScreendraftPropertiesPanel({
   screens,
   onSendToScreen,
   dispatch,
+  onCreateComponent,
 }: ScreendraftPropertiesPanelProps) {
   const { frame } = screen;
   const preset = findPreset(frame);
@@ -91,6 +97,13 @@ export function ScreendraftPropertiesPanel({
             </select>
           </label>
         </section>
+      )}
+      {selection && (
+        <ScreendraftCreateComponent
+          key={selection.node.id}
+          node={selection.node}
+          onCreate={onCreateComponent}
+        />
       )}
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
         Écran
