@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import type { ScreenDraftDocument } from "../_lib/schema";
-import NodeView from "./NodeView";
+import type { Maquette } from "@/components/screendraft/screendraft-schema";
+import { ScreendraftNode } from "@/components/screendraft/ScreendraftNode";
 
 // Rendu par défaut de ce que le schéma ne précise pas encore.
 const TEXT_DEFAULTS: CSSProperties = {
@@ -10,13 +10,13 @@ const TEXT_DEFAULTS: CSSProperties = {
   color: "#000000",
 };
 
-type FrameViewProps = {
-  draft: ScreenDraftDocument;
+type ScreendraftFrameProps = {
+  draft: Maquette;
   style?: CSSProperties;
 };
 
 /** La maquette à l'échelle 1. Le contenu qui dépasse du frame est masqué. */
-export default function FrameView({ draft, style }: FrameViewProps) {
+export function ScreendraftFrame({ draft, style }: ScreendraftFrameProps) {
   const { frame } = draft;
   return (
     <div
@@ -31,7 +31,7 @@ export default function FrameView({ draft, style }: FrameViewProps) {
       }}
     >
       {draft.nodes.map((node) => (
-        <NodeView key={node.id} node={node} />
+        <ScreendraftNode key={node.id} node={node} />
       ))}
     </div>
   );

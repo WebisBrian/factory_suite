@@ -1,5 +1,5 @@
 /**
- * Format JSON d'une maquette Screen Draft.
+ * Format JSON d'une maquette Screendraft (fichier `maquette.json` du projet).
  *
  * C'est le contrat avec l'équipe qui transforme la maquette en HTML éditable :
  * tout changement incompatible doit incrémenter SCHEMA_VERSION.
@@ -15,7 +15,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-export type ScreenDraftDocument = {
+export type Maquette = {
   schemaVersion: typeof SCHEMA_VERSION;
   id: string;
   name: string;

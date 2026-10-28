@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
-import type { ButtonNode, DraftNode, NodeStyle } from "../_lib/schema";
+import type { ButtonNode, DraftNode, NodeStyle } from "@/components/screendraft/screendraft-schema";
 
 /** Un élément de la maquette, à l'échelle 1, positionné dans son parent. */
-export default function NodeView({ node }: { node: DraftNode }) {
+export function ScreendraftNode({ node }: { node: DraftNode }) {
   const style = { ...boxStyle(node), ...toCss(node.style) };
 
   switch (node.type) {
@@ -10,7 +10,7 @@ export default function NodeView({ node }: { node: DraftNode }) {
       return (
         <section style={style}>
           {node.children.map((child) => (
-            <NodeView key={child.id} node={child} />
+            <ScreendraftNode key={child.id} node={child} />
           ))}
         </section>
       );
