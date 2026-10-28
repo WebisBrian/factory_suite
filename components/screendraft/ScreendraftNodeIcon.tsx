@@ -23,6 +23,12 @@ const ICONS: Record<DraftNodeType, ReactNode> = {
       <path d="M3 8v5M21 8v5M10 20h.01M12 20h.01M14 20h.01" />
     </>
   ),
+  map: (
+    <>
+      <path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2z" />
+      <path d="M9 4v14M15 6v14" />
+    </>
+  ),
   button: (
     <>
       <rect x="3" y="8" width="18" height="8" rx="4" />

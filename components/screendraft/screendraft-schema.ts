@@ -196,6 +196,26 @@ export type CarouselNode = BaseNode & {
   props: { slides: CarouselSlide[]; title: string };
 };
 
+/** Point d'intérêt d'une carte, en degrés décimaux (WGS 84). */
+export type MapMarker = {
+  /** Unique dans la carte. */
+  id: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+};
+
+/**
+ * Carte géographique (SCRUM-32) : fond OpenStreetMap centré sur `latitude` / `longitude`
+ * (degrés décimaux, WGS 84) au niveau de zoom `zoom` (entier, de 1 : le monde, à 19 : la rue),
+ * avec ses points d'intérêt. `title` décrit la carte pour les lecteurs d'écran ; la liste des
+ * points en est l'équivalent textuel. Le rendu doit afficher « © OpenStreetMap » (licence ODbL).
+ */
+export type MapNode = BaseNode & {
+  type: "map";
+  props: { latitude: number; longitude: number; zoom: number; markers: MapMarker[]; title: string };
+};
+
 export type ShapeKind = "circle" | "rectangle" | "triangle";
 
 export type ShapeNode = BaseNode & {
@@ -210,6 +230,7 @@ export type DraftNode =
   | ImageNode
   | VideoNode
   | CarouselNode
+  | MapNode
   | ButtonNode
   | ShapeNode;
 

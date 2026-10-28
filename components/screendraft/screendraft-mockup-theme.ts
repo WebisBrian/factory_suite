@@ -82,6 +82,7 @@ export function defaultThemeLinks(node: DraftNode): ThemeLinks {
     case "image":
     case "video":
     case "carousel":
+    case "map":
       return { borderRadius: "radius" };
   }
 }

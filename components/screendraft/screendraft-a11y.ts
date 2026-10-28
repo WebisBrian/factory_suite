@@ -6,7 +6,7 @@ import type { DraftNode, NodeA11y } from "@/components/screendraft/screendraft-s
 
 /** Types dont le texte lu est porté par leurs props (alt, title) et non par `a11y.label`. */
 export function hasOwnAccessibleText(node: DraftNode): boolean {
-  return node.type === "image" || node.type === "video" || node.type === "carousel";
+  return node.type === "image" || node.type === "video" || node.type === "carousel" || node.type === "map";
 }
 
 /** Texte lu par défaut, sans réglage : le contenu visible de l'élément, ou rien. */
@@ -21,6 +21,7 @@ export function defaultSpokenText(node: DraftNode): string | null {
       return node.props.alt.trim() || null;
     case "video":
     case "carousel":
+    case "map":
       return node.props.title.trim() || null;
     case "section":
     case "shape":

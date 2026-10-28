@@ -188,6 +188,8 @@ export function contentLabel(node: DraftNode): string {
       return SHAPE_LABELS[node.props.shape];
     case "carousel":
       return node.props.title || "Carrousel";
+    case "map":
+      return node.props.title || "Carte";
   }
 }
 
