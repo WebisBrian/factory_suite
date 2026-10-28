@@ -1,10 +1,14 @@
+import screendraftMark from "@/components/hub/logos/screendraft-mark.svg";
+
 export interface HubTool {
   slug: "screendraft" | "generator" | "animations";
-  /** Route de l'outil si elle diffère de `/${slug}` (Générateur : app/codeforge/). */
+  /** Route de l'outil si elle diffère de `/${slug}` (CodeForge : app/codeforge/). */
   path?: string;
   label: string;
   /** Monogramme affiché dans l'icône de l'appli (style suite créative). */
   monogram: string;
+  /** Logo officiel de l'outil (copie locale au Hub), affiché à la place du monogramme. */
+  logo?: string;
   description: string;
   /** Classes Tailwind complètes (pas de concaténation, sinon Tailwind ne les génère pas). */
   theme: {
@@ -23,11 +27,12 @@ export interface HubTool {
 export const HUB_TOOLS: readonly HubTool[] = [
   {
     slug: "screendraft",
-    label: "Screendraft",
+    label: "ScreenDraft",
     monogram: "Sd",
+    logo: screendraftMark.src,
     description: "Maquette → JSON",
     theme: {
-      icon: "bg-[#001e36] ring-2 ring-sky-300",
+      icon: "bg-[#2348FF] ring-2 ring-sky-300",
       text: "text-sky-300",
       hover: "hover:border-sky-300 hover:shadow-sky-500/20",
       glow: "bg-sky-500/30",
@@ -36,8 +41,8 @@ export const HUB_TOOLS: readonly HubTool[] = [
   {
     slug: "generator",
     path: "/codeforge/generator",
-    label: "Générateur",
-    monogram: "Gn",
+    label: "CodeForge",
+    monogram: "Cf",
     description: "JSON → HTML/CSS",
     theme: {
       icon: "bg-[#062b1f] ring-2 ring-emerald-300",
@@ -48,8 +53,8 @@ export const HUB_TOOLS: readonly HubTool[] = [
   },
   {
     slug: "animations",
-    label: "Animations",
-    monogram: "An",
+    label: "AnimFlow",
+    monogram: "Af",
     description: "HTML/CSS → animations",
     theme: {
       icon: "bg-[#2a0a3d] ring-2 ring-fuchsia-300",

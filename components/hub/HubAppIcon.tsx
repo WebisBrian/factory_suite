@@ -6,8 +6,17 @@ const sizes = {
   lg: "size-14 rounded-xl text-xl",
 } as const;
 
-/** Icône carrée à monogramme, façon suite créative. */
+/** Icône carrée de l'outil : son logo s'il en a un, sinon un monogramme façon suite créative. */
 export function HubAppIcon({ tool, size = "md" }: { tool: HubTool; size?: keyof typeof sizes }) {
+  if (tool.logo) {
+    return (
+      <span aria-hidden className={`inline-flex shrink-0 overflow-hidden ${sizes[size]} ${tool.theme.icon}`}>
+        {/* Décoratif : le nom de l'outil est toujours écrit à côté. */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- export statique, pas d'optimisation d'image */}
+        <img src={tool.logo} alt="" className="size-full" />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden
