@@ -80,6 +80,11 @@ function HubChatBubble({
   );
 }
 
+/** Largeur maximale du bouton d'ouverture, bordure comprise (classe max-w-[8rem]). */
+const LAUNCHER_MAX_WIDTH_REM = 8;
+/** En dessous de cette largeur de contenu, on ne lui réserve pas de colonne : il passe en barre en bas. */
+const MIN_CONTENT_WIDTH_REM = 28;
+
 /**
  * Assistant du Hub : bouton flottant qui ouvre une fenêtre modale (<dialog> natif).
  * showModal() gère le piège du focus, la touche Échap et rend le reste de la page inerte.
@@ -136,6 +141,36 @@ export function HubChat() {
   useEffect(() => {
     if (restored) saveHubChatSession({ messages, guide, currentProject });
   }, [messages, guide, currentProject, restored]);
+
+  // Le bouton reste visible pendant le défilement sans jamais recouvrir le contenu :
+  // - "margin" : il flotte dans la marge vide à droite du contenu ;
+  // - "reserve" : marge trop étroite → la page se resserre à droite pour lui laisser une colonne libre ;
+  // - "bar" : petit écran → barre fixe en bas (le bas de page a déjà une marge pour qu'elle ne cache rien).
+  // Mesuré en rem → suit le réglage A−/A+.
+  const [launcherMode, setLauncherMode] = useState<"margin" | "reserve" | "bar">("margin");
+  useEffect(() => {
+    const page = launcherRef.current?.parentElement;
+    if (!page) return;
+    const basePadding = parseFloat(getComputedStyle(page).paddingRight);
+    const measure = () => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const needed = LAUNCHER_MAX_WIDTH_REM * rem + 2 * rem;
+      const pageRect = page.getBoundingClientRect();
+      const margin = document.documentElement.clientWidth - (pageRect.right - basePadding);
+      const extra = Math.max(0, needed - margin);
+      const contentWidth = pageRect.width - 2 * basePadding - extra;
+      const mode = extra === 0 ? "margin" : contentWidth >= MIN_CONTENT_WIDTH_REM * rem ? "reserve" : "bar";
+      page.style.paddingRight = mode === "reserve" ? `${basePadding + extra}px` : "";
+      setLauncherMode(mode);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(page);
+    observer.observe(document.documentElement);
+    return () => {
+      observer.disconnect();
+      page.style.paddingRight = "";
+    };
+  }, []);
 
   function openChat() {
     dialogRef.current?.showModal();
@@ -235,13 +270,18 @@ export function HubChat() {
         type="button"
         onClick={openChat}
         aria-haspopup="dialog"
-        className="fixed right-4 bottom-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-zinc-300 bg-[#14141b] py-2 pr-5 pl-2 text-base font-bold text-white shadow-lg shadow-black/50 transition-colors hover:bg-[#1f1f2a]"
+        // Compact (en colonne, 8rem max) pour tenir dans la marge ; en barre pleine largeur sur petit écran.
+        className={`fixed z-40 flex items-center justify-center gap-x-2 gap-y-1 border-zinc-300 bg-[#14141b] px-3 py-2 text-center text-base font-bold text-white shadow-lg shadow-black/50 transition-colors hover:bg-[#1f1f2a] ${
+          launcherMode === "bar"
+            ? "inset-x-0 bottom-0 min-h-14 flex-row flex-wrap border-t-2"
+            : "right-4 bottom-4 max-w-[8rem] flex-col rounded-2xl border-2"
+        }`}
       >
         <HubLogo size="sm" />
         Assistant
         {guide && (
-          <span className="font-semibold text-zinc-200">
-            ({guideCheckDue ? "vérifier l'étape" : "étape"} {guide.step + 1} sur {HUB_TOOLS.length})
+          <span className="text-sm font-semibold text-zinc-200">
+            {guideCheckDue ? "Vérifier l'étape" : "Étape"} {guide.step + 1} sur {HUB_TOOLS.length}
           </span>
         )}
       </button>
