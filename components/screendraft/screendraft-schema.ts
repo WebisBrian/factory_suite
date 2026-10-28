@@ -18,6 +18,13 @@
  *   écran (`targetScreenId`) a pour `href` le `path` de cet écran : le HTML généré peut
  *   l'utiliser tel quel. Screendraft tient `path` et `href` à jour (renommage, suppression).
  *
+ * - Charte graphique (`theme`) : couleurs, tailles de texte et arrondi partagés par toute la
+ *   maquette. Un élément ou un frame peut reprendre certaines de ses valeurs (`themeLinks`) ;
+ *   la valeur concrète reste toujours écrite dans `style` (ou `frame`), que Screendraft tient à
+ *   jour quand la charte change. Le Générateur peut donc ignorer la charte, ou s'en servir pour
+ *   produire des variables CSS. Champs ajoutés sans changer de version : un fichier sans `theme`
+ *   reçoit la charte par défaut à l'ouverture.
+ *
  * Version 2 : `frame` et `nodes` passent du premier niveau à chaque écran de `screens`.
  */
 
@@ -27,8 +34,31 @@ export type Maquette = {
   schemaVersion: typeof SCHEMA_VERSION;
   id: string;
   name: string;
+  theme: Theme;
   /** Au moins un écran. */
   screens: Screen[];
+};
+
+/** Charte graphique de la maquette (SCRUM-12). */
+export type Theme = {
+  colors: Record<ThemeColor, HexColor>;
+  /** Tailles de texte, en px. */
+  textSizes: Record<ThemeTextSize, number>;
+  /** Arrondi des angles, en px. */
+  radius: number;
+};
+
+export type ThemeColor = "primary" | "onPrimary" | "text" | "background" | "surface" | "border";
+
+export type ThemeTextSize = "heading1" | "heading2" | "heading3" | "body";
+
+/** Propriétés de style reprises de la charte, et la valeur de la charte qu'elles suivent. */
+export type ThemeLinks = {
+  color?: ThemeColor;
+  backgroundColor?: ThemeColor;
+  borderColor?: ThemeColor;
+  fontSize?: ThemeTextSize;
+  borderRadius?: "radius";
 };
 
 /** Un écran de la maquette, ex. « Accueil » ou « Contact ». */
@@ -51,6 +81,7 @@ export type Frame = {
   width: number;
   height: number;
   backgroundColor: HexColor;
+  themeLinks?: Pick<ThemeLinks, "backgroundColor">;
 };
 
 /** Couleur CSS hexadécimale, ex. "#0f172a" ou "#0f172a80". */
@@ -67,14 +98,35 @@ export type NodeStyle = {
   borderColor?: HexColor;
 };
 
+/**
+ * Ce que les lecteurs d'écran lisent pour un élément (SCRUM-25). Champ facultatif :
+ * absent, l'élément est lu selon son contenu visible. Ajout compatible : SCHEMA_VERSION inchangé.
+ *
+ * Côté HTML généré :
+ * - `decorative: true` → `aria-hidden="true"` (`alt=""` pour une image) ;
+ * - `label` → `aria-label`, lu à la place du texte visible.
+ * Pour une image et une vidéo, le texte lu reste `props.alt` / `props.title` : `label` n'est pas utilisé.
+ */
+export type NodeA11y = {
+  label?: string;
+  decorative?: boolean;
+};
+
 type BaseNode = {
   /** Unique dans le document, tous écrans confondus. */
   id: string;
+  /**
+   * Nom du calque, choisi dans l'éditeur (ex. « En-tête », « Carte tarif »). Facultatif :
+   * sans nom, le calque affiche son contenu. Utilisable côté HTML comme repère (commentaire, data-name).
+   */
+  name?: string;
   x: number;
   y: number;
   width: number;
   height: number;
   style: NodeStyle;
+  a11y?: NodeA11y;
+  themeLinks?: ThemeLinks;
   /**
    * Présent sur la racine d'une instance de composant custom (`screendraft-composants.json`).
    * Le contenu de l'instance est toujours déployé dans la maquette : le Générateur peut ignorer ce champ.

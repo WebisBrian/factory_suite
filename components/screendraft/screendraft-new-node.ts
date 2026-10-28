@@ -1,3 +1,4 @@
+import { defaultThemeLinks } from "@/components/screendraft/screendraft-mockup-theme";
 import type { DraftNode, DraftNodeType, ShapeKind } from "@/components/screendraft/screendraft-schema";
 
 let cloneCount = 0;
@@ -27,6 +28,13 @@ export function insertionOffset(index: number): number {
  * texte ≥ 4.5:1, formes et bordures ≥ 3:1.
  */
 export function createNode(type: DraftNodeType, index: number, shape: ShapeKind = "rectangle"): DraftNode {
+  const node = createBaseNode(type, index, shape);
+  // Reprend la charte : ses couleurs, tailles et arrondi suivront ses modifications.
+  return { ...node, themeLinks: defaultThemeLinks(node) };
+}
+
+/** Styles de secours, remplacés par ceux de la charte à l'ajout dans la maquette. */
+function createBaseNode(type: DraftNodeType, index: number, shape: ShapeKind): DraftNode {
   const offset = insertionOffset(index);
   const base = { id: `${type}_${Date.now()}_${index}`, x: offset, y: offset };
 

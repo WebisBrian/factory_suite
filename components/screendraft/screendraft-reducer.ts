@@ -10,14 +10,25 @@ import type {
   DraftNode,
   ImageNode,
   Maquette,
+  NodeA11y,
   NodeStyle,
   Screen,
   ShapeNode,
   TextNode,
+  ThemeLinks,
   TitleNode,
   VideoNode,
 } from "@/components/screendraft/screendraft-schema";
+import { withA11y } from "@/components/screendraft/screendraft-a11y";
 import { syncLinks } from "@/components/screendraft/screendraft-links";
+import {
+  applyTheme,
+  applyThemeToNode,
+  followTitleLevel,
+  patchTheme,
+  type ThemePatch,
+} from "@/components/screendraft/screendraft-mockup-theme";
+import { groupNodes } from "@/components/screendraft/screendraft-group";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
   findNode,
@@ -35,6 +46,8 @@ import {
  * Les actions sur un élément retrouvent seules son écran ; les autres le nomment.
  */
 export type ScreendraftAction =
+  /** Remplace tout le contenu par celui d'un modèle ; la maquette garde son id. */
+  | { type: "load-template"; template: Maquette }
   | { type: "add-screen"; screen: Screen }
   | { type: "rename-screen"; screenId: string; name: string }
   | { type: "delete-screen"; screenId: string }
@@ -49,14 +62,24 @@ export type ScreendraftAction =
   | { type: "move-to-screen"; id: string; screenId: string; parentId: string | null; x: number; y: number }
   | { type: "move-node"; id: string; x: number; y: number }
   | { type: "set-text"; id: string; text: string }
-  | { type: "set-image"; id: string; src: string; alt: string }
+  | { type: "set-image"; id: string; src: string }
+  // SCRUM-25 : ce que les lecteurs d'écran liront pour l'élément.
+  | { type: "set-a11y"; id: string; patch: NodeA11y }
   | { type: "set-geometry"; id: string; geometry: Partial<Geometry> }
   | { type: "set-style"; id: string; style: NodeStyle }
   | ({ type: "set-props"; id: string } & PropsPatch)
+  /** Nom du calque ; une chaîne vide le retire (le calque reprend son contenu comme libellé). */
+  | { type: "rename-node"; id: string; name: string }
   | { type: "sync-component"; component: CustomComponent }
   | { type: "reset-instance"; id: string; component: CustomComponent }
   | { type: "detach-instance"; id: string }
-  | { type: "detach-component"; componentId: string };
+  | { type: "detach-component"; componentId: string }
+  | { type: "group-nodes"; ids: string[]; wrapperId: string; component?: CustomComponent }
+  | { type: "delete-nodes"; ids: string[] }
+  /** Modifie la charte : tous les éléments qui la suivent sont mis à jour, sur tous les écrans. */
+  | { type: "set-theme"; patch: ThemePatch }
+  /** Lie des propriétés de l'élément à la charte ; une valeur `undefined` retire le lien. */
+  | { type: "link-style"; id: string; links: ThemeLinks };
 
 /** Position (relative au parent) et taille d'un élément, en px. */
 export type Geometry = Pick<DraftNode, "x" | "y" | "width" | "height">;
@@ -80,9 +103,16 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
 
 function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
+    case "load-template":
+      return {
+        ...draft,
+        name: action.template.name,
+        theme: action.template.theme,
+        screens: structuredClone(action.template.screens),
+      };
     // Ajouté après les autres, donc à droite sur le canvas.
     case "add-screen":
-      return { ...draft, screens: [...draft.screens, action.screen] };
+      return applyTheme({ ...draft, screens: [...draft.screens, action.screen] });
     case "rename-screen":
       return withScreen(draft, action.screenId, (screen) =>
         screen.name === action.name ? screen : { ...screen, name: action.name },
@@ -104,11 +134,11 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         ...screen,
         frame: { ...screen.frame, height: action.height },
       }));
-    // Ajouté au premier plan, au premier niveau du frame.
+    // Ajouté au premier plan, au premier niveau du frame, aux couleurs de la charte actuelle.
     case "add-node":
       return withScreen(draft, action.screenId, (screen) => ({
         ...screen,
-        nodes: [...screen.nodes, action.node],
+        nodes: [...screen.nodes, applyThemeToNode(action.node, draft.theme)],
       }));
     // Collé au premier plan de son ancienne section si elle est dans cet écran, sinon au
     // premier niveau du frame (section supprimée, ou élément copié depuis un autre écran).
@@ -116,7 +146,8 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
       return withScreen(draft, action.screenId, (screen) => {
         const parent = action.parentId === null ? null : findNode(screen.nodes, action.parentId);
         const parentId = parent?.node.type === "section" ? parent.node.id : null;
-        return { ...screen, nodes: insertInto(screen.nodes, action.node, parentId) };
+        const node = applyThemeToNode(action.node, draft.theme);
+        return { ...screen, nodes: insertInto(screen.nodes, node, parentId) };
       });
     // Supprimer une section supprime aussi ses enfants.
     case "delete-node":
@@ -139,34 +170,55 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         if (node.type === "title") return { ...node, props: { ...node.props, text: action.text } };
         return node;
       });
+    // Le texte alternatif est gardé : le nom du fichier n'est pas une alternative (RGAA 1.3).
     case "set-image":
       return withNode(draft, action.id, (node) =>
-        node.type === "image" ? { ...node, props: { ...node.props, src: action.src, alt: action.alt } } : node,
+        node.type === "image" ? { ...node, props: { ...node.props, src: action.src } } : node,
       );
+    case "set-a11y":
+      return withNode(draft, action.id, (node) => withA11y(node, action.patch));
     case "set-geometry":
       return withNode(draft, action.id, (node) => ({ ...node, ...action.geometry }));
     // Une valeur `undefined` retire la propriété : le rendu par défaut s'applique.
+    // Une valeur choisie à la main détache la propriété de la charte.
     case "set-style":
-      return withNode(draft, action.id, (node) => ({
-        ...node,
-        style: withoutUndefined({ ...node.style, ...action.style }),
-      }));
+      return withNode(draft, action.id, (node) =>
+        withLinks(
+          { ...node, style: withoutUndefined({ ...node.style, ...action.style }) },
+          Object.fromEntries(Object.keys(action.style).map((key) => [key, undefined])),
+        ),
+      );
+    // Le niveau d'un titre lié à la charte décide de sa taille.
+    case "rename-node": {
+      const name = action.name.trim();
+      return withNode(draft, action.id, (node) => {
+        if ((node.name ?? "") === name) return node;
+        if (name) return { ...node, name };
+        // Sans nom, la clé disparaît du JSON plutôt que de valoir "".
+        const unnamed = { ...node };
+        delete unnamed.name;
+        return unnamed;
+      });
+    }
     case "set-props":
-      return withNode(draft, action.id, (node) => mergeProps(node, action));
-    // Composant mis à jour : toutes ses instances, dans tous les écrans, reprennent son contenu.
+      return withNode(draft, action.id, (node) => followTitleLevel(mergeProps(node, action), draft.theme));
+    // Composant mis à jour : toutes ses instances, dans tous les écrans, reprennent son contenu
+    // (aux valeurs de la charte de la maquette pour ce qui la suit).
     case "sync-component": {
       const { component } = action;
       return withAllNodes(draft, (nodes) =>
         mapInstances(nodes, (instance) =>
           instance.componentId === component.id
-            ? buildInstance(component, instance.id, instance.x, instance.y)
+            ? applyThemeToNode(buildInstance(component, instance.id, instance.x, instance.y), draft.theme)
             : null,
         ),
       );
     }
     // Annule les modifications locales d'une instance ; lie aussi un élément au composant créé depuis lui.
     case "reset-instance":
-      return withNode(draft, action.id, (node) => buildInstance(action.component, node.id, node.x, node.y));
+      return withNode(draft, action.id, (node) =>
+        applyThemeToNode(buildInstance(action.component, node.id, node.x, node.y), draft.theme),
+      );
     case "detach-instance":
       return withNode(draft, action.id, (node) =>
         node.componentId === undefined ? node : detachInstance(node),
@@ -178,7 +230,40 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
           instance.componentId === action.componentId ? detachInstance(instance) : null,
         ),
       );
+    // Sélection multiple : les éléments, d'un même écran, passent dans une nouvelle section.
+    // Avec `component`, la section devient aussitôt son instance : une seule étape à annuler.
+    case "group-nodes": {
+      const { ids, wrapperId, component } = action;
+      if (ids.length === 0) return draft;
+      return withNodesOf(draft, ids[0], (nodes) => {
+        const grouped = groupNodes(nodes, ids, wrapperId);
+        if (!grouped) return nodes;
+        if (!component) return grouped.nodes;
+        return updateNode(grouped.nodes, wrapperId, (node) => buildInstance(component, node.id, node.x, node.y));
+      });
+    }
+    case "delete-nodes":
+      return action.ids.reduce(
+        (current, id) => withNodesOf(current, id, (nodes) => removeNode(nodes, id)),
+        draft,
+      );
+    case "set-theme":
+      return applyTheme({ ...draft, theme: patchTheme(draft.theme, action.patch) });
+    case "link-style":
+      return withNode(draft, action.id, (node) =>
+        applyThemeToNode(withLinks(node, action.links), draft.theme),
+      );
   }
+}
+
+/** Fusionne des liens vers la charte ; un lien `undefined` est retiré, et `themeLinks` vide aussi. */
+function withLinks(node: DraftNode, links: ThemeLinks): DraftNode {
+  const merged = withoutUndefined({ ...node.themeLinks, ...links });
+  if (Object.keys(merged).length > 0) return { ...node, themeLinks: merged };
+  if (!node.themeLinks) return node;
+  const unlinked = { ...node };
+  delete unlinked.themeLinks;
+  return unlinked;
 }
 
 /** Modifie les éléments de chaque écran. Renvoie la même maquette si rien ne change. */

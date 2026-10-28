@@ -2,6 +2,7 @@
 
 import { useState, type DragEvent } from "react";
 import { LAYER_DRAG_TYPE } from "@/components/screendraft/ScreendraftLayers";
+import { ScreendraftPanelSection } from "@/components/screendraft/ScreendraftPanelSection";
 import type { Screen } from "@/components/screendraft/screendraft-schema";
 
 type ScreendraftScreensProps = {
@@ -43,15 +44,18 @@ export function ScreendraftScreens({
   }
 
   return (
-    <section className="flex max-h-48 shrink-0 flex-col border-t border-(--line) p-(--space-4)">
-      <div className="flex items-center justify-between pb-(--space-2)">
-        <h2 className="text-label text-(--ink-muted)">Écrans</h2>
+    <ScreendraftPanelSection
+      id="screens"
+      headingId="screendraft-ecrans"
+      title="Écrans"
+      count={screens.length}
+      actions={
         <button
           type="button"
           onClick={onAdd}
           aria-label="Ajouter un écran"
           title="Ajouter un écran"
-          className="grid size-7 place-items-center rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) text-(--ink) hover:bg-(--canvas)"
+          className="grid size-10 place-items-center rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) text-(--ink) hover:bg-(--canvas)"
         >
           <svg
             aria-hidden
@@ -63,8 +67,9 @@ export function ScreendraftScreens({
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
-      </div>
-      <ul className="-mx-(--space-2) min-h-0 overflow-y-auto">
+      }
+    >
+      <ul aria-labelledby="screendraft-ecrans" className="-mx-(--space-2)">
         {screens.map((screen) => {
           const isActive = screen.id === activeScreenId;
           const isDropTarget = screen.id === dropScreenId;
@@ -81,7 +86,7 @@ export function ScreendraftScreens({
                   isActive || isDropTarget ? "bg-(--draft-soft) text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
                 } ${isDropTarget ? "outline-[1.5px] outline-(--draft) outline-solid" : ""}`}
               >
-                <span className="truncate">{screen.name}</span>
+                <span className="min-w-0 break-words">{screen.name}</span>
                 <span className={`text-code shrink-0 ${isActive || isDropTarget ? "" : "text-(--ink-muted)"}`}>
                   {screen.frame.width}
                 </span>
@@ -90,6 +95,6 @@ export function ScreendraftScreens({
           );
         })}
       </ul>
-    </section>
+    </ScreendraftPanelSection>
   );
 }

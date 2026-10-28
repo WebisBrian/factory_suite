@@ -6,7 +6,7 @@
  */
 
 import { findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
-import { PAGE_FILE } from "@/app/(anime-flow)/animations/_lib/page-elements";
+import { PAGE_FILE } from "@/app/(anime-flow)/animations/_lib/page-source";
 import { TRIGGER_EVENTS, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 export const CONFIG_FILE = "animations.json";

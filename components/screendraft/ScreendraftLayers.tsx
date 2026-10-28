@@ -1,9 +1,12 @@
 "use client";
 
-import { Fragment, useState, type DragEvent } from "react";
+import { Fragment, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { ScreendraftNodeIcon } from "@/components/screendraft/ScreendraftNodeIcon";
+import { ScreendraftPanelSection } from "@/components/screendraft/ScreendraftPanelSection";
 import type { DraftNode } from "@/components/screendraft/screendraft-schema";
 import {
+  contentLabel,
+  findNode,
   isSameOrInside,
   nodeLabel,
   type Placement,
@@ -18,9 +21,12 @@ type DropTarget = { id: string; zone: DropZone };
 
 type ScreendraftLayersProps = {
   nodes: DraftNode[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedIds: string[];
+  /** `additive` : Maj + clic, ajouter ou retirer le calque de la sélection. */
+  onSelect: (id: string, additive: boolean) => void;
   onPlace: (id: string, placement: Placement) => void;
+  /** Nouveau nom d'un calque ; vide : le calque reprend son contenu comme libellé. */
+  onRename: (id: string, name: string) => void;
 };
 
 type RowDragHandlers = {
@@ -33,20 +39,76 @@ type RowDragHandlers = {
 type LayerRowsProps = {
   nodes: DraftNode[];
   depth: number;
-  selectedId: string | null;
+  selectedIds: string[];
   dropTarget: DropTarget | null;
-  onSelect: (id: string) => void;
+  /** Sections repliées dans les calques (état d'affichage, jamais exporté). */
+  collapsedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onSelect: (id: string, additive: boolean) => void;
   drag: RowDragHandlers;
+  /** Calque en cours de renommage, et les actions de renommage. */
+  editingId: string | null;
+  rename: RenameHandlers;
 };
+
+type RenameHandlers = {
+  start: (id: string) => void;
+  commit: (node: DraftNode, value: string) => void;
+  cancel: (id: string) => void;
+};
+
+// Place réservée à gauche de chaque ligne pour la flèche des sections : les icônes restent alignées.
+// 2.5rem : la cible minimale des contrôles de l'éditeur (screendraft-theme.css).
+const TOGGLE_GUTTER = "2.5rem";
 
 /**
  * Calques de la maquette, du premier plan à l'arrière-plan comme dans Figma :
  * l'inverse de l'ordre du JSON. Les enfants d'une section sont décalés vers la droite.
  * Glisser un calque le place devant ou derrière un autre, ou dans une section.
+ * Une section se replie pour masquer ses enfants dans la liste (pas sur le canvas).
+ * Double-clic ou F2 sur un calque : le renommer.
  */
-export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: ScreendraftLayersProps) {
+export function ScreendraftLayers({ nodes, selectedIds, onSelect, onPlace, onRename }: ScreendraftLayersProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // Après le renommage, le focus revient sur la ligne pour continuer au clavier.
+  function focusRow(id: string) {
+    requestAnimationFrame(() =>
+      listRef.current?.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"]`)?.focus(),
+    );
+  }
+
+  const rename: RenameHandlers = {
+    start(id) {
+      onSelect(id, false);
+      setEditingId(id);
+    },
+    commit(node, value) {
+      setEditingId(null);
+      const name = value.trim();
+      // Garder le libellé proposé sans le changer ne donne pas de nom : il suivra le contenu.
+      if (!node.name && name === contentLabel(node)) return focusRow(node.id);
+      onRename(node.id, name);
+      focusRow(node.id);
+    },
+    cancel(id) {
+      setEditingId(null);
+      focusRow(id);
+    },
+  };
+
+  function toggle(id: string) {
+    setCollapsedIds((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
 
   function endDrag() {
     setDraggedId(null);
@@ -60,7 +122,7 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
       // Type propre à Screendraft : la liste des écrans n'accepte que les calques.
       event.dataTransfer.setData(LAYER_DRAG_TYPE, node.id);
       setDraggedId(node.id);
-      onSelect(node.id);
+      onSelect(node.id, false);
     },
     over(node, event) {
       // Pas de dépôt sur l'élément glissé ni dans ses propres enfants.
@@ -79,62 +141,118 @@ export function ScreendraftLayers({ nodes, selectedId, onSelect, onPlace }: Scre
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col border-t border-(--line) p-(--space-4)">
-      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">Calques</h2>
-      <ul className="-mx-(--space-2) min-h-0 flex-1 overflow-y-auto">
+    <ScreendraftPanelSection id="layers" headingId="screendraft-calques" title="Calques" count={countNodes(nodes)}>
+      <ul ref={listRef} aria-labelledby="screendraft-calques" className="-mx-(--space-2)">
         <LayerRows
           nodes={nodes}
           depth={0}
-          selectedId={selectedId}
+          selectedIds={selectedIds}
           dropTarget={dropTarget}
+          collapsedIds={collapsedIds}
+          onToggle={toggle}
           onSelect={onSelect}
           drag={drag}
+          editingId={editingId}
+          rename={rename}
         />
       </ul>
-    </section>
+    </ScreendraftPanelSection>
   );
 }
 
-function LayerRows({ nodes, depth, selectedId, dropTarget, onSelect, drag }: LayerRowsProps) {
+/** Nombre d'éléments de l'écran, enfants des sections compris. */
+function countNodes(nodes: DraftNode[]): number {
+  return nodes.reduce((total, node) => total + 1 + (node.type === "section" ? countNodes(node.children) : 0), 0);
+}
+
+function LayerRows(props: LayerRowsProps) {
+  const { nodes, depth, selectedIds, dropTarget, collapsedIds, onToggle, onSelect, drag, editingId, rename } = props;
   const indent = `calc(var(--space-2) + var(--space-4) * ${depth})`;
 
   return [...nodes].reverse().map((node) => {
-    const isSelected = node.id === selectedId;
+    const isSelected = selectedIds.includes(node.id);
     const zone = dropTarget?.id === node.id ? dropTarget.zone : null;
+    const isSection = node.type === "section";
+    // Une section qui contient un élément sélectionné (ex. cliqué sur le canvas) reste ouverte.
+    const containsSelection = isSection && selectedIds.some((id) => findNode(node.children, id) !== null);
+    const isCollapsed = isSection && collapsedIds.has(node.id) && !containsSelection;
     return (
       <Fragment key={node.id}>
         <li className="relative">
           {zone === "front" && <DropLine indent={indent} />}
-          <button
-            type="button"
-            draggable
-            aria-current={isSelected || undefined}
-            onClick={() => onSelect(node.id)}
-            onDragStart={(event) => drag.start(node, event)}
-            onDragOver={(event) => drag.over(node, event)}
-            onDrop={drag.drop}
-            onDragEnd={drag.end}
-            className={`text-body-sm flex w-full items-center gap-(--space-2) rounded-(--radius-md) py-(--space-1) pr-(--space-2) text-left ${
-              isSelected || zone === "inside" ? "bg-(--draft-soft) text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
-            } ${zone === "inside" ? "outline-[1.5px] outline-(--draft) outline-solid" : ""}`}
-            style={{ paddingLeft: indent }}
-          >
-            <span className={isSelected ? undefined : "text-(--ink-muted)"}>
-              <ScreendraftNodeIcon type={node.type} />
-            </span>
-            <span className="truncate">{nodeLabel(node)}</span>
-          </button>
+          {isSection && (
+            <button
+              type="button"
+              aria-expanded={!isCollapsed}
+              aria-label={`${isCollapsed ? "Déplier" : "Replier"} la section « ${nodeLabel(node)} »`}
+              title={isCollapsed ? "Déplier" : "Replier"}
+              onClick={() => onToggle(node.id)}
+              className={`absolute top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-(--radius-sm) hover:bg-(--surface-raised) ${
+                isSelected ? "text-(--draft)" : "text-(--ink-muted) hover:text-(--ink)"
+              }`}
+              style={{ left: `calc(${indent} - var(--space-2))` }}
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className={`size-4 fill-none stroke-current transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+          )}
+          {node.id === editingId ? (
+            <RenameField node={node} paddingLeft={`calc(${indent} + ${TOGGLE_GUTTER})`} rename={rename} />
+          ) : (
+            <button
+              type="button"
+              draggable
+              data-layer-id={node.id}
+              aria-current={isSelected || undefined}
+              aria-keyshortcuts="F2"
+              title="Double-cliquez (ou F2) pour renommer"
+              onClick={(event) => onSelect(node.id, event.shiftKey)}
+              onDoubleClick={() => rename.start(node.id)}
+              onKeyDown={(event) => {
+                if (event.key === "F2") {
+                  event.preventDefault();
+                  rename.start(node.id);
+                }
+              }}
+              onDragStart={(event) => drag.start(node, event)}
+              onDragOver={(event) => drag.over(node, event)}
+              onDrop={drag.drop}
+              onDragEnd={drag.end}
+              className={`text-body-sm flex w-full items-center gap-(--space-2) rounded-(--radius-md) py-(--space-1) pr-(--space-2) text-left ${
+                isSelected || zone === "inside" ? "bg-(--draft-soft) font-semibold! text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
+              } ${zone === "inside" ? "outline-[1.5px] outline-(--draft) outline-solid" : ""}`}
+              style={{ paddingLeft: `calc(${indent} + ${TOGGLE_GUTTER})` }}
+            >
+              <span className={isSelected ? undefined : "text-(--ink-muted)"}>
+                <ScreendraftNodeIcon type={node.type} />
+              </span>
+              <span className="min-w-0 break-words">{nodeLabel(node)}</span>
+              {/* Section repliée : nombre d'éléments masqués. */}
+              {isCollapsed && (
+                <span className={`text-code ml-auto shrink-0 ${isSelected ? "" : "text-(--ink-muted)"}`}>
+                  <span className="sr-only">, contient </span>
+                  {countNodes(node.children)}
+                  <span className="sr-only"> éléments</span>
+                </span>
+              )}
+              {/* Sélection signalée autrement que par la couleur (RGAA 3.1). */}
+              {isSelected && (
+                <span aria-hidden className={`shrink-0 ${isCollapsed ? "" : "ml-auto"}`}>
+                  ✓
+                </span>
+              )}
+            </button>
+          )}
         </li>
-        {node.type === "section" && (
-          <LayerRows
-            nodes={node.children}
-            depth={depth + 1}
-            selectedId={selectedId}
-            dropTarget={dropTarget}
-            onSelect={onSelect}
-            drag={drag}
-          />
-        )}
+        {isSection && !isCollapsed && <LayerRows {...props} nodes={node.children} depth={depth + 1} />}
         {/* « Derrière » une section : sous tous ses enfants, pas entre la section et son premier enfant. */}
         {zone === "back" && (
           <li aria-hidden className="relative">
@@ -144,6 +262,41 @@ function LayerRows({ nodes, depth, selectedId, dropTarget, onSelect, drag }: Lay
       </Fragment>
     );
   });
+}
+
+type RenameFieldProps = { node: DraftNode; paddingLeft: string; rename: RenameHandlers };
+
+/** Champ de renommage : Entrée ou sortie du champ valide, Échap annule. */
+function RenameField({ node, paddingLeft, rename }: RenameFieldProps) {
+  // Échap retire le champ : la sortie qui suit ne doit pas valider.
+  const cancelled = useRef(false);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // Échap ne doit pas aussi désélectionner l'élément (raccourci de l'éditeur).
+    event.stopPropagation();
+    if (event.key === "Enter") event.currentTarget.blur();
+    if (event.key === "Escape") {
+      cancelled.current = true;
+      rename.cancel(node.id);
+    }
+  }
+
+  return (
+    <input
+      type="text"
+      autoFocus
+      aria-label={`Nom du calque (vide : « ${contentLabel(node)} »)`}
+      defaultValue={nodeLabel(node)}
+      placeholder={contentLabel(node)}
+      onFocus={(event) => event.currentTarget.select()}
+      onKeyDown={handleKeyDown}
+      onBlur={(event) => {
+        if (!cancelled.current) rename.commit(node, event.currentTarget.value);
+      }}
+      className="text-body-sm w-full rounded-(--radius-sm) border border-(--draft) bg-(--surface-raised) py-(--space-1) pr-(--space-2) text-(--ink)"
+      style={{ paddingLeft }}
+    />
+  );
 }
 
 function DropLine({ indent }: { indent: string }) {

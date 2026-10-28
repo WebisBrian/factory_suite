@@ -7,22 +7,26 @@ type ScreendraftZoomControlsProps = {
 };
 
 export function ScreendraftZoomControls({ zoom, onCommand }: ScreendraftZoomControlsProps) {
+  const percent = Math.round(zoom * 100);
   return (
     // Un clic sur les contrôles ne doit ni sélectionner, ni désélectionner, ni déplacer la vue.
     <div
+      role="group"
+      aria-label="Zoom de l’aperçu"
       onPointerDown={(event) => event.stopPropagation()}
-      className="text-body-sm absolute right-(--space-4) bottom-(--space-4) flex items-center rounded-(--radius-lg) border border-(--line) bg-(--surface-raised) p-(--space-1) text-(--ink) shadow-(--shadow-panel)"
+      className="text-body-sm absolute right-(--space-4) bottom-(--space-4) flex max-w-[calc(100%-2rem)] flex-wrap items-center rounded-(--radius-lg) border border-(--line) bg-(--surface-raised) p-(--space-1) text-(--ink) shadow-(--shadow-panel)"
     >
       <ControlButton title="Zoom arrière (Ctrl/⌘ −)" onClick={() => onCommand("out")}>
         −
       </ControlButton>
-      <ControlButton title="Zoom à 100 % (Maj + 0)" onClick={() => onCommand("reset")}>
-        <span className="text-code inline-block w-12 tabular-nums">{Math.round(zoom * 100)} %</span>
+      {/* Le nom accessible commence par le texte visible (RGAA 6.1, WCAG 2.5.3). */}
+      <ControlButton title={`${percent} %, revenir à 100 % (Maj + 0)`} onClick={() => onCommand("reset")}>
+        <span className="text-code inline-block min-w-12 tabular-nums">{percent} %</span>
       </ControlButton>
       <ControlButton title="Zoom avant (Ctrl/⌘ +)" onClick={() => onCommand("in")}>
         +
       </ControlButton>
-      <span className="mx-(--space-1) h-5 w-px bg-(--line)" />
+      <span aria-hidden className="mx-(--space-1) h-5 w-px bg-(--line)" />
       <ControlButton title="Ajuster à l'écran (Maj + 1)" onClick={() => onCommand("fit")}>
         Ajuster
       </ControlButton>

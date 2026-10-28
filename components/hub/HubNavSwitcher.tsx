@@ -31,9 +31,9 @@ export function HubNavSwitcher() {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {projectId !== null && (
-        <p className="mr-2 max-w-full rounded-full border border-zinc-500 px-3 break-words py-1 text-sm text-zinc-200">
+        <p className="mr-2 max-w-full rounded-full border border-zinc-500 px-3 break-words py-1 text-sm text-zinc-200 group-data-light/nav:text-[#2e2e2e]">
           <span className="sr-only">Projet ouvert : </span>
-          {name ?? "Projet"} <span className="font-mono text-zinc-300">n° {projectId}</span>
+          {name ?? "Projet"} <span className="font-mono text-zinc-300 group-data-light/nav:text-[#454545]">n° {projectId}</span>
         </p>
       )}
       <ul className="flex flex-wrap items-center gap-1">
@@ -50,8 +50,8 @@ export function HubNavSwitcher() {
                 // Outil actif : fond + soulignement (repère qui ne dépend pas de la couleur).
                 className={`flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-1.5 text-base transition-colors ${
                   active
-                    ? "bg-white/15 font-bold text-white underline decoration-2 underline-offset-4"
-                    : "text-zinc-200 hover:bg-white/10 hover:text-white"
+                    ? "bg-white/15 font-bold text-white underline decoration-2 underline-offset-4 group-data-light/nav:bg-black/10 group-data-light/nav:text-[#2e2e2e]"
+                    : "text-zinc-200 hover:bg-white/10 hover:text-white group-data-light/nav:text-[#454545] group-data-light/nav:hover:bg-black/5 group-data-light/nav:hover:text-[#2e2e2e]"
                 }`}
               >
                 <HubAppIcon tool={tool} size="sm" />
