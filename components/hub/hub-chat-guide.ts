@@ -25,6 +25,7 @@ const STEP_HOWTO: Record<HubTool["slug"], readonly string[]> = {
   ],
   generator: ["Vérifiez l'aperçu de la page.", "Cliquez sur « **Générer et enregistrer** »."],
   animations: ["Sélectionnez les éléments de la page.", "Choisissez leurs animations et leur déclencheur."],
+  quality: ["Relisez le score de chaque catégorie.", "Cliquez sur « **Enregistrer le rapport** »."],
 };
 
 /** AnimFlow n'écrit encore aucun fichier : la fin de son étape est déclarée par l'utilisateur. */

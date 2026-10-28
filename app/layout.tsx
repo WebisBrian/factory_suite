@@ -3,7 +3,7 @@ import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/fon
 import { Suspense } from "react";
 import "./globals.css";
 import { HubNav } from "@/components/hub/HubNav";
-import { HubToolDock } from "@/components/hub/HubToolDock";
+import { HubStepBar } from "@/components/hub/HubStepBar";
 import { hubTextScaleBootScript } from "@/components/hub/hub-text-scale";
 
 // Atkinson Hyperlegible : police conçue pour les personnes malvoyantes (Braille Institute).
@@ -20,7 +20,7 @@ const mono = Atkinson_Hyperlegible_Mono({
 
 export const metadata: Metadata = {
   title: "Hub - FactorySuite",
-  description: "Hub des outils ScreenDraft, CodeForge et AnimFlow",
+  description: "Hub des outils ScreenDraft, AnimFlow, contrôle qualité et CodeForge",
 };
 
 /**
@@ -55,14 +55,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           />
           <div className="relative flex flex-1 flex-col">
             <HubNav />
-            {/* --hub-dock-space : hauteur de la barre flottante des outils (posée par HubToolDock), 0 sur le Hub. */}
-            <div id="contenu" tabIndex={-1} className="flex flex-1 flex-col pb-[var(--hub-dock-space,0px)] outline-none">
+            <Suspense fallback={null}>
+              <HubStepBar />
+            </Suspense>
+            <div id="contenu" tabIndex={-1} className="flex flex-1 flex-col outline-none">
               {children}
             </div>
-            {/* useSearchParams (project_id) → Suspense obligatoire pour l'export statique. */}
-            <Suspense fallback={null}>
-              <HubToolDock />
-            </Suspense>
           </div>
         </div>
       </body>

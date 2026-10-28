@@ -104,7 +104,7 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
   return (
     <li
       aria-labelledby={titleId}
-      className={`relative flex flex-col gap-5 p-5 ${hubCard} ${panel !== "files" ? "lg:col-span-2" : ""}`}
+      className={`relative flex min-w-0 flex-col gap-4 p-4 sm:gap-5 sm:p-5 ${hubCard} ${panel !== "files" ? "col-span-full" : ""}`}
     >
       <header className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
