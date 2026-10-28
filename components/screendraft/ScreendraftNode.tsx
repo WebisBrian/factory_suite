@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { ButtonNode, DraftNode, NodeStyle, ShapeNode } from "@/components/screendraft/screendraft-schema";
+import type { ButtonNode, DraftNode, NodeStyle, ShapeNode, VideoNode } from "@/components/screendraft/screendraft-schema";
 
 /**
  * Un élément de la maquette, à l'échelle 1, positionné dans son parent.
@@ -44,6 +44,8 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
           style={{ ...style, objectFit: node.props.fit }}
         />
       );
+    case "video":
+      return <VideoNodeView node={node} style={style} />;
     case "button":
       // Pas de vrai lien ni de vrai bouton : dans l'éditeur, un clic ne doit rien déclencher.
       return (
@@ -54,6 +56,37 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
     case "shape":
       return <ShapeNodeView node={node} style={style} />;
   }
+}
+
+/**
+ * Le lecteur est affiché mais pas utilisable dans l'éditeur : sans pointer-events
+ * ni focus, le clic atteint le cadre et sélectionne l'élément au lieu de lancer la vidéo.
+ */
+function VideoNodeView({ node, style }: { node: VideoNode; style: CSSProperties }) {
+  const { src, kind, title } = node.props;
+  const playerStyle: CSSProperties = { width: "100%", height: "100%", border: 0, pointerEvents: "none" };
+  return (
+    <div data-node-id={node.id} style={{ ...style, overflow: "hidden" }}>
+      {!src ? (
+        <div
+          style={{
+            display: "flex",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#ffffff",
+            fontSize: 18,
+          }}
+        >
+          ▶ Ajoutez un lien vidéo
+        </div>
+      ) : kind === "embed" ? (
+        <iframe src={src} title={title} tabIndex={-1} loading="lazy" allowFullScreen style={playerStyle} />
+      ) : (
+        <video src={src} aria-label={title} preload="metadata" muted tabIndex={-1} style={playerStyle} />
+      )}
+    </div>
+  );
 }
 
 function ShapeNodeView({ node, style }: { node: ShapeNode; style: CSSProperties }) {

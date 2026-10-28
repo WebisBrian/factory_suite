@@ -51,6 +51,16 @@ export function createNode(type: DraftNodeType, index: number, shape: ShapeKind 
           fit: "cover",
         },
       };
+    // Sans lien au départ : l'utilisateur le colle dans le panneau de propriétés.
+    case "video":
+      return {
+        ...base,
+        type,
+        width: 480,
+        height: 270,
+        style: { backgroundColor: "#0f172a", borderRadius: 12 },
+        props: { src: "", kind: "embed", title: "Vidéo" },
+      };
     case "shape":
       return {
         ...base,

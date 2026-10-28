@@ -75,6 +75,18 @@ export type ImageNode = BaseNode & {
   props: { src: string; alt: string; fit: "cover" | "contain" };
 };
 
+/**
+ * Vidéo référencée par un lien, jamais copiée dans le projet.
+ * - kind "embed" : `src` est l'URL d'un lecteur intégrable (YouTube, Vimeo), à afficher dans une <iframe>.
+ * - kind "file" : `src` est l'URL d'un fichier vidéo, à afficher dans une <video controls>.
+ * `src` vide : aucun lien saisi pour l'instant.
+ * `title` décrit la vidéo pour les lecteurs d'écran (title de l'iframe, aria-label de la vidéo).
+ */
+export type VideoNode = BaseNode & {
+  type: "video";
+  props: { src: string; kind: "embed" | "file"; title: string };
+};
+
 export type ButtonNode = BaseNode & {
   type: "button";
   props: { label: string; href?: string };
@@ -92,6 +104,7 @@ export type DraftNode =
   | TitleNode
   | TextNode
   | ImageNode
+  | VideoNode
   | ButtonNode
   | ShapeNode;
 

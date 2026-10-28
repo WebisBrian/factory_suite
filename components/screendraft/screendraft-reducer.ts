@@ -1,5 +1,5 @@
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
-import type { DraftNode, Maquette } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Maquette, VideoNode } from "@/components/screendraft/screendraft-schema";
 import {
   moveInDepth,
   placeNode,
@@ -17,7 +17,8 @@ export type ScreendraftAction =
   | { type: "add-node"; node: DraftNode }
   | { type: "move-node"; id: string; x: number; y: number }
   | { type: "set-text"; id: string; text: string }
-  | { type: "set-image"; id: string; src: string; alt: string };
+  | { type: "set-image"; id: string; src: string; alt: string }
+  | { type: "set-video"; id: string; props: VideoNode["props"] };
 
 export function screendraftReducer(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
@@ -55,6 +56,8 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
       return withNode(draft, action.id, (node) =>
         node.type === "image" ? { ...node, props: { ...node.props, src: action.src, alt: action.alt } } : node,
       );
+    case "set-video":
+      return withNode(draft, action.id, (node) => (node.type === "video" ? { ...node, props: action.props } : node));
   }
 }
 
