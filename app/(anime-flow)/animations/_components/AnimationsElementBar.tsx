@@ -32,7 +32,7 @@ export function AnimationsElementBar({
   return (
     <nav aria-labelledby={labelledBy}>
       {elements.length === 0 ? (
-        <p className="text-lg text-(--ink-muted)">Aucun élément animable dans cette page.</p>
+        <p className="text-sm text-(--ink-muted)">Aucun élément animable dans cette page.</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {elements.map((element) => (
@@ -67,7 +67,7 @@ function AnimationsElementItem({ element, ...props }: Omit<Props, "elements"> & 
         onMouseLeave={() => onHover(null)}
         onFocus={() => onHover(element.id)}
         onBlur={() => onHover(null)}
-        className={`flex min-h-12 w-full items-center gap-2 rounded-xl border-2 px-4 py-2 text-left text-lg ${
+        className={`flex min-h-10 w-full items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-left text-base ${
           selected
             ? "border-(--motion) bg-(--motion-soft) font-semibold"
             : hovered

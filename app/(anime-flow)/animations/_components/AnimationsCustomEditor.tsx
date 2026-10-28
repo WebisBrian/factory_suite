@@ -112,7 +112,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
 
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <p className="text-lg text-(--ink-muted)">
+      <p className="text-sm text-(--ink-muted)">
         Décrivez l&apos;animation étape par étape : à chaque position (0 % = début, 100 % = fin), choisissez les
         propriétés CSS et leur valeur. Le navigateur fait la transition entre les étapes. L&apos;animation est jouée
         une seule fois.
@@ -131,7 +131,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId(errorKey.name)} className="text-lg font-semibold">
+          <label htmlFor={fieldId(errorKey.name)} className="text-sm font-semibold">
             Nom
           </label>
           <input
@@ -146,7 +146,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
           <FieldError id={errorId(errorKey.name)} message={errors.get(errorKey.name)} />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId(errorKey.duration)} className="text-lg font-semibold">
+          <label htmlFor={fieldId(errorKey.duration)} className="text-sm font-semibold">
             Durée (ms)
           </label>
           <input
@@ -164,7 +164,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
           <FieldError id={errorId(errorKey.duration)} message={errors.get(errorKey.duration)} />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId("easing")} className="text-lg font-semibold">
+          <label htmlFor={fieldId("easing")} className="text-sm font-semibold">
             Rythme
           </label>
           <select
@@ -189,9 +189,9 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
           return (
             <li key={i}>
               <fieldset className="flex flex-col gap-3 rounded-xl border-2 border-(--line) p-4">
-                <legend className="px-1 text-lg font-semibold">Étape {number}</legend>
+                <legend className="px-1 text-base font-semibold">Étape {number}</legend>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor={fieldId(errorKey.offset(i))} className="text-lg">
+                  <label htmlFor={fieldId(errorKey.offset(i))} className="text-sm">
                     Position (%)
                   </label>
                   <input
@@ -216,7 +216,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
                     return (
                       <li key={j} className="flex flex-col gap-2 rounded-lg border border-(--line) p-3">
                         <div className="flex flex-col gap-1">
-                          <label htmlFor={fieldId(`step-${i}-property-${j}`)} className="text-lg">
+                          <label htmlFor={fieldId(`step-${i}-property-${j}`)} className="text-sm">
                             Propriété
                           </label>
                           <select
@@ -240,7 +240,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label htmlFor={fieldId(valueKey)} className="text-lg">
+                          <label htmlFor={fieldId(valueKey)} className="text-sm">
                             Valeur
                           </label>
                           <input
@@ -259,7 +259,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
                             aria-describedby={[hintId, describedBy(valueKey)].filter(Boolean).join(" ")}
                             className={`${FIELD} font-mono`}
                           />
-                          <p id={hintId} className="text-lg text-(--ink-muted)">
+                          <p id={hintId} className="text-sm text-(--ink-muted)">
                             Exemple : <span className="font-mono">{property?.example}</span>
                           </p>
                           <FieldError id={errorId(valueKey)} message={errors.get(valueKey)} />
@@ -318,7 +318,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
         </button>
       </div>
 
-      <p role="status" className="text-lg">
+      <p role="status" className="text-sm">
         {status}
       </p>
     </form>
@@ -328,7 +328,7 @@ export function AnimationsCustomEditor({ selectedName, takenNames, takenIds, onT
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-lg font-semibold text-(--danger)">
+    <p id={id} className="text-sm font-semibold text-(--danger)">
       Erreur : {message}
     </p>
   );

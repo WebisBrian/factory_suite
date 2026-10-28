@@ -43,6 +43,7 @@ export const ANIMATION_RUNTIME_JS = `/*
     if (current && current.playState === "running") return;
     var player = element.animate(animation.keyframes, {
       duration: animation.duration,
+      delay: animation.delay,
       easing: animation.easing,
       iterations: 1,
       fill: "backwards"
@@ -89,7 +90,13 @@ export const ANIMATION_RUNTIME_JS = `/*
         console.warn("[AnimeFlow] Ignoré :", entry);
         return;
       }
-      trigger(element, animation);
+      // Durée et délai propres à l'élément ; la durée de l'animation sert par défaut.
+      trigger(element, {
+        keyframes: animation.keyframes,
+        easing: animation.easing,
+        duration: typeof entry.duration === "number" ? entry.duration : animation.duration,
+        delay: typeof entry.delay === "number" ? entry.delay : 0
+      });
     });
   }
 

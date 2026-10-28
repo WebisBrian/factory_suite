@@ -110,7 +110,7 @@ export function AnimationsExportButtons({ projectId, saving, onSave, onDownload 
 /** Ce que l'intégration doit ajouter à la page. */
 export function AnimationsIntegration({ animatedCount }: { animatedCount: number }) {
   return (
-    <div className="flex flex-col gap-3 text-lg">
+    <div className="flex flex-col gap-3 text-sm">
       <p>
         L&apos;export produit <code className="font-mono">{SCRIPT_FILE}</code> (le script qui joue les animations) et{" "}
         <code className="font-mono">{CONFIG_FILE}</code> (la liste des animations).{" "}

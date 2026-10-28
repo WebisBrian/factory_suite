@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { playAnimation, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { pageWidth } from "@/app/(anime-flow)/animations/_lib/page-source";
 import { createInspector, type Inspector } from "@/app/(anime-flow)/animations/_lib/preview-inspector";
 
-/** Animation à jouer sur l'élément sélectionné. `nonce` change à chaque demande, pour rejouer la même. */
-export type PreviewPlay = { preset: AnimationPreset; nonce: number };
+export type AnimationsPreviewHandle = {
+  /** Joue l'animation sur l'élément dans l'aperçu. Renvoie false si l'élément est introuvable. */
+  play: (elementId: string, preset: AnimationPreset, duration: number, delay: number) => boolean;
+};
 
 type Props = {
   html: string;
@@ -22,7 +24,7 @@ type Props = {
   onMissedClick: () => void;
   /** Échap dans l'aperçu : désélection. */
   onEscape: () => void;
-  play?: PreviewPlay | null;
+  ref?: Ref<AnimationsPreviewHandle>;
 };
 
 /**
@@ -39,7 +41,7 @@ export function AnimationsPreview({
   onSelectId,
   onMissedClick,
   onEscape,
-  play = null,
+  ref,
 }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -82,31 +84,34 @@ export function AnimationsPreview({
     inspector.current?.highlight(hoveredId);
   }, [doc, hoveredId]);
 
-  // Joué une fois par demande (bouton « Tester ») ; l'appelant vérifie « réduire les animations ».
-  useEffect(() => {
-    if (!doc || !play || !selectedId) return;
-    doc.getElementById(selectedId)?.animate(play.preset.keyframes, {
-      duration: play.preset.duration,
-      easing: play.preset.easing,
-      iterations: 1,
-    });
-    // selectedId volontairement absent : changer de sélection ne rejoue pas l'animation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, play]);
+  // Lecture sur demande explicite de l'utilisateur : jouée même si son système réduit les animations.
+  useImperativeHandle(
+    ref,
+    () => ({
+      play(elementId, preset, duration, delay) {
+        const element = doc?.getElementById(elementId);
+        if (!element) return false;
+        element.scrollIntoView({ block: "nearest" });
+        playAnimation(element, preset, duration, delay);
+        return true;
+      },
+    }),
+    [doc],
+  );
 
   return (
     <section aria-labelledby="animations-preview-title" className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h2 id="animations-preview-title" className="text-xl font-semibold">
+        <h2 id="animations-preview-title" className="text-lg font-semibold">
           Aperçu
         </h2>
         {width && scale < 1 && (
-          <p className="text-lg text-(--ink-muted)">
+          <p className="text-sm text-(--ink-muted)">
             Page de {width} px, affichée à {Math.round(scale * 100)} %.
           </p>
         )}
       </div>
-      <p id="animations-preview-help" className="text-lg text-(--ink-muted)">
+      <p id="animations-preview-help" className="text-sm text-(--ink-muted)">
         Survolez un élément pour voir son nom, cliquez pour le sélectionner, Échap pour désélectionner. Au clavier,
         utilisez la liste « Éléments de la page ». Glissez-déposez page.html et page.css ici pour changer de page.
       </p>

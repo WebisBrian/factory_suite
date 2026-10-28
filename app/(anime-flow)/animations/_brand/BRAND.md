@@ -22,9 +22,9 @@
 
 Plus strict que les autres outils de la suite :
 
-- **Texte de 18 px minimum** (`text-lg`) partout, titres plus grands. Pas de `text-sm` ni `text-base`.
+- **Mêmes tailles que les autres outils, agrandissables par le Hub.** Par défaut, densité de Screendraft et du Générateur (titre de page `text-2xl`, titre de panneau `text-lg`, texte courant `text-base`, secondaire `text-sm`). L'utilisateur malvoyant agrandit tout avec le réglage « Taille du texte » du Hub (×1 à ×2), qui change la taille de police de `<html>` : **uniquement des tailles en `rem`** (classes Tailwind), jamais de `px` pour le texte ni les espacements. Tester chaque écran à ×2.
 - **Contraste visé 7:1 (AAA)** pour le texte. Les paires ci-dessous sont vérifiées dans les deux thèmes.
-- **Zones cliquables de 48 px minimum** (`min-h-12`).
+- **Zones cliquables de 40 px minimum** (`min-h-10`), comme le Hub.
 - **Focus** : contour de 4 px en `--focus-ring` (encre foncée en clair, jaune du Hub en sombre), géré par `anime-flow-theme.css`. Ne le supprime pas, ne le recolore pas.
 - **Jamais d'information par la couleur seule** : un élément actif a aussi une coche, un texte en gras ou une bordure plus épaisse.
 - Texte violet sur `--motion-soft` interdit en thème clair (5,98:1) : sur ce fond, le texte est `--ink`.
@@ -55,19 +55,20 @@ Plus strict que les autres outils de la suite :
 | --- | --- |
 | Panneau | `rounded-2xl border border-(--line) bg-(--surface-raised) p-5` |
 | Titre de panneau | `text-xl font-semibold` |
-| Texte secondaire | `text-lg text-(--ink-muted)` |
-| Bouton principal | `min-h-12 rounded-full bg-(--motion) px-6 text-lg font-semibold text-(--on-motion) hover:bg-(--motion-strong)` |
-| Bouton secondaire | `min-h-12 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-6 text-lg font-semibold hover:bg-(--motion-soft)` |
+| Texte secondaire | `text-sm text-(--ink-muted)` |
+| Bouton principal | `min-h-10 rounded-full bg-(--motion) px-5 text-sm font-semibold text-(--on-motion) hover:bg-(--motion-strong)` |
+| Bouton secondaire | `min-h-10 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-sm font-semibold hover:bg-(--motion-soft)` |
 | Choix actif (carte radio) | `border-(--motion) bg-(--motion-soft)` + nom en gras |
-| Badge | `rounded-full border border-(--motion) bg-(--motion-soft) px-4 py-1 text-lg` |
-| Erreur | `rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)` |
+| Badge | `rounded-full border border-(--motion) bg-(--motion-soft) px-3 py-1 text-sm` |
+| Erreur | `rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-sm text-(--danger)` |
 
 ## Motifs propres à l'outil
 
-- **Disposition (comme Screendraft)** : l'outil occupe exactement l'écran sous la barre du Hub, et la page ne défile pas. En-tête compact, bandeau de messages si besoin, puis 3 colonnes : à gauche le panneau de sections (`w-80`), au centre l'aperçu en pleine hauteur, à droite le panneau de réglages (`w-96`). Seuls les panneaux défilent, à l'intérieur. Largeurs en rem, plafonnées en `vw` : elles suivent le réglage A+. Sous `lg`, les colonnes s'empilent et la page défile (sinon le texte à 200 % ne tiendrait pas).
+- **Disposition (comme Screendraft)** : l'outil occupe exactement l'écran sous la barre du Hub, et la page ne défile pas. En-tête compact, bandeau de messages si besoin, puis 3 colonnes : à gauche le panneau de sections (`w-72`), au centre l'aperçu en pleine hauteur, à droite le panneau de réglages (`w-80`). Seuls les panneaux défilent, à l'intérieur. Largeurs en rem, plafonnées en `vw` : elles suivent le réglage A+. Sous `lg`, les colonnes s'empilent et la page défile (sinon le texte à 200 % ne tiendrait pas).
 - **En-tête d'outil** : un seul `h1`, qui contient le logo AnimFlow en 40 px (`alt=""`), « Animations », puis `/` et la page affichée en `--ink-muted`. À côté, le badge du mode (« Mode démo » ou « Projet #N »). À droite, les actions : Importer une page, Recharger / Annuler l'import, Enregistrer (principal, mode projet), Télécharger. Le même logo que dans la barre du Hub.
 - **Section repliable** (`AnimationsPanelSection`) : le titre `h2` est un bouton `aria-expanded`, avec un chevron (qui tourne en `motion-safe`) et un compteur. L'état est mémorisé dans le navigateur (`anime-flow:panel:<id>`).
-- **Réglages en listes déroulantes** : « Animation » (« Aucune animation », groupes Bibliothèque / Mes animations) et « Déclencheur », chacun un `<select>` avec son label. La description du choix courant s'affiche dessous, liée par `aria-describedby`.
+- **Réglages en listes déroulantes** : « Animation » (« Aucune animation », groupes Bibliothèque / Mes animations) et « Déclencheur », chacun un `<select>` avec son label. La description du choix courant s'affiche dessous, liée par `aria-describedby`. Puis « Durée et délai » (en secondes, bornés à 5 s) et le bouton « Prévisualiser », qui joue l'animation dans l'aperçu et lit son audiodescription.
+- **Animations posées** : section du panneau gauche qui récapitule les animations de la page (« Rebond, au clic, 0,8 s »), avec « Modifier » (ouvre les réglages et y amène le focus) et « Retirer ».
 - **Dépôt de fichiers** : dès que des fichiers sont glissés dans la fenêtre, une surcouche pointillée `--motion` recouvre l'aperçu (une iframe garderait les évènements de dépôt pour elle).
 - **Élément sélectionné dans l'aperçu** : double contour, blanc à l'intérieur et violet `#6d28d9` à l'extérieur. Le violet seul ne ressort pas sur une page sombre (2,5:1) ; le double contour est visible sur n'importe quel fond.
 - **Élément survolé dans l'aperçu (inspecteur)** : surcouche posée par-dessus l'élément (pointillés `#6d28d9`, fond violet très léger), comme l'inspecteur F12 : elle n'est ni coupée ni masquée par le style de la page. Étiquette en aplat `spark` qui donne le nom et la taille de l'élément (« Bouton « Contact » · 120 × 40 »), en texte `on-spark`. Elle suit l'élément au défilement. La ligne de la liste « Éléments de la page » correspondante passe en pointillés, et inversement : survoler ou atteindre au clavier une ligne de la liste entoure l'élément dans l'aperçu. Code : `_lib/preview-inspector.ts`.

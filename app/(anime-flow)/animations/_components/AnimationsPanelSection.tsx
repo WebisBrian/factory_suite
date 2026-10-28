@@ -79,12 +79,12 @@ export function AnimationsPanelSection({
           aria-expanded={isOpen}
           aria-controls={contentId}
           onClick={() => writeOpen(id, !isOpen)}
-          className="flex min-h-12 w-full items-center gap-2 rounded-lg px-2 text-left text-lg font-semibold hover:bg-(--motion-soft)"
+          className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-base font-semibold hover:bg-(--motion-soft)"
         >
           <svg
             aria-hidden
             viewBox="0 0 24 24"
-            className={`size-5 shrink-0 fill-none stroke-current motion-safe:transition-transform ${isOpen ? "rotate-90" : ""}`}
+            className={`size-4 shrink-0 fill-none stroke-current motion-safe:transition-transform ${isOpen ? "rotate-90" : ""}`}
             strokeWidth={2.5}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -96,7 +96,7 @@ export function AnimationsPanelSection({
             <>
               <span
                 aria-hidden
-                className="rounded-full border border-(--motion) bg-(--motion-soft) px-2 text-lg font-normal"
+                className="rounded-full border border-(--motion) bg-(--motion-soft) px-2 text-sm font-normal"
               >
                 {count}
               </span>

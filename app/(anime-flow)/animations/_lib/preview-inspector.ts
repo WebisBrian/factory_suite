@@ -37,7 +37,7 @@ html[${POINTER_ATTR}], html[${POINTER_ATTR}] * { cursor: pointer !important; }
   border-radius: 8px;
   background: #e879f9;
   color: #1a1033;
-  font: 600 1.125rem/1.3 "Atkinson Hyperlegible", system-ui, sans-serif;
+  font: 600 1rem/1.3 "Atkinson Hyperlegible", system-ui, sans-serif;
 }`;
 
 export type InspectorCallbacks = {

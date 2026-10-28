@@ -6,14 +6,18 @@
  */
 
 import { findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  clampMs,
+  DELAY_LIMITS,
+  DURATION_LIMITS,
+  type ElementAnimation,
+} from "@/app/(anime-flow)/animations/_lib/element-animation";
 import { PAGE_FILE } from "@/app/(anime-flow)/animations/_lib/page-source";
 import { TRIGGER_EVENTS, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 export const CONFIG_FILE = "animations.json";
 export const SCRIPT_FILE = "animations.js";
 
-/** Animation posée sur un élément : laquelle, et ce qui la déclenche. */
-export type ElementAnimation = { animation: string; event: TriggerEventId };
 
 export type ConfigAnimation = {
   name: string;
@@ -30,7 +34,8 @@ export type AnimeFlowConfig = {
   page: string;
   /** Par id d'animation. */
   animations: Record<string, ConfigAnimation>;
-  elements: { elementId: string; animation: string; event: TriggerEventId }[];
+  /** Durée et délai propres à l'élément, en ms (la durée de l'animation n'est qu'une valeur par défaut). */
+  elements: { elementId: string; animation: string; event: TriggerEventId; duration: number; delay: number }[];
 };
 
 /** Les animations utilisées, plus toutes les personnalisées (pour ne pas les perdre). */
@@ -53,11 +58,11 @@ export function buildConfig(
   }
 
   customAnimations.forEach(addAnimation);
-  for (const [elementId, { animation, event }] of Object.entries(animationByElement)) {
+  for (const [elementId, { animation, event, duration, delay }] of Object.entries(animationByElement)) {
     const preset = findPreset(animation, customAnimations);
     if (!preset) continue;
     addAnimation(preset);
-    elements.push({ elementId, animation, event });
+    elements.push({ elementId, animation, event, duration, delay });
   }
 
   return { version: 1, page: PAGE_FILE, animations, elements };
@@ -107,7 +112,14 @@ export function parseConfig(text: string): RestoredConfig | null {
     if (!isRecord(raw) || typeof raw.elementId !== "string" || typeof raw.animation !== "string") return null;
     const event = TRIGGER_EVENTS.find((trigger) => trigger.id === raw.event);
     if (!event) return null;
-    animationByElement[raw.elementId] = { animation: raw.animation, event: event.id };
+    // Fichier antérieur à la durée et au délai par élément : on repart des valeurs par défaut.
+    const defaultDuration = findPreset(raw.animation, customAnimations)?.duration ?? 600;
+    animationByElement[raw.elementId] = {
+      animation: raw.animation,
+      event: event.id,
+      duration: clampMs(typeof raw.duration === "number" ? raw.duration : defaultDuration, DURATION_LIMITS),
+      delay: clampMs(typeof raw.delay === "number" ? raw.delay : 0, DELAY_LIMITS),
+    };
   }
 
   return { animationByElement, customAnimations };
