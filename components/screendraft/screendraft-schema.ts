@@ -177,6 +177,25 @@ export type ButtonNode = BaseNode & {
   };
 };
 
+/** Une diapositive de carrousel : une image, décrite pour les lecteurs d'écran. */
+export type CarouselSlide = {
+  /** Unique dans le carrousel. */
+  id: string;
+  src: string;
+  alt: string;
+};
+
+/**
+ * Carrousel d'images (SCRUM-31), dans l'ordre du tableau. La page générée montre une
+ * diapositive à la fois, avec des boutons Précédente / Suivante et un indicateur de position.
+ * Pas de défilement automatique : l'utilisateur garde la main (WCAG 2.2.2).
+ * `title` nomme le carrousel pour les lecteurs d'écran (ex. « Nos réalisations »).
+ */
+export type CarouselNode = BaseNode & {
+  type: "carousel";
+  props: { slides: CarouselSlide[]; title: string };
+};
+
 export type ShapeKind = "circle" | "rectangle" | "triangle";
 
 export type ShapeNode = BaseNode & {
@@ -190,6 +209,7 @@ export type DraftNode =
   | TextNode
   | ImageNode
   | VideoNode
+  | CarouselNode
   | ButtonNode
   | ShapeNode;
 

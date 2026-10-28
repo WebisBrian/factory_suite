@@ -81,6 +81,7 @@ export function defaultThemeLinks(node: DraftNode): ThemeLinks {
       return { backgroundColor: "primary" };
     case "image":
     case "video":
+    case "carousel":
       return { borderRadius: "radius" };
   }
 }

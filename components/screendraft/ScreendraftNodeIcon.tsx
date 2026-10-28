@@ -17,6 +17,12 @@ const ICONS: Record<DraftNodeType, ReactNode> = {
       <path d="m10 9 5 3-5 3z" />
     </>
   ),
+  carousel: (
+    <>
+      <rect x="6" y="5" width="12" height="11" rx="2" />
+      <path d="M3 8v5M21 8v5M10 20h.01M12 20h.01M14 20h.01" />
+    </>
+  ),
   button: (
     <>
       <rect x="3" y="8" width="18" height="8" rx="4" />

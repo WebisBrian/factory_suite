@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ScreendraftFrame } from "@/components/screendraft/ScreendraftFrame";
+import {
+  CarouselPreviewContext,
+  screenCarousels,
+  useCarouselPreviewState,
+  wrapSlideIndex,
+} from "@/components/screendraft/screendraft-carousel";
 import { screenLinks } from "@/components/screendraft/screendraft-links";
 import type { Screen } from "@/components/screendraft/screendraft-schema";
 import { fitToScreen, type Size } from "@/components/screendraft/screendraft-viewport";
@@ -31,6 +37,10 @@ export function ScreendraftPrototype({ screens, startScreenId, onClose }: Screen
 
   const screen = screens.find((candidate) => candidate.id === trail[trail.length - 1]) ?? screens[0];
   const links = screenLinks(screen, screens);
+  // Carrousels : de vrais boutons Précédente / Suivante sur les flèches dessinées.
+  const carouselPreview = useCarouselPreviewState();
+  const carousels = screenCarousels(screen).filter(({ node }) => node.props.slides.length > 1);
+  const [slideAnnouncement, setSlideAnnouncement] = useState("");
   const screenNames = new Map(screens.map((candidate) => [candidate.id, candidate.name]));
 
   useEffect(() => {
@@ -129,16 +139,57 @@ export function ScreendraftPrototype({ screens, startScreenId, onClose }: Screen
             className="absolute"
             style={{ left, top, width: screen.frame.width * zoom, height: screen.frame.height * zoom }}
           >
-            <ScreendraftFrame
-              screen={screen}
-              style={{
-                top: 0,
-                left: 0,
-                transformOrigin: "0 0",
-                transform: `scale(${zoom})`,
-                boxShadow: "var(--shadow-frame)",
-              }}
-            />
+            <CarouselPreviewContext value={carouselPreview}>
+              <ScreendraftFrame
+                screen={screen}
+                style={{
+                  top: 0,
+                  left: 0,
+                  transformOrigin: "0 0",
+                  transform: `scale(${zoom})`,
+                  boxShadow: "var(--shadow-frame)",
+                }}
+              />
+            </CarouselPreviewContext>
+            {carousels.map(({ node, rect }) => {
+              const { slides, title } = node.props;
+              const index = wrapSlideIndex(carouselPreview.slideIndex(node.id), slides.length);
+              const showDelta = (delta: -1 | 1) => {
+                const next = wrapSlideIndex(index + delta, slides.length);
+                carouselPreview.showSlide(node.id, next);
+                setSlideAnnouncement(`${title} : diapositive ${next + 1} sur ${slides.length}, ${slides[next].alt}`);
+              };
+              // Même place et même taille que les flèches dessinées par ScreendraftNode.
+              const arrow = (side: "left" | "right") => ({
+                left: (side === "left" ? rect.x + 12 : rect.x + rect.width - 52) * zoom,
+                top: (rect.y + rect.height / 2 - 20) * zoom,
+                width: 40 * zoom,
+                height: 40 * zoom,
+              });
+              return (
+                <Fragment key={node.id}>
+                  <button
+                    type="button"
+                    onClick={() => showDelta(-1)}
+                    aria-label={`Diapositive précédente — ${title} (${index + 1} sur ${slides.length})`}
+                    title="Diapositive précédente"
+                    className="sd-free-size absolute cursor-pointer rounded-full hover:outline-2 hover:outline-(--draft) hover:outline-solid"
+                    style={arrow("left")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => showDelta(1)}
+                    aria-label={`Diapositive suivante — ${title} (${index + 1} sur ${slides.length})`}
+                    title="Diapositive suivante"
+                    className="sd-free-size absolute cursor-pointer rounded-full hover:outline-2 hover:outline-(--draft) hover:outline-solid"
+                    style={arrow("right")}
+                  />
+                </Fragment>
+              );
+            })}
+            <p aria-live="polite" className="sr-only">
+              {slideAnnouncement}
+            </p>
             {links.map(({ node, targetScreenId, rect }) => (
               <button
                 key={node.id}
