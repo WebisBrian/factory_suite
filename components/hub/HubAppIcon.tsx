@@ -1,8 +1,8 @@
 import type { HubTool } from "@/components/hub/hub-tools";
 
 const sizes = {
-  sm: "size-7 rounded-md text-xs",
-  md: "size-10 rounded-lg text-sm",
+  sm: "size-7 rounded-md text-sm",
+  md: "size-10 rounded-lg text-base",
   lg: "size-14 rounded-xl text-xl",
 } as const;
 
@@ -23,7 +23,7 @@ export function HubLogo({ size = "md" }: { size?: keyof typeof sizes }) {
   return (
     <span
       aria-hidden
-      className={`inline-flex shrink-0 items-center justify-center bg-linear-to-br from-orange-500 via-pink-500 to-violet-600 font-bold tracking-tight text-white shadow-lg shadow-pink-500/20 ${sizes[size]}`}
+      className={`inline-flex shrink-0 items-center justify-center bg-linear-to-br from-orange-700 via-pink-700 to-violet-700 font-bold tracking-tight text-white shadow-lg shadow-pink-500/20 ${sizes[size]}`}
     >
       Fs
     </span>
