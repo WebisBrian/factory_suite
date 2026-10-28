@@ -44,3 +44,12 @@ export const generatorFocus = "[&_:focus-visible]:outline-[#0a4fb8]!";
 export const generatorError = "rounded-lg border border-red-800 bg-red-50 p-4 text-sm text-red-950";
 
 export const generatorSuccess = "rounded-lg border border-[#2e2e2e] bg-[#f0f0ea] p-4 text-sm text-[#2e2e2e]";
+
+/** Titre d'étape (h2) : « 1. Maquette », « 2. Aperçu », « 3. Export ». */
+export const generatorSectionTitle =
+  "font-(family-name:--font-instrument-sans) text-3xl font-medium tracking-tight text-[#2e2e2e]";
+
+/** Lien vers un autre outil de la chaîne, en gardant le projet courant dans l'URL. */
+export function toolHref(path: string, projectId: number | null): string {
+  return projectId === null ? path : `${path}?project_id=${projectId}`;
+}

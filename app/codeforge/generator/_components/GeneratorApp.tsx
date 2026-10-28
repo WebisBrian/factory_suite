@@ -6,22 +6,16 @@ import { ProjectFsError, readProjectText, useProjectId } from "@/lib/project-fs"
 import { MAQUETTE_FILE, parseMaquette, type Maquette } from "@/app/codeforge/generator/_lib/maquette";
 import { maquetteFixture } from "@/app/codeforge/generator/_lib/maquette-fixture";
 import {
-  generatorCard,
   generatorDisplay,
   generatorError,
-  generatorKicker,
   generatorLink,
   generatorPaper,
   generatorPrimaryButton,
   generatorSecondaryButton,
+  generatorSectionTitle,
+  toolHref,
 } from "@/app/codeforge/generator/_lib/generator-styles";
 import { GeneratorOutput } from "@/app/codeforge/generator/_components/GeneratorOutput";
-
-const CHAIN = [
-  { tool: "Screendraft", role: "Étape amont", file: "écrit maquette.json", current: false },
-  { tool: "CodeForge", role: "Vous êtes ici", file: "maquette.json → pages HTML/CSS", current: true },
-  { tool: "Animations", role: "Étape aval", file: "lit page.html", current: false },
-] as const;
 
 type ProjectLoad =
   | { status: "ok"; maquette: Maquette }
@@ -107,47 +101,64 @@ export function GeneratorApp() {
   }
 
   return (
-    <div className="flex flex-col gap-16">
-      <header className="flex flex-col items-center gap-6 text-center">
-        <p className="rounded-full bg-[#f7f7f7] px-4 py-1.5 text-sm font-medium text-[#2e2e2e] ring-1 ring-black/15">
-          {projectId === null ? "Mode démo" : `Projet #${projectId}`}
-        </p>
-        <h1 className={`${generatorDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>CodeForge</h1>
-        <p className="max-w-prose text-lg text-[#454545]">
-          Transforme la maquette JSON de Screendraft en pages HTML/CSS, prêtes à être animées.
-        </p>
-
-        <nav aria-label="Chaîne FactorySuite" className="w-full">
-          <ol className="grid gap-3 text-left sm:grid-cols-3">
-            {CHAIN.map((step, index) => (
-              <li
-                key={step.tool}
-                aria-current={step.current ? "step" : undefined}
-                className={`flex flex-col gap-1 p-4 ${
-                  step.current ? "rounded-lg border-2 border-[#2e2e2e] bg-[#fdfcfb]" : generatorPaper
-                }`}
+    <div className="flex flex-col gap-12">
+      <header className="flex flex-col gap-4">
+        <nav aria-label="Chaîne FactorySuite">
+          <ol className="flex flex-wrap items-center gap-x-2 text-sm text-[#454545]">
+            <li>
+              <Link
+                href={toolHref("/screendraft", projectId)}
+                className={`inline-flex min-h-10 items-center ${generatorLink}`}
               >
-                <span className="text-sm font-semibold text-[#454545]">
-                  {index + 1}. {step.role}
-                </span>
-                <span className="text-xl font-medium text-[#2e2e2e]">{step.tool}</span>
-                <span className="font-mono text-sm text-[#454545]">{step.file}</span>
-              </li>
-            ))}
+                Screendraft
+              </Link>
+            </li>
+            <li aria-hidden>→</li>
+            <li aria-current="page" className="inline-flex min-h-10 items-center font-semibold text-[#2e2e2e]">
+              CodeForge
+            </li>
+            <li aria-hidden>→</li>
+            <li>
+              <Link
+                href={toolHref("/animations", projectId)}
+                className={`inline-flex min-h-10 items-center ${generatorLink}`}
+              >
+                Animations
+              </Link>
+            </li>
           </ol>
         </nav>
+        <h1 className={`${generatorDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>CodeForge</h1>
+        <p className="max-w-prose text-lg text-[#454545]">
+          Transforme la maquette de Screendraft en pages HTML/CSS, à télécharger ou à passer aux Animations.
+        </p>
       </header>
 
-      {projectId === null && (
-        <section aria-labelledby="generator-input-title" className={`${generatorCard} p-6`}>
-          <p className={generatorKicker}>Étape 1</p>
-          <h2 id="generator-input-title" className={`${generatorDisplay} mt-1 text-3xl tracking-tight`}>
-            Maquette d&apos;entrée
-          </h2>
-          <p className="mt-2 text-base text-[#454545]">
-            Sans projet, la maquette de démo est utilisée. Vous pouvez aussi importer votre propre fichier.
-          </p>
+      <section aria-labelledby="generator-input-title" className="flex flex-col gap-4">
+        <h2 id="generator-input-title" className={generatorSectionTitle}>
+          1. Maquette
+        </h2>
 
+        {maquette && (
+          <dl className={`${generatorPaper} grid gap-x-6 gap-y-3 p-5 sm:grid-cols-2 lg:grid-cols-4`}>
+            <GeneratorFact label="Nom" value={maquette.name} />
+            <GeneratorFact label="Source" value={sourceLabel} />
+            <GeneratorFact
+              label={maquette.screens.length > 1 ? "Écrans" : "Écran"}
+              value={maquette.screens.map((screen) => screen.name).join(", ")}
+            />
+            <GeneratorFact
+              label="Format"
+              value={[
+                ...new Set(
+                  maquette.screens.map((screen) => (screen.frame.device === "desktop" ? "Desktop" : "Mobile")),
+                ),
+              ].join(", ")}
+            />
+          </dl>
+        )}
+
+        {projectId === null && (
           <div
             onDragOver={(event) => {
               event.preventDefault();
@@ -155,12 +166,14 @@ export function GeneratorApp() {
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
-            className={`mt-4 flex flex-col items-start gap-3 rounded-lg p-5 ${generatorPaper} border-2 border-dashed ${
-              dragging ? "border-[#2e2e2e]" : "border-zinc-500"
+            className={`flex flex-wrap items-center gap-4 rounded-lg border-2 border-dashed p-5 ${
+              dragging ? "border-[#2e2e2e] bg-[#f0f0ea]" : "border-zinc-500"
             }`}
           >
-            <p className="text-base text-[#2e2e2e]">
-              {dragging ? "Relâchez pour importer le fichier" : "Glissez-déposez un fichier JSON de maquette ici"}
+            <p className="flex-1 text-base text-[#454545]">
+              {dragging
+                ? "Relâchez pour importer le fichier"
+                : "Vous voyez la maquette de démo. Glissez-déposez votre fichier JSON ici, ou importez-le."}
             </p>
             <div className="flex flex-wrap gap-3">
               <button type="button" onClick={() => fileInput.current?.click()} className={generatorPrimaryButton}>
@@ -168,7 +181,7 @@ export function GeneratorApp() {
               </button>
               {imported && (
                 <button type="button" onClick={() => setImported(null)} className={generatorSecondaryButton}>
-                  Annuler l&apos;import
+                  Revenir à la démo
                 </button>
               )}
             </div>
@@ -180,37 +193,42 @@ export function GeneratorApp() {
               className="hidden"
             />
           </div>
+        )}
 
-          {imported && !imported.ok && (
-            <GeneratorErrorBox title={`${imported.fileName} n'est pas une maquette valide.`} errors={imported.errors} />
-          )}
-        </section>
-      )}
+        {imported && !imported.ok && (
+          <GeneratorErrorBox title={`${imported.fileName} n'est pas une maquette valide.`} errors={imported.errors} />
+        )}
+        {projectId !== null && projectLoad && projectLoad.status !== "ok" && (
+          <GeneratorErrorBox
+            title={
+              projectLoad.status === "missing"
+                ? `${MAQUETTE_FILE} introuvable dans le projet ${projectId} : passez d'abord par Screendraft.`
+                : projectLoad.status === "invalid"
+                  ? `${MAQUETTE_FILE} du projet ${projectId} n'est pas une maquette valide.`
+                  : projectLoad.message
+            }
+            errors={projectLoad.status === "invalid" ? projectLoad.errors : []}
+            onRetry={handleReloadFromProject}
+          />
+        )}
 
-      {projectId !== null && projectLoad && projectLoad.status !== "ok" && (
-        <GeneratorErrorBox
-          title={
-            projectLoad.status === "missing"
-              ? `${MAQUETTE_FILE} introuvable dans le projet ${projectId} : passez d'abord par Screendraft.`
-              : projectLoad.status === "invalid"
-                ? `${MAQUETTE_FILE} du projet ${projectId} n'est pas une maquette valide.`
-                : projectLoad.message
-          }
-          errors={projectLoad.status === "invalid" ? projectLoad.errors : []}
-          onRetry={handleReloadFromProject}
-        />
-      )}
-
-      {maquette ? (
-        <GeneratorOutput maquette={maquette} projectId={projectId} sourceLabel={sourceLabel} />
-      ) : (
-        projectId !== null &&
-        projectLoad === null && (
+        {!maquette && projectId !== null && projectLoad === null && (
           <p className="text-base text-[#454545]" role="status">
             Lecture de {MAQUETTE_FILE}…
           </p>
-        )
-      )}
+        )}
+      </section>
+
+      {maquette && <GeneratorOutput maquette={maquette} projectId={projectId} />}
+    </div>
+  );
+}
+
+function GeneratorFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-sm font-semibold text-[#454545]">{label}</dt>
+      <dd className="mt-0.5 text-base text-[#2e2e2e]">{value}</dd>
     </div>
   );
 }

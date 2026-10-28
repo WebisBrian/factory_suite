@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   generatorCanvas,
   generatorSecondaryButton,
@@ -17,11 +17,14 @@ export function GeneratorPreview({
   name,
   width,
   height,
+  leading,
 }: {
   html: string;
   name: string;
   width: number;
   height: number;
+  /** Contrôles placés avant le zoom (ex. choix de l'écran). */
+  leading?: ReactNode;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
@@ -49,40 +52,39 @@ export function GeneratorPreview({
 
   return (
     <div>
-      <div
-        role="group"
-        aria-label="Zoom de l'aperçu"
-        className="flex flex-wrap items-center gap-2 border-y border-black/15 px-4 py-3"
-      >
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          disabled={scale <= ZOOM_STEPS[0] + 0.001}
-          aria-label="Réduire le zoom"
-          className={generatorSecondaryButton}
-        >
-          − Zoom
-        </button>
-        <button
-          type="button"
-          onClick={() => step(1)}
-          disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1] - 0.001}
-          aria-label="Augmenter le zoom"
-          className={generatorSecondaryButton}
-        >
-          + Zoom
-        </button>
-        <button
-          type="button"
-          onClick={() => setZoom("fit")}
-          aria-pressed={zoom === "fit"}
-          className={generatorToggleButton}
-        >
-          Ajuster à la largeur
-        </button>
-        <button type="button" onClick={() => setZoom(1)} aria-pressed={zoom === 1} className={generatorToggleButton}>
-          Taille réelle (100 %)
-        </button>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-black/15 px-4 py-3">
+        {leading}
+        <div role="group" aria-label="Zoom de l'aperçu" className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            disabled={scale <= ZOOM_STEPS[0] + 0.001}
+            aria-label="Réduire le zoom"
+            className={generatorSecondaryButton}
+          >
+            − Zoom
+          </button>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1] - 0.001}
+            aria-label="Augmenter le zoom"
+            className={generatorSecondaryButton}
+          >
+            + Zoom
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoom("fit")}
+            aria-pressed={zoom === "fit"}
+            className={generatorToggleButton}
+          >
+            Ajuster à la largeur
+          </button>
+          <button type="button" onClick={() => setZoom(1)} aria-pressed={zoom === 1} className={generatorToggleButton}>
+            Taille réelle (100 %)
+          </button>
+        </div>
         <p role="status" className="font-mono text-sm text-[#2e2e2e] sm:ml-auto">
           {percent} % · {width} × {height} px
         </p>
