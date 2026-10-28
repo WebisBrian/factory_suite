@@ -1,9 +1,10 @@
 import screendraftMark from "@/components/hub/logos/screendraft-mark.svg";
 import codeforgeMark from "@/components/hub/logos/codeforge-mark.svg";
 import animflowMark from "@/components/hub/logos/animflow-mark.svg";
+import qualityMark from "@/components/hub/logos/quality-mark.svg";
 
 export interface HubTool {
-  slug: "screendraft" | "generator" | "animations";
+  slug: "screendraft" | "generator" | "animations" | "quality";
   /** Route de l'outil si elle diffère de `/${slug}` (CodeForge : app/codeforge/). */
   path?: string;
   label: string;
@@ -25,7 +26,7 @@ export interface HubTool {
   };
 }
 
-/** Les 3 outils, dans l'ordre du pipeline. */
+/** Les 4 étapes, dans l'ordre du pipeline. */
 export const HUB_TOOLS: readonly HubTool[] = [
   {
     slug: "screendraft",
@@ -65,6 +66,19 @@ export const HUB_TOOLS: readonly HubTool[] = [
       text: "text-fuchsia-300",
       hover: "hover:border-fuchsia-300 hover:shadow-fuchsia-500/20",
       glow: "bg-fuchsia-500/30",
+    },
+  },
+  {
+    slug: "quality",
+    label: "Qualité",
+    monogram: "Q",
+    logo: qualityMark.src,
+    description: "Contrôle qualité de la page",
+    theme: {
+      icon: "bg-[#2e2e2e] ring-2 ring-amber-300",
+      text: "text-amber-300",
+      hover: "hover:border-amber-300 hover:shadow-amber-500/20",
+      glow: "bg-amber-500/30",
     },
   },
 ];

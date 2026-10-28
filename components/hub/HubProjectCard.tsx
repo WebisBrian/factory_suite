@@ -196,7 +196,7 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
       )}
 
       <nav aria-label={`Ouvrir le projet ${project.name} dans un outil`}>
-        <ol className="grid gap-2 sm:grid-cols-3">
+        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {HUB_TOOLS.map((tool, index) => (
             <li key={tool.slug}>
               <Link

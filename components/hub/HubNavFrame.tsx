@@ -8,7 +8,8 @@ import type { ReactNode } from "react";
  * Les enfants adaptent leurs couleurs avec `group-data-light/nav:`.
  */
 export function HubNavFrame({ children }: { children: ReactNode }) {
-  const light = usePathname().startsWith("/codeforge");
+  const pathname = usePathname();
+  const light = ["/codeforge", "/quality"].some((p) => pathname.startsWith(p));
 
   return (
     <header
