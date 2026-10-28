@@ -18,7 +18,7 @@ const mono = Atkinson_Hyperlegible_Mono({
 
 export const metadata: Metadata = {
   title: "Hub - FactorySuite",
-  description: "Hub des outils ScreenDraft, AnimFlow et le contrôle qualité",
+  description: "Hub des outils ScreenDraft, AnimFlow, contrôle qualité et CodeForge",
 };
 
 /**

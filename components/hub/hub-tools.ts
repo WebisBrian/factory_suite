@@ -1,10 +1,11 @@
 import screendraftMark from "@/components/hub/logos/screendraft-mark.svg";
+import codeforgeMark from "@/components/hub/logos/codeforge-mark.svg";
 import animflowMark from "@/components/hub/logos/animflow-mark.svg";
 import qualityMark from "@/components/hub/logos/quality-mark.svg";
 
 export interface HubTool {
-  slug: "screendraft" | "animations" | "quality";
-  /** Route de l'outil si elle diffère de `/${slug}`. */
+  slug: "screendraft" | "generator" | "animations" | "quality";
+  /** Route de l'outil si elle diffère de `/${slug}` (CodeForge : app/codeforge/). */
   path?: string;
   label: string;
   /** Monogramme affiché dans l'icône de l'appli (style suite créative). */
@@ -25,14 +26,14 @@ export interface HubTool {
   };
 }
 
-/** Les 3 étapes, dans l'ordre du pipeline. */
+/** Les 4 étapes, dans l'ordre du pipeline. */
 export const HUB_TOOLS: readonly HubTool[] = [
   {
     slug: "screendraft",
     label: "ScreenDraft",
     monogram: "Sd",
     logo: screendraftMark.src,
-    description: "Maquette → pages HTML/CSS",
+    description: "Maquette → JSON",
     theme: {
       icon: "bg-[#2348FF] ring-2 ring-sky-300",
       text: "text-sky-300",
@@ -64,6 +65,20 @@ export const HUB_TOOLS: readonly HubTool[] = [
       text: "text-amber-300",
       hover: "hover:border-amber-300 hover:shadow-amber-500/20",
       glow: "bg-amber-500/30",
+    },
+  },
+  {
+    slug: "generator",
+    path: "/codeforge/generator",
+    label: "CodeForge",
+    monogram: "Cf",
+    logo: codeforgeMark.src,
+    description: "JSON → HTML/CSS",
+    theme: {
+      icon: "bg-[#0B7A53] ring-2 ring-emerald-300",
+      text: "text-emerald-300",
+      hover: "hover:border-emerald-300 hover:shadow-emerald-500/20",
+      glow: "bg-emerald-500/30",
     },
   },
 ];

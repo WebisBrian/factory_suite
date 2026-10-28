@@ -139,6 +139,59 @@ test("l'enregistrement conserve toutes les pages et page.html pour Animations", 
   assert.equal(projectFiles(generateSite(parse(oldFixture))).length, 2);
 });
 
+test("le bouton télécharge le site entier en démo et enregistre tous les écrans du projet", async () => {
+  let blob, filename, feedback, cleanup;
+  let fail = false;
+  const writes = [];
+  const link = { click() { filename = this.download; }, remove() {} };
+  const jsx = (type, props) => ({ type, props });
+  const { GeneratorOutput } = load("../_components/GeneratorOutput.tsx", {
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    react: { useMemo: (fn) => fn(), useState: (value) => [value, (next) => { feedback = next; }] },
+    "next/link": {},
+    "@/lib/project-fs": { writeProjectFile: async (...args) => { writes.push(args); } },
+    "@/app/codeforge/generator/_lib/generate-html": generator,
+    "@/app/codeforge/generator/_lib/export-site": exporter,
+    "@/app/codeforge/generator/_lib/generator-styles": load("generator-styles.ts"),
+    "@/app/codeforge/generator/_components/GeneratorPreview": {},
+  }, {
+    document: { createElement: () => link, body: { appendChild() {} } },
+    URL: { createObjectURL(value) { if (fail) throw Error("Échec simulé"); blob = value; return "blob:test"; }, revokeObjectURL() {} },
+    window: { setTimeout: (fn) => { cleanup = fn; } },
+  });
+  function find(node, predicate) {
+    if (Array.isArray(node)) return node.map((n) => find(n, predicate)).find(Boolean);
+    if (!node || typeof node !== "object") return;
+    // Toutes les props, pas seulement children : le choix d'écran est passé dans `leading`.
+    return predicate(node) ? node : find(Object.values(node.props ?? {}), predicate);
+  }
+  for (const projectId of [null, 7]) {
+    const tree = GeneratorOutput({ maquette: parse(fixture), projectId, sourceLabel: "Test" });
+    assert.equal(find(tree, (n) => n.type === "select").props.children.length, 4);
+    const download = find(tree, (n) => n.props?.["aria-describedby"] === "generator-download-description");
+    download.props.onClick();
+    assert.equal(filename, "site.zip");
+    assert.equal(blob.type, "application/zip");
+    assert.equal(feedback.ok, true);
+    cleanup();
+    if (projectId !== null) {
+      await find(tree, (n) => n.type === "button" && n.props.children === "Générer et enregistrer").props.onClick();
+      assert.equal(writes.length, 9);
+      assert.ok(writes.every(([id]) => id === 7));
+      assert.ok(writes.some(([, name]) => name === "merci.html"));
+    }
+  }
+  const legacy = GeneratorOutput({ maquette: parse(oldFixture), projectId: null, sourceLabel: "v1" });
+  const button = find(legacy, (n) => n.props?.["aria-describedby"] === "generator-download-description");
+  button.props.onClick();
+  assert.equal(filename, "page.html");
+  assert.ok((await blob.text()).includes("<style>"));
+  fail = true;
+  button.props.onClick();
+  assert.equal(feedback.ok, false);
+  assert.ok(feedback.message.startsWith("Erreur :"));
+});
+
 test("accessibilité : repère main, ordre de lecture visuel, empilement conservé et noms non vides", () => {
   const style = {};
   const maquette = parse({
