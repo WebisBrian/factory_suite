@@ -12,6 +12,7 @@ import {
 import { HubAlert, HubStatus } from "@/components/hub/HubAlert";
 import { HubAppIcon } from "@/components/hub/HubAppIcon";
 import { HubProjectHistory } from "@/components/hub/HubProjectHistory";
+import { onHubProjectsChanged } from "@/components/hub/hub-project-events";
 import {
   hubCard,
   hubDangerButton,
@@ -51,6 +52,9 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [projectId]);
+
+  // Action faite par l'assistant (ex. restauration d'une version) : on recharge.
+  useEffect(() => onHubProjectsChanged(() => void load()), [load]);
 
   useEffect(() => {
     let cancelled = false;

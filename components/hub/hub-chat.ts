@@ -12,6 +12,7 @@ import {
   pickDataFolder,
   renameProject,
   requestFolderAccess,
+  restoreFileVersion,
   type ProjectFsErrorCode,
   type ProjectInfo,
 } from "@/lib/project-fs";
@@ -103,6 +104,7 @@ const HELP_TEXT = [
   "• Avancement : « où en est le projet Boulangerie ? »",
   "• Fichiers : « fichiers du projet 2 »",
   "• Historique : « historique du projet 2 »",
+  "• Restaurer, après confirmation : « restaure la version précédente de la maquette »",
   "",
   "**Outils**",
   "• Ouvrir : « ouvre CodeForge pour le projet 2 »",
@@ -277,7 +279,7 @@ async function projectHistory(project: ProjectInfo): Promise<HubChatReply> {
   const more =
     versions.length > HISTORY_LIMIT
       ? `Et ${versions.length - HISTORY_LIMIT} version(s) plus ancienne(s) : voir l'onglet « **Historique** » de la carte du projet.`
-      : "Pour restaurer une version, ouvrez l'onglet « **Historique** » de la carte du projet.";
+      : "Pour revenir en arrière, dites « restaure la version précédente de … » ou ouvrez l'onglet « **Historique** » de la carte du projet.";
   return {
     text: [`Derniers enregistrements du projet ${describeProject(project)} :`, "", ...lines, "", more].join("\n"),
   };
@@ -306,6 +308,64 @@ async function confirmDelete(project: ProjectInfo, { guide, currentProject }: Hu
             ...(stopsGuide && { guide: null }),
             ...(currentProject?.id === project.id && { currentProject: null }),
           };
+        } catch (error) {
+          return errorReply(error);
+        }
+      },
+    },
+  };
+}
+
+/** Fichier visé par une restauration : nom cité (« page.html »), ou fichier de l'outil cité (« la maquette »). */
+function findFilename(text: string, filenames: readonly string[]): string | null {
+  const cited = filenames.find((name) => text.includes(normalize(name)));
+  if (cited) return cited;
+  const tool = findTool(text);
+  if (tool && filenames.includes(tool.outputFile)) return tool.outputFile;
+  return filenames.length === 1 ? filenames[0] : null;
+}
+
+/** Remet un fichier à sa version précédente (l'avant-dernier enregistrement), après confirmation. */
+async function confirmRestore(project: ProjectInfo, text: string): Promise<HubChatReply> {
+  const versions = await listProjectHistory(project.id);
+  // Fichiers qui ont au moins une version antérieure à la version actuelle.
+  const restorable = [...new Set(versions.map((v) => v.filename))].filter(
+    (name) => versions.filter((v) => v.filename === name).length > 1,
+  );
+  if (restorable.length === 0) {
+    return { text: `Le projet ${describeProject(project)} n'a **aucune version précédente** à restaurer.` };
+  }
+  const filename = findFilename(text, restorable);
+  if (!filename) {
+    return {
+      text: [
+        "**Quel fichier** voulez-vous restaurer ?",
+        "",
+        ...restorable.map((name) => `• ${name}`),
+        "",
+        `Par exemple : « restaure ${restorable[0]} ».`,
+      ].join("\n"),
+    };
+  }
+  // Versions triées de la plus récente à la plus ancienne : [0] est le contenu actuel.
+  const previous = versions.filter((v) => v.filename === filename)[1];
+  const when = dateFormat.format(previous.savedAt);
+  return {
+    text: [
+      `Remettre **${filename}** du projet ${describeProject(project)} à sa **version du ${when}** ?`,
+      "",
+      "La version actuelle reste dans l'historique : vous pourrez y revenir.",
+      "",
+      "Répondez « oui » ou « non », ou utilisez les boutons ci-dessous.",
+    ].join("\n"),
+    confirmation: {
+      label: `Restaurer « ${filename} »`,
+      cancelText: `Restauration **annulée** : ${filename} n'a pas changé.`,
+      run: async () => {
+        try {
+          await restoreFileVersion(project.id, filename, previous.versionId);
+          notifyHubProjectsChanged();
+          return { text: `**${filename}** du projet ${describeProject(project)} est **restauré** (version du ${when}).` };
         } catch (error) {
           return errorReply(error);
         }
@@ -508,6 +568,14 @@ export async function respondToHubChat(request: string, context: HubChatContext)
       const ref = findProject(text, projects, fallback);
       if (ref.kind !== "found") return askWhichProject(ref, projects, "supprime le projet 2");
       return await confirmDelete(ref.project, context);
+    }
+
+    // Avant l'historique et les outils : « restaure la version précédente de la maquette ».
+    if (/\b(restaure\w*|retabli\w*|reviens|revenir|remets|remettre)\b|\b(version precedente|ancienne version)\b/.test(text)) {
+      const ref = findProject(text, projects, fallback);
+      if (ref.kind === "none" && projects.length === 1) return about(projects[0], await confirmRestore(projects[0], text));
+      if (ref.kind !== "found") return askWhichProject(ref, projects, "restaure la maquette du projet 2");
+      return about(ref.project, await confirmRestore(ref.project, text));
     }
 
     if (detail) {

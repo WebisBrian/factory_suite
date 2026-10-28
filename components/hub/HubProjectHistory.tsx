@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { listProjectHistory, readFileVersion, restoreFileVersion, type FileVersion } from "@/lib/project-fs";
 import { HubAlert, HubStatus } from "@/components/hub/HubAlert";
+import { onHubProjectsChanged } from "@/components/hub/hub-project-events";
 import { hubComparableText, hubDiffLines, type HubDiffLine } from "@/components/hub/hub-diff";
 import { hubInput, hubSectionLabel, hubSmallButton } from "@/components/hub/hub-styles";
 
@@ -234,6 +235,9 @@ export function HubProjectHistory({ projectId, onRestored }: { projectId: number
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [projectId]);
+
+  // Action faite par l'assistant (ex. restauration d'une version) : on recharge.
+  useEffect(() => onHubProjectsChanged(() => void load()), [load]);
 
   useEffect(() => {
     let cancelled = false;
