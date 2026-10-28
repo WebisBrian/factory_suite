@@ -1,8 +1,16 @@
+import screendraftMark from "@/components/hub/logos/screendraft-mark.svg";
+import codeforgeMark from "@/components/hub/logos/codeforge-mark.svg";
+import animflowMark from "@/components/hub/logos/animflow-mark.svg";
+
 export interface HubTool {
   slug: "screendraft" | "generator" | "animations";
+  /** Route de l'outil si elle diffère de `/${slug}` (CodeForge : app/codeforge/). */
+  path?: string;
   label: string;
   /** Monogramme affiché dans l'icône de l'appli (style suite créative). */
   monogram: string;
+  /** Logo de l'outil (SVG dans components/hub/logos/), affiché à la place du monogramme. */
+  logo?: string;
   description: string;
   /** Classes Tailwind complètes (pas de concaténation, sinon Tailwind ne les génère pas). */
   theme: {
@@ -21,37 +29,41 @@ export interface HubTool {
 export const HUB_TOOLS: readonly HubTool[] = [
   {
     slug: "screendraft",
-    label: "Screendraft",
+    label: "ScreenDraft",
     monogram: "Sd",
+    logo: screendraftMark.src,
     description: "Maquette → JSON",
     theme: {
-      icon: "bg-[#001e36] ring-1 ring-sky-400/40",
+      icon: "bg-[#2348FF] ring-2 ring-sky-300",
       text: "text-sky-300",
-      hover: "hover:border-sky-400/60 hover:shadow-sky-500/20",
+      hover: "hover:border-sky-300 hover:shadow-sky-500/20",
       glow: "bg-sky-500/30",
     },
   },
   {
     slug: "generator",
-    label: "Générateur",
-    monogram: "Gn",
+    path: "/codeforge/generator",
+    label: "CodeForge",
+    monogram: "Cf",
+    logo: codeforgeMark.src,
     description: "JSON → HTML/CSS",
     theme: {
-      icon: "bg-[#062b1f] ring-1 ring-emerald-400/40",
+      icon: "bg-[#0B7A53] ring-2 ring-emerald-300",
       text: "text-emerald-300",
-      hover: "hover:border-emerald-400/60 hover:shadow-emerald-500/20",
+      hover: "hover:border-emerald-300 hover:shadow-emerald-500/20",
       glow: "bg-emerald-500/30",
     },
   },
   {
     slug: "animations",
-    label: "Animations",
-    monogram: "An",
+    label: "AnimFlow",
+    monogram: "Af",
+    logo: animflowMark.src,
     description: "HTML/CSS → animations",
     theme: {
-      icon: "bg-[#2a0a3d] ring-1 ring-fuchsia-400/40",
+      icon: "bg-[#A3168F] ring-2 ring-fuchsia-300",
       text: "text-fuchsia-300",
-      hover: "hover:border-fuchsia-400/60 hover:shadow-fuchsia-500/20",
+      hover: "hover:border-fuchsia-300 hover:shadow-fuchsia-500/20",
       glow: "bg-fuchsia-500/30",
     },
   },
@@ -59,5 +71,6 @@ export const HUB_TOOLS: readonly HubTool[] = [
 
 /** Lien vers un outil. Sans projectId : mode démo (fixtures). */
 export function hubToolHref(tool: HubTool, projectId: number | null): string {
-  return projectId === null ? `/${tool.slug}` : `/${tool.slug}?project_id=${projectId}`;
+  const path = tool.path ?? `/${tool.slug}`;
+  return projectId === null ? path : `${path}?project_id=${projectId}`;
 }

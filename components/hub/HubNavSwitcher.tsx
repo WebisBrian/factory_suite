@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useProjectId } from "@/lib/project-fs";
+import { useEffect, useState } from "react";
+import { getProjectName, useProjectId } from "@/lib/project-fs";
 import { HubAppIcon } from "@/components/hub/HubAppIcon";
 import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 
@@ -10,30 +11,56 @@ import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 export function HubNavSwitcher() {
   const pathname = usePathname();
   const projectId = useProjectId();
+  const [projectName, setProjectName] = useState<{ id: number; name: string } | null>(null);
+
+  useEffect(() => {
+    if (projectId === null) return;
+    let cancelled = false;
+    // Sans dossier autorisé, on garde simplement l'affichage "Projet #N".
+    getProjectName(projectId).then(
+      (name) => !cancelled && setProjectName({ id: projectId, name }),
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const name = projectName?.id === projectId ? projectName.name : null;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       {projectId !== null && (
-        <span className="mr-2 hidden rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 sm:inline">
-          Projet #{projectId}
-        </span>
+        <p className="mr-2 max-w-full rounded-full border border-zinc-500 px-3 break-words py-1 text-sm text-zinc-200 group-data-light/nav:text-[#2e2e2e]">
+          <span className="sr-only">Projet ouvert : </span>
+          {name ?? "Projet"} <span className="font-mono text-zinc-300 group-data-light/nav:text-[#454545]">n° {projectId}</span>
+        </p>
       )}
-      {HUB_TOOLS.map((tool) => {
-        const active = pathname.startsWith(`/${tool.slug}`);
-        return (
-          <Link
-            key={tool.slug}
-            href={hubToolHref(tool, projectId)}
-            title={`${tool.label} — ${tool.description}`}
-            className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-              active ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            <HubAppIcon tool={tool} size="sm" />
-            <span className="hidden md:inline">{tool.label}</span>
-          </Link>
-        );
-      })}
+      <ul className="flex flex-wrap items-center gap-1">
+        {HUB_TOOLS.map((tool) => {
+          const active = pathname.startsWith(tool.path ?? `/${tool.slug}`);
+          const description = `${tool.label} : ${tool.description}${projectId !== null ? `, projet ${name ?? projectId}` : ", mode démo"}`;
+          return (
+            <li key={tool.slug}>
+              <Link
+                href={hubToolHref(tool, projectId)}
+                aria-label={description}
+                aria-current={active ? "page" : undefined}
+                title={description}
+                // Outil actif : fond + soulignement (repère qui ne dépend pas de la couleur).
+                className={`flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-1.5 text-base transition-colors ${
+                  active
+                    ? "bg-white/15 font-bold text-white underline decoration-2 underline-offset-4 group-data-light/nav:bg-black/10 group-data-light/nav:text-[#2e2e2e]"
+                    : "text-zinc-200 hover:bg-white/10 hover:text-white group-data-light/nav:text-[#454545] group-data-light/nav:hover:bg-black/5 group-data-light/nav:hover:text-[#2e2e2e]"
+                }`}
+              >
+                <HubAppIcon tool={tool} size="sm" />
+                <span>{tool.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

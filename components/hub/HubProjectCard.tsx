@@ -1,9 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useState } from "react";
-import { listProjectFiles, type ProjectFileInfo } from "@/lib/project-fs";
+import { useCallback, useEffect, useId, useState } from "react";
+import {
+  deleteProject,
+  listProjectFiles,
+  renameProject,
+  type ProjectFileInfo,
+  type ProjectInfo,
+} from "@/lib/project-fs";
+import { HubAlert, HubStatus } from "@/components/hub/HubAlert";
 import { HubAppIcon } from "@/components/hub/HubAppIcon";
+import { HubProjectCommunication } from "@/components/hub/HubProjectCommunication";
+import { HubProjectHistory } from "@/components/hub/HubProjectHistory";
+import {
+  hubCard,
+  hubDangerButton,
+  hubInput,
+  hubSectionLabel,
+  hubSmallButton,
+} from "@/components/hub/hub-styles";
 import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 
 function formatSize(bytes: number): string {
@@ -12,11 +28,23 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
 }
 
-const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" });
+const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" });
 
-export function HubProjectCard({ projectId }: { projectId: number }) {
+type Panel = "files" | "history" | "communication";
+
+const PANEL_LABELS: Record<Panel, string> = { files: "Fichiers", history: "Historique", communication: "Communication" };
+
+export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; onChanged: () => Promise<void> }) {
+  const projectId = project.id;
   const [files, setFiles] = useState<ProjectFileInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [panel, setPanel] = useState<Panel>("files");
+  const titleId = useId();
+  const renameId = useId();
+  const deleteTextId = useId();
 
   const load = useCallback(async () => {
     try {
@@ -38,74 +66,203 @@ export function HubProjectCard({ projectId }: { projectId: number }) {
     };
   }, [projectId]);
 
-  return (
-    <article className="group relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-white/10 bg-white/3 p-5 transition-colors hover:border-white/20">
-      <div className="pointer-events-none absolute -top-16 -right-16 size-40 rounded-full bg-linear-to-br from-orange-500/20 via-pink-500/15 to-violet-600/20 blur-3xl" />
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await action();
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
-      <header className="relative flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-white/5 font-mono text-sm text-zinc-300 ring-1 ring-white/10">
-            #{projectId}
+  function handleRename(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (draftName === null) return;
+    run(async () => {
+      await renameProject(projectId, draftName);
+      setDraftName(null);
+      await onChanged();
+    });
+  }
+
+  function handleDelete() {
+    run(async () => {
+      await deleteProject(projectId);
+      await onChanged();
+    });
+  }
+
+  const fileCount = files === null ? null : `${files.length} fichier${files.length > 1 ? "s" : ""}`;
+
+  return (
+    <li
+      aria-labelledby={titleId}
+      className={`relative flex flex-col gap-5 p-5 ${hubCard} ${panel !== "files" ? "lg:col-span-2" : ""}`}
+    >
+      <header className="flex flex-col gap-3">
+        <div className="flex items-start gap-3">
+          <span
+            title="Numéro du projet (utilisé dans les adresses et le nom du dossier)"
+            className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-500 px-2 font-mono text-base text-zinc-100"
+          >
+            <span className="sr-only">Projet numéro </span>
+            {projectId}
           </span>
-          <div>
-            <h2 className="font-semibold text-white">Projet {projectId}</h2>
-            <p className="text-xs text-zinc-500">
-              {files === null ? "…" : `${files.length} fichier${files.length > 1 ? "s" : ""}`}
-            </p>
-          </div>
+          {draftName === null ? (
+            <div className="min-w-0">
+              <h3 id={titleId} className="text-xl font-bold break-words text-white">
+                {project.name}
+              </h3>
+              <p className="text-sm text-zinc-300">{fileCount ?? "…"}</p>
+            </div>
+          ) : (
+            <form onSubmit={handleRename} className="flex min-w-0 flex-1 flex-col gap-2">
+              <label htmlFor={renameId} id={titleId} className="text-base font-semibold text-zinc-100">
+                Nouveau nom du projet {projectId}
+              </label>
+              <input
+                id={renameId}
+                type="text"
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onKeyDown={(event) => event.key === "Escape" && setDraftName(null)}
+                maxLength={80}
+                autoFocus
+                autoComplete="off"
+                className={hubInput}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" disabled={busy} className={hubSmallButton}>
+                  Enregistrer le nom
+                </button>
+                <button type="button" onClick={() => setDraftName(null)} className={hubSmallButton}>
+                  Annuler
+                </button>
+              </div>
+            </form>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="rounded-lg px-2.5 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          Rafraîchir
-        </button>
+
+        {draftName === null && !confirmingDelete && (
+          <div role="group" aria-label={`Actions sur le projet ${project.name}`} className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setDraftName(project.name)}
+              aria-label={`Renommer le projet ${project.name}`}
+              className={hubSmallButton}
+            >
+              Renommer
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              aria-label={`Rafraîchir la liste des fichiers du projet ${project.name}`}
+              className={hubSmallButton}
+            >
+              Rafraîchir
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              aria-label={`Supprimer le projet ${project.name}`}
+              className={`${hubSmallButton} hover:border-red-300 hover:bg-red-950`}
+            >
+              Supprimer…
+            </button>
+          </div>
+        )}
       </header>
 
-      <div className="relative flex items-stretch gap-1.5">
-        {HUB_TOOLS.map((tool, index) => (
-          <Fragment key={tool.slug}>
-            {index > 0 && (
-              <span aria-hidden className="self-center text-zinc-600">
-                →
-              </span>
-            )}
-            <Link
-              href={hubToolHref(tool, projectId)}
-              className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/10 bg-white/3 p-2.5 shadow-lg shadow-transparent transition-all hover:-translate-y-0.5 ${tool.theme.hover}`}
-            >
-              <HubAppIcon tool={tool} />
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium text-white">{tool.label}</span>
-                <span className="truncate text-[11px] text-zinc-500">{tool.description}</span>
-              </span>
-            </Link>
-          </Fragment>
-        ))}
-      </div>
+      {confirmingDelete && (
+        <div
+          role="group"
+          aria-labelledby={deleteTextId}
+          className="flex flex-col gap-3 rounded-xl border-2 border-red-400 bg-red-950/60 p-4 text-base text-red-50"
+        >
+          <p id={deleteTextId}>
+            <strong>Attention :</strong> supprimer « {project.name} » et ses {files?.length ?? 0} fichier(s) du
+            disque ? Cette action est définitive.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {/* Focus sur « Annuler » : le choix sans risque est celui par défaut. */}
+            <button type="button" onClick={() => setConfirmingDelete(false)} autoFocus className={hubSmallButton}>
+              Annuler
+            </button>
+            <button type="button" onClick={handleDelete} disabled={busy} className={hubDangerButton}>
+              {busy ? "Suppression…" : "Supprimer définitivement"}
+            </button>
+          </div>
+        </div>
+      )}
 
-      <section className="relative">
-        <h3 className="mb-2 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">Fichiers</h3>
-        {error ? (
-          <p className="text-sm text-red-400">{error}</p>
+      <nav aria-label={`Ouvrir le projet ${project.name} dans un outil`}>
+        {/* Colonnes d'au moins 13rem : les noms d'outils ne sont jamais coupés en plein mot, même à 200 %. */}
+        <ol className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2">
+          {HUB_TOOLS.map((tool, index) => (
+            <li key={tool.slug}>
+              <Link
+                href={hubToolHref(tool, projectId)}
+                aria-label={`Étape ${index + 1} : ouvrir ${tool.label} (${tool.description}) pour le projet ${project.name}`}
+                className={`flex h-full items-center gap-3 rounded-xl border border-zinc-500 p-3 transition-all motion-safe:hover:-translate-y-0.5 ${tool.theme.hover}`}
+              >
+                <HubAppIcon tool={tool} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-base font-bold break-words text-white">
+                    {index + 1}. {tool.label}
+                  </span>
+                  <span className="text-sm break-words text-zinc-300">{tool.description}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      <section aria-label={`${PANEL_LABELS[panel]} du projet ${project.name}`}>
+        <div role="group" aria-label="Affichage" className="mb-3 flex flex-wrap gap-2">
+          {(["files", "history", "communication"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setPanel(tab)}
+              aria-pressed={panel === tab}
+              // Onglet actif : souligné épais + gras + fond (pas seulement une couleur).
+              className={`min-h-10 rounded-lg px-3 ${hubSectionLabel} ${
+                panel === tab
+                  ? "bg-white/15 text-white underline decoration-4 underline-offset-8"
+                  : "text-zinc-300 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {PANEL_LABELS[tab]}
+            </button>
+          ))}
+        </div>
+        {panel === "history" ? (
+          <HubProjectHistory projectId={projectId} onRestored={load} />
+        ) : panel === "communication" ? (
+          <HubProjectCommunication projectId={projectId} projectName={project.name} onSaved={load} />
+        ) : error ? (
+          <HubAlert>{error}</HubAlert>
         ) : files === null ? (
-          <p className="text-sm text-zinc-500">Chargement…</p>
+          <HubStatus>Chargement des fichiers…</HubStatus>
         ) : files.length === 0 ? (
-          <p className="text-sm text-zinc-500">Aucun fichier pour l&apos;instant.</p>
+          <p className="text-base text-zinc-300">Aucun fichier pour l&apos;instant.</p>
         ) : (
-          <ul className="divide-y divide-white/5 rounded-xl border border-white/5 bg-black/20 text-sm">
+          <ul className="divide-y divide-zinc-700 rounded-xl border border-zinc-700 text-base">
             {files.map((file) => (
-              <li key={file.name} className="flex items-center justify-between gap-4 px-3 py-2">
-                <span className="truncate font-mono text-zinc-200">{file.name}</span>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  {formatSize(file.size)} · {dateFormat.format(file.lastModified)}
+              <li key={file.name} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
+                <span className="font-mono break-all text-zinc-100">{file.name}</span>
+                <span className="text-sm text-zinc-300">
+                  {formatSize(file.size)}, modifié le {dateFormat.format(file.lastModified)}
                 </span>
               </li>
             ))}
           </ul>
         )}
       </section>
-    </article>
+    </li>
   );
 }

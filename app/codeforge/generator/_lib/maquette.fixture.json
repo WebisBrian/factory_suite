@@ -1,0 +1,1465 @@
+{
+  "schemaVersion": 2,
+  "id": "maquette_1",
+  "name": "Atelier Pixel — site vitrine",
+  "screens": [
+    {
+      "id": "screen_accueil",
+      "name": "Accueil",
+      "path": "index.html",
+      "frame": {
+        "device": "desktop",
+        "width": 1440,
+        "height": 1640,
+        "backgroundColor": "#ffffff"
+      },
+      "nodes": [
+        {
+          "id": "accueil_header",
+          "type": "section",
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 88,
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderWidth": 1,
+            "borderColor": "#cbd5e1"
+          },
+          "children": [
+            {
+              "id": "accueil_logo",
+              "type": "image",
+              "x": 40,
+              "y": 20,
+              "width": 48,
+              "height": 48,
+              "style": {
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjAiIGZpbGw9IiM0ZjQ2ZTUiLz48cmVjdCB4PSIyMiIgeT0iMjIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNmZmZmZmYiLz48cmVjdCB4PSI1MiIgeT0iMjIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNjN2QyZmUiLz48cmVjdCB4PSIyMiIgeT0iNTIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNjN2QyZmUiLz48cmVjdCB4PSI1MiIgeT0iNTIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=",
+                "alt": "Logo Atelier Pixel",
+                "fit": "contain"
+              }
+            },
+            {
+              "id": "accueil_brand",
+              "type": "title",
+              "x": 104,
+              "y": 28,
+              "width": 260,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 24,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Atelier Pixel",
+                "level": 2
+              }
+            },
+            {
+              "id": "accueil_nav_services",
+              "type": "button",
+              "x": 1136,
+              "y": 22,
+              "width": 120,
+              "height": 44,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "color": "#0f172a",
+                "fontSize": 16,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 10
+              },
+              "props": {
+                "label": "Services",
+                "href": "services.html",
+                "targetScreenId": "screen_services"
+              }
+            },
+            {
+              "id": "accueil_nav_contact",
+              "type": "button",
+              "x": 1272,
+              "y": 22,
+              "width": 128,
+              "height": 44,
+              "style": {
+                "backgroundColor": "#4f46e5",
+                "color": "#ffffff",
+                "fontSize": 16,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 22
+              },
+              "props": {
+                "label": "Contact",
+                "href": "contact.html",
+                "targetScreenId": "screen_contact"
+              }
+            }
+          ]
+        },
+        {
+          "id": "accueil_hero",
+          "type": "section",
+          "x": 0,
+          "y": 88,
+          "width": 1440,
+          "height": 560,
+          "style": {
+            "backgroundColor": "#0f172a"
+          },
+          "children": [
+            {
+              "id": "accueil_hero_title",
+              "type": "title",
+              "x": 120,
+              "y": 120,
+              "width": 620,
+              "height": 132,
+              "style": {
+                "color": "#ffffff",
+                "fontSize": 52,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Des sites clairs, pensés pour vos visiteurs",
+                "level": 1
+              }
+            },
+            {
+              "id": "accueil_hero_text",
+              "type": "text",
+              "x": 120,
+              "y": 276,
+              "width": 560,
+              "height": 84,
+              "style": {
+                "color": "#e2e8f0",
+                "fontSize": 20,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Nous concevons des maquettes, des prototypes et des sites accessibles, de la première idée à la mise en ligne."
+              }
+            },
+            {
+              "id": "accueil_hero_cta",
+              "type": "button",
+              "x": 120,
+              "y": 392,
+              "width": 220,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#4f46e5",
+                "color": "#ffffff",
+                "fontSize": 18,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 12
+              },
+              "props": {
+                "label": "Demander un devis",
+                "href": "contact.html",
+                "targetScreenId": "screen_contact"
+              }
+            },
+            {
+              "id": "accueil_hero_services",
+              "type": "button",
+              "x": 360,
+              "y": 392,
+              "width": 200,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#0f172a",
+                "color": "#e2e8f0",
+                "borderWidth": 1,
+                "borderColor": "#e2e8f0",
+                "fontSize": 18,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 12
+              },
+              "props": {
+                "label": "Voir nos services",
+                "href": "services.html",
+                "targetScreenId": "screen_services"
+              }
+            },
+            {
+              "id": "accueil_hero_image",
+              "type": "image",
+              "x": 820,
+              "y": 72,
+              "width": 500,
+              "height": 416,
+              "style": {
+                "borderRadius": 16
+              },
+              "props": {
+                "src": "https://placehold.co/1000x832/e0e7ff/312e81?text=Atelier+Pixel",
+                "alt": "Bureau de l'atelier, maquettes affichées sur un grand écran",
+                "fit": "cover"
+              }
+            }
+          ]
+        },
+        {
+          "id": "accueil_atouts",
+          "type": "section",
+          "x": 0,
+          "y": 648,
+          "width": 1440,
+          "height": 520,
+          "style": {
+            "backgroundColor": "#f1f5f9"
+          },
+          "children": [
+            {
+              "id": "accueil_atouts_title",
+              "type": "title",
+              "x": 120,
+              "y": 64,
+              "width": 1200,
+              "height": 48,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 36,
+                "fontWeight": 700,
+                "textAlign": "center"
+              },
+              "props": {
+                "text": "Pourquoi travailler avec nous",
+                "level": 2
+              }
+            },
+            {
+              "id": "accueil_atouts_intro",
+              "type": "text",
+              "x": 320,
+              "y": 124,
+              "width": 800,
+              "height": 52,
+              "style": {
+                "color": "#475569",
+                "fontSize": 18,
+                "fontWeight": 400,
+                "textAlign": "center"
+              },
+              "props": {
+                "text": "Trois engagements, du premier échange à la livraison des fichiers."
+              }
+            },
+            {
+              "id": "accueil_carte_0",
+              "type": "section",
+              "x": 120,
+              "y": 208,
+              "width": 368,
+              "height": 248,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderRadius": 16,
+                "borderWidth": 1,
+                "borderColor": "#94a3b8"
+              },
+              "children": [
+                {
+                  "id": "accueil_carte_0_icone",
+                  "type": "shape",
+                  "x": 32,
+                  "y": 32,
+                  "width": 56,
+                  "height": 56,
+                  "style": {
+                    "backgroundColor": "#4f46e5",
+                    "borderWidth": 0
+                  },
+                  "props": {
+                    "shape": "circle"
+                  }
+                },
+                {
+                  "id": "accueil_carte_0_titre",
+                  "type": "title",
+                  "x": 32,
+                  "y": 112,
+                  "width": 304,
+                  "height": 32,
+                  "style": {
+                    "color": "#0f172a",
+                    "fontSize": 22,
+                    "fontWeight": 700,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Accessible",
+                    "level": 3
+                  }
+                },
+                {
+                  "id": "accueil_carte_0_texte",
+                  "type": "text",
+                  "x": 32,
+                  "y": 152,
+                  "width": 304,
+                  "height": 72,
+                  "style": {
+                    "color": "#334155",
+                    "fontSize": 16,
+                    "fontWeight": 400,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Contrastes vérifiés, navigation au clavier et textes alternatifs."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "accueil_carte_1",
+              "type": "section",
+              "x": 536,
+              "y": 208,
+              "width": 368,
+              "height": 248,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderRadius": 16,
+                "borderWidth": 1,
+                "borderColor": "#94a3b8"
+              },
+              "children": [
+                {
+                  "id": "accueil_carte_1_icone",
+                  "type": "shape",
+                  "x": 32,
+                  "y": 32,
+                  "width": 56,
+                  "height": 56,
+                  "style": {
+                    "backgroundColor": "#0369a1",
+                    "borderWidth": 0,
+                    "borderRadius": 12
+                  },
+                  "props": {
+                    "shape": "rectangle"
+                  }
+                },
+                {
+                  "id": "accueil_carte_1_titre",
+                  "type": "title",
+                  "x": 32,
+                  "y": 112,
+                  "width": 304,
+                  "height": 32,
+                  "style": {
+                    "color": "#0f172a",
+                    "fontSize": 22,
+                    "fontWeight": 700,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Sur mesure",
+                    "level": 3
+                  }
+                },
+                {
+                  "id": "accueil_carte_1_texte",
+                  "type": "text",
+                  "x": 32,
+                  "y": 152,
+                  "width": 304,
+                  "height": 72,
+                  "style": {
+                    "color": "#334155",
+                    "fontSize": 16,
+                    "fontWeight": 400,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Chaque écran est dessiné pour votre contenu, pas l'inverse."
+                  }
+                }
+              ]
+            },
+            {
+              "id": "accueil_carte_2",
+              "type": "section",
+              "x": 952,
+              "y": 208,
+              "width": 368,
+              "height": 248,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderRadius": 16,
+                "borderWidth": 1,
+                "borderColor": "#94a3b8"
+              },
+              "children": [
+                {
+                  "id": "accueil_carte_2_icone",
+                  "type": "shape",
+                  "x": 32,
+                  "y": 32,
+                  "width": 56,
+                  "height": 56,
+                  "style": {
+                    "backgroundColor": "#b45309",
+                    "borderWidth": 0
+                  },
+                  "props": {
+                    "shape": "triangle"
+                  }
+                },
+                {
+                  "id": "accueil_carte_2_titre",
+                  "type": "title",
+                  "x": 32,
+                  "y": 112,
+                  "width": 304,
+                  "height": 32,
+                  "style": {
+                    "color": "#0f172a",
+                    "fontSize": 22,
+                    "fontWeight": 700,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Rapide",
+                    "level": 3
+                  }
+                },
+                {
+                  "id": "accueil_carte_2_texte",
+                  "type": "text",
+                  "x": 32,
+                  "y": 152,
+                  "width": 304,
+                  "height": 72,
+                  "style": {
+                    "color": "#334155",
+                    "fontSize": 16,
+                    "fontWeight": 400,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Une maquette cliquable en quelques jours pour valider le parcours."
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "accueil_video",
+          "type": "section",
+          "x": 0,
+          "y": 1168,
+          "width": 1440,
+          "height": 352,
+          "style": {
+            "backgroundColor": "#ffffff"
+          },
+          "children": [
+            {
+              "id": "accueil_video_title",
+              "type": "title",
+              "x": 120,
+              "y": 64,
+              "width": 480,
+              "height": 96,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 36,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "L'atelier en deux minutes",
+                "level": 2
+              }
+            },
+            {
+              "id": "accueil_video_text",
+              "type": "text",
+              "x": 120,
+              "y": 176,
+              "width": 480,
+              "height": 80,
+              "style": {
+                "color": "#334155",
+                "fontSize": 18,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Découvrez notre façon de travailler, de l'atelier de lancement au prototype testé avec vos utilisateurs."
+              }
+            },
+            {
+              "id": "accueil_video_player",
+              "type": "video",
+              "x": 760,
+              "y": 40,
+              "width": 480,
+              "height": 270,
+              "style": {
+                "backgroundColor": "#0f172a",
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ",
+                "kind": "embed",
+                "title": "Présentation de l'atelier en vidéo"
+              }
+            }
+          ]
+        },
+        {
+          "id": "accueil_footer",
+          "type": "section",
+          "x": 0,
+          "y": 1520,
+          "width": 1440,
+          "height": 120,
+          "style": {
+            "backgroundColor": "#0f172a"
+          },
+          "children": [
+            {
+              "id": "accueil_footer_text",
+              "type": "text",
+              "x": 120,
+              "y": 46,
+              "width": 700,
+              "height": 28,
+              "style": {
+                "color": "#e2e8f0",
+                "fontSize": 15,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "© 2026 Atelier Pixel — Maquette de démonstration FactorySuite"
+              }
+            },
+            {
+              "id": "accueil_footer_lien",
+              "type": "button",
+              "x": 1120,
+              "y": 34,
+              "width": 200,
+              "height": 52,
+              "style": {
+                "backgroundColor": "#0f172a",
+                "color": "#e2e8f0",
+                "borderWidth": 1,
+                "borderColor": "#e2e8f0",
+                "fontSize": 16,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 10
+              },
+              "props": {
+                "label": "Notre portfolio",
+                "href": "https://example.com/portfolio"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "screen_services",
+      "name": "Services",
+      "path": "services.html",
+      "frame": {
+        "device": "desktop",
+        "width": 1440,
+        "height": 1220,
+        "backgroundColor": "#ffffff"
+      },
+      "nodes": [
+        {
+          "id": "services_header",
+          "type": "section",
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 88,
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderWidth": 1,
+            "borderColor": "#cbd5e1"
+          },
+          "children": [
+            {
+              "id": "services_logo",
+              "type": "image",
+              "x": 40,
+              "y": 20,
+              "width": 48,
+              "height": 48,
+              "style": {
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjAiIGZpbGw9IiM0ZjQ2ZTUiLz48cmVjdCB4PSIyMiIgeT0iMjIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNmZmZmZmYiLz48cmVjdCB4PSI1MiIgeT0iMjIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNjN2QyZmUiLz48cmVjdCB4PSIyMiIgeT0iNTIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNjN2QyZmUiLz48cmVjdCB4PSI1MiIgeT0iNTIiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgcng9IjQiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=",
+                "alt": "Logo Atelier Pixel",
+                "fit": "contain"
+              }
+            },
+            {
+              "id": "services_brand",
+              "type": "title",
+              "x": 104,
+              "y": 28,
+              "width": 260,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 24,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Atelier Pixel",
+                "level": 2
+              }
+            },
+            {
+              "id": "services_nav_accueil",
+              "type": "button",
+              "x": 1000,
+              "y": 22,
+              "width": 120,
+              "height": 44,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "color": "#0f172a",
+                "fontSize": 16,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 10
+              },
+              "props": {
+                "label": "Accueil",
+                "href": "index.html",
+                "targetScreenId": "screen_accueil"
+              }
+            },
+            {
+              "id": "services_nav_contact",
+              "type": "button",
+              "x": 1272,
+              "y": 22,
+              "width": 128,
+              "height": 44,
+              "style": {
+                "backgroundColor": "#4f46e5",
+                "color": "#ffffff",
+                "fontSize": 16,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 22
+              },
+              "props": {
+                "label": "Contact",
+                "href": "contact.html",
+                "targetScreenId": "screen_contact"
+              }
+            }
+          ]
+        },
+        {
+          "id": "services_title",
+          "type": "title",
+          "x": 120,
+          "y": 152,
+          "width": 1200,
+          "height": 64,
+          "style": {
+            "color": "#0f172a",
+            "fontSize": 48,
+            "fontWeight": 700,
+            "textAlign": "left"
+          },
+          "props": {
+            "text": "Nos services",
+            "level": 1
+          }
+        },
+        {
+          "id": "services_intro",
+          "type": "text",
+          "x": 120,
+          "y": 228,
+          "width": 760,
+          "height": 60,
+          "style": {
+            "color": "#334155",
+            "fontSize": 20,
+            "fontWeight": 400,
+            "textAlign": "left"
+          },
+          "props": {
+            "text": "Choisissez une étape ou confiez-nous tout le parcours, de la maquette au site en ligne."
+          }
+        },
+        {
+          "id": "services_offre_0",
+          "type": "section",
+          "x": 120,
+          "y": 328,
+          "width": 368,
+          "height": 400,
+          "style": {
+            "backgroundColor": "#f1f5f9",
+            "borderRadius": 16,
+            "borderWidth": 0,
+            "borderColor": "#4f46e5"
+          },
+          "children": [
+            {
+              "id": "services_offre_0_image",
+              "type": "image",
+              "x": 24,
+              "y": 24,
+              "width": 320,
+              "height": 160,
+              "style": {
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "https://placehold.co/640x320/e0e7ff/312e81?text=Maquette",
+                "alt": "Illustration d'une maquette d'écran",
+                "fit": "contain"
+              }
+            },
+            {
+              "id": "services_offre_0_titre",
+              "type": "title",
+              "x": 24,
+              "y": 208,
+              "width": 320,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 24,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Maquette",
+                "level": 3
+              }
+            },
+            {
+              "id": "services_offre_0_texte",
+              "type": "text",
+              "x": 24,
+              "y": 248,
+              "width": 320,
+              "height": 72,
+              "style": {
+                "color": "#334155",
+                "fontSize": 16,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Les écrans clés de votre site, dessinés et commentés."
+              }
+            },
+            {
+              "id": "services_offre_0_prix",
+              "type": "text",
+              "x": 24,
+              "y": 336,
+              "width": 320,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 20,
+                "fontWeight": 700,
+                "textAlign": "right"
+              },
+              "props": {
+                "text": "à partir de 900 €"
+              }
+            }
+          ]
+        },
+        {
+          "id": "services_offre_1",
+          "type": "section",
+          "x": 536,
+          "y": 328,
+          "width": 368,
+          "height": 400,
+          "style": {
+            "backgroundColor": "#e0e7ff",
+            "borderRadius": 16,
+            "borderWidth": 2,
+            "borderColor": "#4f46e5"
+          },
+          "children": [
+            {
+              "id": "services_offre_1_image",
+              "type": "image",
+              "x": 24,
+              "y": 24,
+              "width": 320,
+              "height": 160,
+              "style": {
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "https://placehold.co/640x320/c7d2fe/1e1b4b?text=Prototype",
+                "alt": "Illustration d'écrans reliés par des flèches",
+                "fit": "contain"
+              }
+            },
+            {
+              "id": "services_offre_1_titre",
+              "type": "title",
+              "x": 24,
+              "y": 208,
+              "width": 320,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 24,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Prototype",
+                "level": 3
+              }
+            },
+            {
+              "id": "services_offre_1_texte",
+              "type": "text",
+              "x": 24,
+              "y": 248,
+              "width": 320,
+              "height": 72,
+              "style": {
+                "color": "#334155",
+                "fontSize": 16,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Une maquette cliquable pour tester le parcours."
+              }
+            },
+            {
+              "id": "services_offre_1_prix",
+              "type": "text",
+              "x": 24,
+              "y": 336,
+              "width": 320,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 20,
+                "fontWeight": 700,
+                "textAlign": "right"
+              },
+              "props": {
+                "text": "à partir de 1 500 €"
+              }
+            }
+          ]
+        },
+        {
+          "id": "services_offre_2",
+          "type": "section",
+          "x": 952,
+          "y": 328,
+          "width": 368,
+          "height": 400,
+          "style": {
+            "backgroundColor": "#f1f5f9",
+            "borderRadius": 16,
+            "borderWidth": 0,
+            "borderColor": "#4f46e5"
+          },
+          "children": [
+            {
+              "id": "services_offre_2_image",
+              "type": "image",
+              "x": 24,
+              "y": 24,
+              "width": 320,
+              "height": 160,
+              "style": {
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "https://placehold.co/640x320/e0f2fe/0c4a6e?text=Site",
+                "alt": "Illustration d'un site publié sur ordinateur",
+                "fit": "contain"
+              }
+            },
+            {
+              "id": "services_offre_2_titre",
+              "type": "title",
+              "x": 24,
+              "y": 208,
+              "width": 320,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 24,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Site complet",
+                "level": 3
+              }
+            },
+            {
+              "id": "services_offre_2_texte",
+              "type": "text",
+              "x": 24,
+              "y": 248,
+              "width": 320,
+              "height": 72,
+              "style": {
+                "color": "#334155",
+                "fontSize": 16,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Le HTML et le CSS générés, prêts à être mis en ligne."
+              }
+            },
+            {
+              "id": "services_offre_2_prix",
+              "type": "text",
+              "x": 24,
+              "y": 336,
+              "width": 320,
+              "height": 32,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 20,
+                "fontWeight": 700,
+                "textAlign": "right"
+              },
+              "props": {
+                "text": "sur devis"
+              }
+            }
+          ]
+        },
+        {
+          "id": "services_demo",
+          "type": "section",
+          "x": 120,
+          "y": 776,
+          "width": 1200,
+          "height": 360,
+          "style": {
+            "backgroundColor": "#0f172a",
+            "borderRadius": 24
+          },
+          "children": [
+            {
+              "id": "services_demo_title",
+              "type": "title",
+              "x": 56,
+              "y": 56,
+              "width": 520,
+              "height": 48,
+              "style": {
+                "color": "#ffffff",
+                "fontSize": 32,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Un prototype en action",
+                "level": 2
+              }
+            },
+            {
+              "id": "services_demo_text",
+              "type": "text",
+              "x": 56,
+              "y": 120,
+              "width": 520,
+              "height": 84,
+              "style": {
+                "color": "#e2e8f0",
+                "fontSize": 18,
+                "fontWeight": 400,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Exemple de parcours testé en atelier : chaque bouton mène au bon écran, comme sur le site final."
+              }
+            },
+            {
+              "id": "services_demo_cta",
+              "type": "button",
+              "x": 56,
+              "y": 240,
+              "width": 240,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#4f46e5",
+                "color": "#ffffff",
+                "fontSize": 18,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 12
+              },
+              "props": {
+                "label": "Demander un devis",
+                "href": "contact.html",
+                "targetScreenId": "screen_contact"
+              }
+            },
+            {
+              "id": "services_demo_video",
+              "type": "video",
+              "x": 640,
+              "y": 40,
+              "width": 504,
+              "height": 280,
+              "style": {
+                "backgroundColor": "#0f172a",
+                "borderRadius": 12
+              },
+              "props": {
+                "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                "kind": "file",
+                "title": "Fleur qui s'ouvre, vidéo d'exemple libre de droits"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "screen_contact",
+      "name": "Contact",
+      "path": "contact.html",
+      "frame": {
+        "device": "mobile",
+        "width": 393,
+        "height": 852,
+        "backgroundColor": "#ffffff"
+      },
+      "nodes": [
+        {
+          "id": "contact_retour",
+          "type": "button",
+          "x": 24,
+          "y": 24,
+          "width": 132,
+          "height": 40,
+          "style": {
+            "backgroundColor": "#ffffff",
+            "color": "#4f46e5",
+            "borderWidth": 2,
+            "borderColor": "#4f46e5",
+            "fontSize": 15,
+            "fontWeight": 600,
+            "textAlign": "center",
+            "borderRadius": 20
+          },
+          "props": {
+            "label": "← Accueil",
+            "href": "index.html",
+            "targetScreenId": "screen_accueil"
+          }
+        },
+        {
+          "id": "contact_title",
+          "type": "title",
+          "x": 24,
+          "y": 96,
+          "width": 345,
+          "height": 48,
+          "style": {
+            "color": "#0f172a",
+            "fontSize": 36,
+            "fontWeight": 700,
+            "textAlign": "left"
+          },
+          "props": {
+            "text": "Contact",
+            "level": 1
+          }
+        },
+        {
+          "id": "contact_intro",
+          "type": "text",
+          "x": 24,
+          "y": 152,
+          "width": 345,
+          "height": 72,
+          "style": {
+            "color": "#334155",
+            "fontSize": 17,
+            "fontWeight": 400,
+            "textAlign": "left"
+          },
+          "props": {
+            "text": "Parlez-nous de votre projet : nous répondons sous 24 h, du lundi au vendredi."
+          }
+        },
+        {
+          "id": "contact_form",
+          "type": "section",
+          "x": 24,
+          "y": 248,
+          "width": 345,
+          "height": 380,
+          "style": {
+            "backgroundColor": "#f1f5f9",
+            "borderRadius": 16
+          },
+          "children": [
+            {
+              "id": "contact_form_title",
+              "type": "title",
+              "x": 20,
+              "y": 20,
+              "width": 305,
+              "height": 28,
+              "style": {
+                "color": "#0f172a",
+                "fontSize": 22,
+                "fontWeight": 700,
+                "textAlign": "left"
+              },
+              "props": {
+                "text": "Votre demande",
+                "level": 2
+              }
+            },
+            {
+              "id": "contact_champ_0",
+              "type": "section",
+              "x": 20,
+              "y": 64,
+              "width": 305,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderRadius": 8,
+                "borderWidth": 1,
+                "borderColor": "#64748b"
+              },
+              "children": [
+                {
+                  "id": "contact_champ_0_label",
+                  "type": "text",
+                  "x": 16,
+                  "y": 16,
+                  "width": 273,
+                  "height": 24,
+                  "style": {
+                    "color": "#475569",
+                    "fontSize": 15,
+                    "fontWeight": 400,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Nom et prénom"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "contact_champ_1",
+              "type": "section",
+              "x": 20,
+              "y": 136,
+              "width": 305,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderRadius": 8,
+                "borderWidth": 1,
+                "borderColor": "#64748b"
+              },
+              "children": [
+                {
+                  "id": "contact_champ_1_label",
+                  "type": "text",
+                  "x": 16,
+                  "y": 16,
+                  "width": 273,
+                  "height": 24,
+                  "style": {
+                    "color": "#475569",
+                    "fontSize": 15,
+                    "fontWeight": 400,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Adresse e-mail"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "contact_champ_2",
+              "type": "section",
+              "x": 20,
+              "y": 208,
+              "width": 305,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderRadius": 8,
+                "borderWidth": 1,
+                "borderColor": "#64748b"
+              },
+              "children": [
+                {
+                  "id": "contact_champ_2_label",
+                  "type": "text",
+                  "x": 16,
+                  "y": 16,
+                  "width": 273,
+                  "height": 24,
+                  "style": {
+                    "color": "#475569",
+                    "fontSize": 15,
+                    "fontWeight": 400,
+                    "textAlign": "left"
+                  },
+                  "props": {
+                    "text": "Votre message"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "contact_envoyer",
+              "type": "button",
+              "x": 20,
+              "y": 300,
+              "width": 305,
+              "height": 56,
+              "style": {
+                "backgroundColor": "#4f46e5",
+                "color": "#ffffff",
+                "fontSize": 17,
+                "fontWeight": 600,
+                "textAlign": "center",
+                "borderRadius": 12
+              },
+              "props": {
+                "label": "Envoyer la demande",
+                "href": "merci.html",
+                "targetScreenId": "screen_merci"
+              }
+            }
+          ]
+        },
+        {
+          "id": "contact_ou",
+          "type": "text",
+          "x": 24,
+          "y": 652,
+          "width": 345,
+          "height": 24,
+          "style": {
+            "color": "#475569",
+            "fontSize": 15,
+            "fontWeight": 400,
+            "textAlign": "center"
+          },
+          "props": {
+            "text": "ou écrivez-nous directement :"
+          }
+        },
+        {
+          "id": "contact_mail",
+          "type": "button",
+          "x": 24,
+          "y": 688,
+          "width": 345,
+          "height": 52,
+          "style": {
+            "backgroundColor": "#ffffff",
+            "color": "#4f46e5",
+            "borderWidth": 2,
+            "borderColor": "#4f46e5",
+            "fontSize": 16,
+            "fontWeight": 600,
+            "textAlign": "center",
+            "borderRadius": 10
+          },
+          "props": {
+            "label": "contact@example.com",
+            "href": "mailto:contact@example.com"
+          }
+        },
+        {
+          "id": "contact_horaires",
+          "type": "button",
+          "x": 24,
+          "y": 756,
+          "width": 345,
+          "height": 44,
+          "style": {
+            "backgroundColor": "#ffffff",
+            "color": "#0f172a",
+            "fontSize": 15,
+            "fontWeight": 600,
+            "textAlign": "center",
+            "borderRadius": 10
+          },
+          "props": {
+            "label": "Voir les horaires",
+            "href": "#horaires"
+          }
+        }
+      ]
+    },
+    {
+      "id": "screen_merci",
+      "name": "Merci",
+      "path": "merci.html",
+      "frame": {
+        "device": "mobile",
+        "width": 393,
+        "height": 852,
+        "backgroundColor": "#e0e7ff"
+      },
+      "nodes": [
+        {
+          "id": "merci_pastille",
+          "type": "section",
+          "x": 116,
+          "y": 120,
+          "width": 160,
+          "height": 160,
+          "style": {
+            "backgroundColor": "#4f46e5",
+            "borderRadius": 80
+          },
+          "children": [
+            {
+              "id": "merci_triangle",
+              "type": "shape",
+              "x": 44,
+              "y": 48,
+              "width": 72,
+              "height": 64,
+              "style": {
+                "backgroundColor": "#ffffff",
+                "borderWidth": 0,
+                "borderColor": "#ffffff"
+              },
+              "props": {
+                "shape": "triangle"
+              }
+            }
+          ]
+        },
+        {
+          "id": "merci_title",
+          "type": "title",
+          "x": 24,
+          "y": 320,
+          "width": 345,
+          "height": 48,
+          "style": {
+            "color": "#0f172a",
+            "fontSize": 40,
+            "fontWeight": 700,
+            "textAlign": "center"
+          },
+          "props": {
+            "text": "Merci !",
+            "level": 1
+          }
+        },
+        {
+          "id": "merci_text",
+          "type": "text",
+          "x": 40,
+          "y": 384,
+          "width": 313,
+          "height": 72,
+          "style": {
+            "color": "#334155",
+            "fontSize": 18,
+            "fontWeight": 400,
+            "textAlign": "center"
+          },
+          "props": {
+            "text": "Votre demande est bien partie. Nous revenons vers vous sous 24 h."
+          }
+        },
+        {
+          "id": "merci_accueil",
+          "type": "button",
+          "x": 48,
+          "y": 496,
+          "width": 297,
+          "height": 56,
+          "style": {
+            "backgroundColor": "#4f46e5",
+            "color": "#ffffff",
+            "fontSize": 17,
+            "fontWeight": 600,
+            "textAlign": "center",
+            "borderRadius": 28
+          },
+          "props": {
+            "label": "Retour à l'accueil",
+            "href": "index.html",
+            "targetScreenId": "screen_accueil"
+          }
+        },
+        {
+          "id": "merci_services",
+          "type": "button",
+          "x": 48,
+          "y": 568,
+          "width": 297,
+          "height": 52,
+          "style": {
+            "backgroundColor": "#ffffff",
+            "color": "#4f46e5",
+            "borderWidth": 2,
+            "borderColor": "#4f46e5",
+            "fontSize": 16,
+            "fontWeight": 600,
+            "textAlign": "center",
+            "borderRadius": 26
+          },
+          "props": {
+            "label": "Découvrir nos services",
+            "href": "services.html",
+            "targetScreenId": "screen_services"
+          }
+        }
+      ]
+    }
+  ]
+}

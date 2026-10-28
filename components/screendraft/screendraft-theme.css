@@ -1,0 +1,129 @@
+/*
+ * Identité visuelle de Screendraft (charte : brand/BRAND.md).
+ * Les tokens de la charte sont portés par .screendraft et non par :root,
+ * pour ne pas fuir vers le Hub ni les autres routes.
+ * Thème clair par défaut, sombre via data-theme="dark" sur .screendraft,
+ * ou via prefers-color-scheme tant que l'utilisateur n'a rien choisi.
+ */
+
+@font-face { font-family: "Space Grotesk"; src: url("./brand/fonts/SpaceGrotesk-Variable.woff2") format("woff2"); font-weight: 300 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "DM Sans"; src: url("./brand/fonts/DMSans-Variable.woff2") format("woff2"); font-weight: 100 1000; font-style: normal; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("./brand/fonts/JetBrainsMono-Variable.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }
+
+.screendraft {
+  color-scheme: light;
+  --surface: #f6f7fb;
+  --surface-raised: #ffffff;
+  --canvas: #eceef5;
+  --line: #dadeea;
+  --line-strong: #80869f;
+  --ink: #0b1033;
+  --ink-muted: #565c7a;
+  --draft: #2348ff;
+  --draft-strong: #1631c9;
+  --draft-soft: #e6eaff;
+  --on-draft: #ffffff;
+  --fluo: #c6f432;
+  --on-fluo: #0b1033;
+  --success: #13804b;
+  --warning: #a15c00;
+  --danger: #d3263b;
+  --focus-ring: var(--draft);
+  --selection: var(--draft);
+  --shadow-panel: 0 1px 2px rgba(11,16,51,0.06), 0 4px 16px rgba(11,16,51,0.08);
+  --shadow-frame: 0 2px 12px rgba(11,16,51,0.10);
+
+  --font-display: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+.screendraft[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #0d0f1a;
+  --surface-raised: #161a2b;
+  --canvas: #1b1f33;
+  --line: #2a2f48;
+  --line-strong: #666d92;
+  --ink: #eef0fa;
+  --ink-muted: #a3a9c6;
+  --draft: #7b8fff;
+  --draft-strong: #a3b1ff;
+  --draft-soft: #1a2259;
+  --on-draft: #0b1033;
+  --success: #4ade80;
+  --warning: #ffb547;
+  --danger: #ff7a85;
+  --shadow-panel: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-frame: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .screendraft:not([data-theme]) {
+    color-scheme: dark;
+    --surface: #0d0f1a;
+    --surface-raised: #161a2b;
+    --canvas: #1b1f33;
+    --line: #2a2f48;
+    --line-strong: #666d92;
+    --ink: #eef0fa;
+    --ink-muted: #a3a9c6;
+    --draft: #7b8fff;
+    --draft-strong: #a3b1ff;
+    --draft-soft: #1a2259;
+    --on-draft: #0b1033;
+    --success: #4ade80;
+    --warning: #ffb547;
+    --danger: #ff7a85;
+    --shadow-panel: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.4);
+    --shadow-frame: 0 2px 12px rgba(0,0,0,0.5);
+  }
+}
+
+/*
+ * Tailles en rem (RGAA 10.4) : elles suivent le réglage A−/A+ du Hub et du navigateur.
+ * 14 px (0.875rem) au minimum pour tout texte de l'interface.
+ */
+.screendraft .text-display { font-family: var(--font-display); font-size: 3rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
+.screendraft .text-title-1 { font-family: var(--font-display); font-size: 2rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; }
+.screendraft .text-title-2 { font-family: var(--font-display); font-size: 1.375rem; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
+.screendraft .text-body { font-family: var(--font-sans); font-size: 1rem; line-height: 1.5; font-weight: 400; }
+.screendraft .text-body-sm { font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.45; font-weight: 400; }
+.screendraft .text-label { font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.3; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.screendraft .text-code { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.45; font-weight: 400; }
+
+/*
+ * Cibles d'au moins 40 px (WCAG 2.5.8, consigne du projet) pour tous les contrôles de l'éditeur.
+ * Hors `.sd-free-size` : éléments posés sur l'aperçu, dont la taille suit la maquette.
+ */
+.screendraft :is(button, select, summary, input:not([type="checkbox"], [type="radio"], [type="file"])):not(.sd-free-size) {
+  min-height: 2.5rem;
+}
+.screendraft :is(button, input[type="color"]):not(.sd-free-size) { min-width: 2.5rem; }
+.screendraft input[type="checkbox"] { width: 1.25rem; height: 1.25rem; }
+
+.screendraft :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Éléments propres à un thème (logo, icône de bascule). */
+.screendraft .sd-only-dark { display: none; }
+.screendraft[data-theme="dark"] .sd-only-light { display: none; }
+.screendraft[data-theme="dark"] .sd-only-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  .screendraft:not([data-theme]) .sd-only-light { display: none; }
+  .screendraft:not([data-theme]) .sd-only-dark { display: block; }
+}
