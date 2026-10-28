@@ -260,7 +260,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save, undo, redo, dispatch, selection, selections, activeScreen.id, isPrototypeOpen]);
+  }, [draft, projectId, save, undo, redo, dispatch, selection, selections, activeScreen.id, isOverlayOpen]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {
