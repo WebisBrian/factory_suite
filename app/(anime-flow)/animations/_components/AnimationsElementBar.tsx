@@ -11,14 +11,17 @@ type Props = {
 /** Barre listant les éléments de la page, pour choisir lequel animer (SCRUM-6). */
 export function AnimationsElementBar({ elements, selectedId, onSelect }: Props) {
   return (
-    <nav aria-labelledby="animations-elements-title" className="rounded-2xl border border-white/10 bg-white/3 p-5">
-      <h2 id="animations-elements-title" className="text-xl font-semibold text-zinc-100">
+    <nav
+      aria-labelledby="animations-elements-title"
+      className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
+    >
+      <h2 id="animations-elements-title" className="text-xl font-semibold">
         Éléments de la page
       </h2>
-      <p className="mt-1 text-lg text-zinc-300">Choisissez l&apos;élément à animer.</p>
+      <p className="mt-1 text-lg text-(--ink-muted)">Choisissez l&apos;élément à animer.</p>
 
       {elements.length === 0 ? (
-        <p className="mt-4 text-lg text-zinc-300">Aucun élément animable dans cette page.</p>
+        <p className="mt-4 text-lg text-(--ink-muted)">Aucun élément animable dans cette page.</p>
       ) : (
         <ul className="mt-4 flex flex-col gap-1">
           {elements.map((element) => (
@@ -39,8 +42,8 @@ function AnimationsElementItem({ element, selectedId, onSelect }: Omit<Props, "e
         type="button"
         aria-pressed={selected}
         onClick={() => onSelect(element)}
-        className={`flex min-h-12 w-full items-center gap-2 rounded-xl px-4 py-2 text-left text-lg focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white ${
-          selected ? "bg-fuchsia-300 font-semibold text-black" : "text-zinc-100 hover:bg-white/10"
+        className={`flex min-h-12 w-full items-center gap-2 rounded-xl border-2 px-4 py-2 text-left text-lg ${
+          selected ? "border-(--motion) bg-(--motion-soft) font-semibold" : "border-transparent hover:bg-(--motion-soft)"
         }`}
       >
         {/* La sélection ne passe pas que par la couleur : coche visible + aria-pressed. */}
@@ -50,7 +53,7 @@ function AnimationsElementItem({ element, selectedId, onSelect }: Omit<Props, "e
         {element.name}
       </button>
       {element.children.length > 0 && (
-        <ul className="mt-1 ml-6 flex flex-col gap-1 border-l-2 border-white/20 pl-2">
+        <ul className="mt-1 ml-6 flex flex-col gap-1 border-l-2 border-(--line) pl-2">
           {element.children.map((child) => (
             <AnimationsElementItem key={child.id} element={child} selectedId={selectedId} onSelect={onSelect} />
           ))}

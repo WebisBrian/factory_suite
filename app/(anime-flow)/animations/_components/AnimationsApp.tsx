@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/(anime-flow)/animations/_brand/anime-flow-theme.css";
+import animflowMark from "@/app/(anime-flow)/animations/_brand/logos/animflow-mark.svg";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
@@ -109,64 +111,77 @@ export function AnimationsApp() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold text-zinc-100">Animations</h1>
-          <p className="text-lg text-zinc-300">Choisissez un élément de votre page pour l&apos;animer.</p>
+    <div className="anime-flow flex flex-1 flex-col">
+      <header className="border-b border-(--line) bg-(--surface-raised)">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5">
+          <div className="flex items-center gap-4">
+            {/* Logo décoratif : le titre « Animations » juste à côté nomme déjà l'outil. */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- next/image est exclu par l'export statique. */}
+            <img src={animflowMark.src} alt="" width={48} height={48} className="size-12 shrink-0" />
+
+            <div>
+              <h1 className="text-3xl font-semibold">Animations</h1>
+              <p className="text-lg text-(--ink-muted)">Choisissez un élément de votre page pour l&apos;animer.</p>
+            </div>
+          </div>
+          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-4 py-1 text-lg font-medium">
+            {projectId === null ? "Mode démo" : `Projet #${projectId}`}
+          </span>
         </div>
-        <span className="rounded-full border border-fuchsia-400/40 bg-fuchsia-500/10 px-4 py-1 text-lg font-medium text-fuchsia-200">
-          {projectId === null ? "Mode démo" : `Projet #${projectId}`}
-        </span>
       </header>
 
-      {/* Annonce les actions aux lecteurs d'écran. */}
-      <p aria-live="polite" className="sr-only">
-        {announcement}
-      </p>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
+        {/* Annonce les actions aux lecteurs d'écran. */}
+        <p aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
 
-      {projectId !== null && projectLoad && projectLoad.status !== "ok" && (
-        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-lg text-red-200">
-          <p>
-            {projectLoad.status === "missing"
-              ? `${PAGE_FILE} introuvable dans le projet ${projectId} : passez d'abord par le Générateur.`
-              : projectLoad.message}
-          </p>
-          <div className="mt-2 flex gap-6">
-            <button type="button" onClick={handleReload} className="min-h-11 underline">
-              Réessayer
-            </button>
-            <Link href="/" className="inline-flex min-h-11 items-center underline">
-              Retour au Hub
-            </Link>
+        {projectId !== null && projectLoad && projectLoad.status !== "ok" && (
+          <div
+            role="alert"
+            className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)"
+          >
+            <p>
+              {projectLoad.status === "missing"
+                ? `${PAGE_FILE} introuvable dans le projet ${projectId} : passez d'abord par le Générateur.`
+                : projectLoad.message}
+            </p>
+            <div className="mt-2 flex gap-6">
+              <button type="button" onClick={handleReload} className="min-h-12 underline">
+                Réessayer
+              </button>
+              <Link href="/" className="inline-flex min-h-12 items-center underline">
+                Retour au Hub
+              </Link>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {html === null || elements === null ? (
-        projectLoad?.status !== "missing" &&
-        projectLoad?.status !== "fs-error" && <p className="text-lg text-zinc-300">Lecture de {PAGE_FILE}…</p>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(18rem,1fr)_2fr]">
-          <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
-          <div className="flex flex-col gap-6">
-            {selected ? (
-              <AnimationsElementSettings
-                elementName={selected.name}
-                presetId={selectedAnimation?.animation ?? null}
-                event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
-                onPresetChange={handlePresetChange}
-                onEventChange={handleEventChange}
-              />
-            ) : (
-              <p className="rounded-2xl border border-white/10 bg-white/3 p-5 text-lg text-zinc-300">
-                Sélectionnez un élément dans la liste pour lui choisir une animation.
-              </p>
-            )}
-            <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+        {html === null || elements === null ? (
+          projectLoad?.status !== "missing" &&
+          projectLoad?.status !== "fs-error" && <p className="text-lg text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[minmax(18rem,1fr)_2fr]">
+            <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+            <div className="flex flex-col gap-6">
+              {selected ? (
+                <AnimationsElementSettings
+                  elementName={selected.name}
+                  presetId={selectedAnimation?.animation ?? null}
+                  event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
+                  onPresetChange={handlePresetChange}
+                  onEventChange={handleEventChange}
+                />
+              ) : (
+                <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-lg text-(--ink-muted)">
+                  Sélectionnez un élément dans la liste pour lui choisir une animation.
+                </p>
+              )}
+              <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

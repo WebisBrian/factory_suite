@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { readProjectText, writeProjectFile } from "@/lib/project-fs";
 import {
   LIBRARY_FILE,
   createComponent,
   parseLibrary,
   serializeLibrary,
+  toComponentContent,
   type CustomComponent,
   type ParsedLibrary,
 } from "@/components/screendraft/screendraft-components";
@@ -61,32 +62,47 @@ export function useScreendraftLibrary(projectId: number | null) {
     };
   }, [projectId]);
 
+  // Copie à jour de la liste, pour le mode démo où rien n'est relu depuis le disque.
+  const componentsRef = useRef(components);
+  useEffect(() => {
+    componentsRef.current = components;
+  }, [components]);
+
+  /** Applique `change` et l'enregistre. Renvoie false si rien n'a pu être enregistré. */
   const update = useCallback(
-    async (change: (current: CustomComponent[]) => CustomComponent[]) => {
+    async (change: (current: CustomComponent[]) => CustomComponent[]): Promise<boolean> => {
       if (projectId === null) {
-        setComponents(change);
-        return;
+        const next = change(componentsRef.current);
+        componentsRef.current = next;
+        setComponents(next);
+        return true;
       }
       setStatus({ kind: "saving" });
       try {
         const current = await readLibrary(projectId);
         if (!current.ok) {
           setStatus({ kind: "error", message: current.error });
-          return;
+          return false;
         }
         const next = change(current.components);
         await writeProjectFile(projectId, LIBRARY_FILE, serializeLibrary(next));
         setComponents(next);
         setStatus({ kind: "ready" });
+        return true;
       } catch (error) {
         setStatus({ kind: "error", message: errorMessage(error) });
+        return false;
       }
     },
     [projectId],
   );
 
+  /** Renvoie le composant créé, ou null s'il n'a pas pu être enregistré. */
   const add = useCallback(
-    (name: string, node: DraftNode) => update((current) => [...current, createComponent(name, node)]),
+    async (name: string, node: DraftNode): Promise<CustomComponent | null> => {
+      const component = createComponent(name, node);
+      return (await update((current) => [...current, component])) ? component : null;
+    },
     [update],
   );
   const rename = useCallback(
@@ -94,10 +110,28 @@ export function useScreendraftLibrary(projectId: number | null) {
       update((current) => current.map((item) => (item.id === id ? { ...item, name } : item))),
     [update],
   );
+  /**
+   * Remplace le contenu du composant par celui de `node` (une de ses instances).
+   * Renvoie le composant mis à jour, ou null s'il n'existe plus ou n'a pas pu être enregistré.
+   */
+  const updateContent = useCallback(
+    async (id: string, node: DraftNode): Promise<CustomComponent | null> => {
+      let updated: CustomComponent | null = null;
+      const saved = await update((current) =>
+        current.map((item) => {
+          if (item.id !== id) return item;
+          updated = { ...item, node: toComponentContent(node) };
+          return updated;
+        }),
+      );
+      return saved ? updated : null;
+    },
+    [update],
+  );
   const remove = useCallback(
     (id: string) => update((current) => current.filter((item) => item.id !== id)),
     [update],
   );
 
-  return { components, status, add, rename, remove };
+  return { components, status, add, rename, updateContent, remove };
 }

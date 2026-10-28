@@ -107,6 +107,11 @@ type BaseNode = {
   height: number;
   style: NodeStyle;
   themeLinks?: ThemeLinks;
+  /**
+   * Présent sur la racine d'une instance de composant custom (`screendraft-composants.json`).
+   * Le contenu de l'instance est toujours déployé dans la maquette : le Générateur peut ignorer ce champ.
+   */
+  componentId?: string;
 };
 
 export type SectionNode = BaseNode & {
