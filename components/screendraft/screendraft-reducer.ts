@@ -1,5 +1,14 @@
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
-import type { DraftNode, Maquette } from "@/components/screendraft/screendraft-schema";
+import type {
+  ButtonNode,
+  DraftNode,
+  ImageNode,
+  Maquette,
+  NodeStyle,
+  ShapeNode,
+  TextNode,
+  TitleNode,
+} from "@/components/screendraft/screendraft-schema";
 import {
   findNode,
   moveInDepth,
@@ -21,7 +30,21 @@ export type ScreendraftAction =
   | { type: "delete-node"; id: string }
   | { type: "move-node"; id: string; x: number; y: number }
   | { type: "set-text"; id: string; text: string }
-  | { type: "set-image"; id: string; src: string; alt: string };
+  | { type: "set-image"; id: string; src: string; alt: string }
+  | { type: "set-geometry"; id: string; geometry: Partial<Geometry> }
+  | { type: "set-style"; id: string; style: NodeStyle }
+  | ({ type: "set-props"; id: string } & PropsPatch);
+
+/** Position (relative au parent) et taille d'un élément, en px. */
+export type Geometry = Pick<DraftNode, "x" | "y" | "width" | "height">;
+
+/** Propriétés propres à un type d'élément ; ignorées si l'élément est d'un autre type. */
+export type PropsPatch =
+  | { nodeType: "title"; props: Partial<TitleNode["props"]> }
+  | { nodeType: "text"; props: Partial<TextNode["props"]> }
+  | { nodeType: "image"; props: Partial<ImageNode["props"]> }
+  | { nodeType: "button"; props: Partial<ButtonNode["props"]> }
+  | { nodeType: "shape"; props: Partial<ShapeNode["props"]> };
 
 export function screendraftReducer(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
@@ -72,7 +95,39 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
       return withNode(draft, action.id, (node) =>
         node.type === "image" ? { ...node, props: { ...node.props, src: action.src, alt: action.alt } } : node,
       );
+    case "set-geometry":
+      return withNode(draft, action.id, (node) => ({ ...node, ...action.geometry }));
+    // Une valeur `undefined` retire la propriété : le rendu par défaut s'applique.
+    case "set-style":
+      return withNode(draft, action.id, (node) => ({
+        ...node,
+        style: withoutUndefined({ ...node.style, ...action.style }),
+      }));
+    case "set-props":
+      return withNode(draft, action.id, (node) => mergeProps(node, action));
   }
+}
+
+function mergeProps(node: DraftNode, patch: PropsPatch): DraftNode {
+  switch (patch.nodeType) {
+    case "title":
+      return node.type === "title" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+    case "text":
+      return node.type === "text" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+    case "image":
+      return node.type === "image" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+    case "button":
+      return node.type === "button"
+        ? { ...node, props: withoutUndefined({ ...node.props, ...patch.props }) }
+        : node;
+    case "shape":
+      return node.type === "shape" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+  }
+}
+
+/** Le JSON exporté ne garde pas les clés vides (ex. un lien de bouton effacé). */
+function withoutUndefined<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
 }
 
 function withNode(draft: Maquette, id: string, update: (node: DraftNode) => DraftNode): Maquette {
