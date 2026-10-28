@@ -344,7 +344,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         </header>
 
         <div inert={isOverlayOpen} className="flex min-h-0 flex-1">
-          <div className="flex w-60 max-w-[30vw] shrink-0 flex-col overflow-y-auto border-r border-(--line) bg-(--surface-raised)">
+          {/* Tout le panneau défile d'un bloc ; chaque section se replie (ScreendraftPanelSection). */}
+          <div className="flex w-60 max-w-[30vw] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-(--line) bg-(--surface-raised)">
             <ScreendraftPalette onAdd={addNode} />
             <ScreendraftScreens
               screens={draft.screens}
@@ -366,6 +367,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
               selectedIds={selectedIds}
               onSelect={(id, additive) => (additive ? toggleSelected(id) : setSelectedId(id))}
               onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
+              onRename={(id, name) => dispatch({ type: "rename-node", id, name })}
             />
           </div>
           {/* Ajouter, supprimer un écran, changer de format (donc de largeur) ou charger un modèle

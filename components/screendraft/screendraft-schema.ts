@@ -115,6 +115,11 @@ export type NodeA11y = {
 type BaseNode = {
   /** Unique dans le document, tous écrans confondus. */
   id: string;
+  /**
+   * Nom du calque, choisi dans l'éditeur (ex. « En-tête », « Carte tarif »). Facultatif :
+   * sans nom, le calque affiche son contenu. Utilisable côté HTML comme repère (commentaire, data-name).
+   */
+  name?: string;
   x: number;
   y: number;
   width: number;
