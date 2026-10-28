@@ -1,3 +1,9 @@
+import {
+  buildInstance,
+  detachInstance,
+  mapInstances,
+  type CustomComponent,
+} from "@/components/screendraft/screendraft-components";
 import type { FrameFormat } from "@/components/screendraft/screendraft-formats";
 import type {
   ButtonNode,
@@ -46,7 +52,11 @@ export type ScreendraftAction =
   | { type: "set-image"; id: string; src: string; alt: string }
   | { type: "set-geometry"; id: string; geometry: Partial<Geometry> }
   | { type: "set-style"; id: string; style: NodeStyle }
-  | ({ type: "set-props"; id: string } & PropsPatch);
+  | ({ type: "set-props"; id: string } & PropsPatch)
+  | { type: "sync-component"; component: CustomComponent }
+  | { type: "reset-instance"; id: string; component: CustomComponent }
+  | { type: "detach-instance"; id: string }
+  | { type: "detach-component"; componentId: string };
 
 /** Position (relative au parent) et taille d'un élément, en px. */
 export type Geometry = Pick<DraftNode, "x" | "y" | "width" | "height">;
@@ -143,7 +153,44 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
       }));
     case "set-props":
       return withNode(draft, action.id, (node) => mergeProps(node, action));
+    // Composant mis à jour : toutes ses instances, dans tous les écrans, reprennent son contenu.
+    case "sync-component": {
+      const { component } = action;
+      return withAllNodes(draft, (nodes) =>
+        mapInstances(nodes, (instance) =>
+          instance.componentId === component.id
+            ? buildInstance(component, instance.id, instance.x, instance.y)
+            : null,
+        ),
+      );
+    }
+    // Annule les modifications locales d'une instance ; lie aussi un élément au composant créé depuis lui.
+    case "reset-instance":
+      return withNode(draft, action.id, (node) => buildInstance(action.component, node.id, node.x, node.y));
+    case "detach-instance":
+      return withNode(draft, action.id, (node) =>
+        node.componentId === undefined ? node : detachInstance(node),
+      );
+    // Composant retiré de la bibliothèque : ses instances deviennent des éléments ordinaires.
+    case "detach-component":
+      return withAllNodes(draft, (nodes) =>
+        mapInstances(nodes, (instance) =>
+          instance.componentId === action.componentId ? detachInstance(instance) : null,
+        ),
+      );
   }
+}
+
+/** Modifie les éléments de chaque écran. Renvoie la même maquette si rien ne change. */
+function withAllNodes(draft: Maquette, update: (nodes: DraftNode[]) => DraftNode[]): Maquette {
+  let changed = false;
+  const screens = draft.screens.map((screen) => {
+    const nodes = update(screen.nodes);
+    if (nodes === screen.nodes) return screen;
+    changed = true;
+    return { ...screen, nodes };
+  });
+  return changed ? { ...draft, screens } : draft;
 }
 
 function mergeProps(node: DraftNode, patch: PropsPatch): DraftNode {

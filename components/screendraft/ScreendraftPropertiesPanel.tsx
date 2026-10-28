@@ -1,6 +1,8 @@
 import type { ChangeEvent, Dispatch } from "react";
 import { ScreendraftCreateComponent } from "@/components/screendraft/ScreendraftCreateComponent";
 import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDepthControls";
+import { ScreendraftInstanceControls } from "@/components/screendraft/ScreendraftInstanceControls";
+import type { CustomComponent } from "@/components/screendraft/screendraft-components";
 import { ScreendraftNodeProperties } from "@/components/screendraft/ScreendraftNodeProperties";
 import {
   FRAME_PRESETS,
@@ -35,11 +37,21 @@ type ScreendraftPropertiesPanelProps = {
   screens: Screen[];
   onSendToScreen: (nodeId: string, screenId: string) => void;
   dispatch: Dispatch<ScreendraftAction>;
-  onCreateComponent: (name: string, node: DraftNode) => void;
+  /** Bibliothèque du projet, pour retrouver le composant d'une instance. */
+  components: CustomComponent[];
+  componentHandlers: ScreendraftComponentHandlers;
+};
+
+/** Actions sur les composants custom : elles écrivent la bibliothèque avant de modifier la maquette. */
+export type ScreendraftComponentHandlers = {
+  create: (name: string, node: DraftNode) => void;
+  update: (node: DraftNode) => void;
+  reset: (id: string, component: CustomComponent) => void;
+  detach: (id: string) => void;
 };
 
 /**
- * Propriétés, profondeur, écran et création de composant pour l'élément sélectionné,
+ * Composant, propriétés, profondeur et écran de l'élément sélectionné,
  * puis propriétés de l'écran actif.
  */
 export function ScreendraftPropertiesPanel({
@@ -50,7 +62,8 @@ export function ScreendraftPropertiesPanel({
   screens,
   onSendToScreen,
   dispatch,
-  onCreateComponent,
+  components,
+  componentHandlers,
 }: ScreendraftPropertiesPanelProps) {
   const { frame } = screen;
   const preset = findPreset(frame);
@@ -77,6 +90,16 @@ export function ScreendraftPropertiesPanel({
 
   return (
     <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+      {selection?.node.componentId !== undefined && (
+        <ScreendraftInstanceControls
+          node={selection.node}
+          component={components.find((item) => item.id === selection.node.componentId)}
+          screens={screens}
+          onUpdate={componentHandlers.update}
+          onReset={componentHandlers.reset}
+          onDetach={componentHandlers.detach}
+        />
+      )}
       {selection && (
         <ScreendraftNodeProperties
           node={selection.node}
@@ -105,11 +128,11 @@ export function ScreendraftPropertiesPanel({
           </label>
         </section>
       )}
-      {selection && (
+      {selection && selection.node.componentId === undefined && (
         <ScreendraftCreateComponent
           key={selection.node.id}
           node={selection.node}
-          onCreate={onCreateComponent}
+          onCreate={componentHandlers.create}
         />
       )}
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">

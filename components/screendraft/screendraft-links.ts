@@ -47,6 +47,11 @@ export function syncLinks(draft: Maquette): Maquette {
   return changed ? { ...draft, screens } : draft;
 }
 
+/** Comme `syncLinks`, pour des éléments hors maquette (ex. le contenu d'un composant custom). */
+export function syncNodeLinks(nodes: DraftNode[], screens: Screen[]): DraftNode[] {
+  return syncNodes(nodes, screenPaths(screens));
+}
+
 function syncNodes(nodes: DraftNode[], paths: Map<string, string>): DraftNode[] {
   let changed = false;
   const next = nodes.map((node): DraftNode => {
