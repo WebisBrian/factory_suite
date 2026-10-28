@@ -7,10 +7,15 @@ import wordmarkWhite from "@/components/screendraft/brand/logos/screen-draft-wor
 import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
 import { ScreendraftHistoryControls } from "@/components/screendraft/ScreendraftHistoryControls";
 import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
+import { ScreendraftLibrary } from "@/components/screendraft/ScreendraftLibrary";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
+import {
+  instantiateComponent,
+  type CustomComponent,
+} from "@/components/screendraft/screendraft-components";
 import { downloadMaquette } from "@/components/screendraft/screendraft-file";
 import {
   clipboardShortcut,
@@ -27,6 +32,7 @@ import type {
 } from "@/components/screendraft/screendraft-schema";
 import { findNode } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
+import { useScreendraftLibrary } from "@/components/screendraft/use-screendraft-library";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
 
 /** Élément copié ou coupé, son ancien parent et le décalage à appliquer au prochain collage. */
@@ -50,9 +56,16 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const isDirty = projectId !== null && draft !== savedDraft;
   // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
   const clipboard = useRef<ScreendraftClipboard | null>(null);
+  const library = useScreendraftLibrary(projectId);
 
   function addNode(type: DraftNodeType, shape?: ShapeKind) {
     const node = createNode(type, draft.nodes.length, shape);
+    dispatch({ type: "add-node", node });
+    setSelectedId(node.id);
+  }
+
+  function insertComponent(component: CustomComponent) {
+    const node = instantiateComponent(component, draft.nodes.length);
     dispatch({ type: "add-node", node });
     setSelectedId(node.id);
   }
@@ -151,6 +164,14 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         <div className="flex min-h-0 flex-1">
           <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
             <ScreendraftPalette onAdd={addNode} />
+            <ScreendraftLibrary
+              components={library.components}
+              status={library.status}
+              isDemo={projectId === null}
+              onInsert={insertComponent}
+              onRename={(id, name) => void library.rename(id, name)}
+              onRemove={(id) => void library.remove(id)}
+            />
             <ScreendraftLayers
               nodes={draft.nodes}
               selectedId={selectedId}
@@ -169,7 +190,12 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
               dispatch({ type: "place-node", id, placement: { type: "inside", parentId } })
             }
           />
-          <ScreendraftPropertiesPanel frame={draft.frame} selection={selection} dispatch={dispatch} />
+          <ScreendraftPropertiesPanel
+            frame={draft.frame}
+            selection={selection}
+            dispatch={dispatch}
+            onCreateComponent={(name, node) => void library.add(name, node)}
+          />
         </div>
       </div>
     </div>

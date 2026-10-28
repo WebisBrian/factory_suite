@@ -14,13 +14,20 @@ export function cloneNode(node: DraftNode, offset: number): DraftNode {
 }
 
 /**
+ * Position (x = y) d'un élément inséré depuis la palette, `index` étant le nombre d'éléments
+ * déjà au premier niveau : chaque insertion est un peu décalée pour ne pas les empiler.
+ */
+export function insertionOffset(index: number): number {
+  return 40 + (index % 5) * 32;
+}
+
+/**
  * Nouvel élément inséré depuis la palette, au premier niveau du frame.
- * Chaque insertion est un peu décalée pour ne pas empiler les éléments au même endroit.
  * Couleurs par défaut conformes WCAG AA sur le fond blanc du frame et sur une section :
  * texte ≥ 4.5:1, formes et bordures ≥ 3:1.
  */
 export function createNode(type: DraftNodeType, index: number, shape: ShapeKind = "rectangle"): DraftNode {
-  const offset = 40 + (index % 5) * 32;
+  const offset = insertionOffset(index);
   const base = { id: `${type}_${Date.now()}_${index}`, x: offset, y: offset };
 
   switch (type) {
