@@ -1,20 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { listProjectHistory, readFileVersion, restoreFileVersion, type FileVersion } from "@/lib/project-fs";
+import { HubAlert, HubStatus } from "@/components/hub/HubAlert";
 import { hubComparableText, hubDiffLines, type HubDiffLine } from "@/components/hub/hub-diff";
+import { hubInput, hubSectionLabel, hubSmallButton } from "@/components/hub/hub-styles";
 
 const MAX_PREVIEW_BYTES = 1024 * 1024;
 const DIFF_CONTEXT = 3;
 
 const dayFormat = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const timeFormat = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const dateTimeFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "medium" });
+const dateTimeFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "medium" });
 
-const ghostButton =
-  "rounded-md px-2 py-0.5 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40";
-const tabButton = (active: boolean) =>
-  `rounded-full px-3 py-1 text-xs transition-colors ${active ? "bg-white/15 text-white" : "text-zinc-400 hover:text-white"}`;
+// Bouton bascule : l'état actif est porté par aria-pressed ET par un soulignement épais (pas que la couleur).
+const toggleButton = (active: boolean) =>
+  `min-h-10 rounded-lg px-3 text-base transition-colors ${
+    active ? "bg-white/15 font-bold text-white underline decoration-4 underline-offset-8" : "text-zinc-200 hover:bg-white/10"
+  }`;
+
+// Diff : bleu / orange (paire lisible par les daltoniens) + signe + / − + texte pour lecteur d'écran.
+const DIFF_STYLES: Record<HubDiffLine["kind"], { row: string; sign: string; spoken: string }> = {
+  added: { row: "bg-sky-950 text-sky-100", sign: "+", spoken: "Ajouté : " },
+  removed: { row: "bg-orange-950 text-orange-100", sign: "−", spoken: "Supprimé : " },
+  same: { row: "text-zinc-300", sign: " ", spoken: "" },
+};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -80,51 +90,55 @@ function HubDiffView({ lines }: { lines: HubDiffLine[] }) {
 
   const rows: React.ReactNode[] = [];
   let hidden = 0;
+  const pushGap = (key: string) => {
+    rows.push(
+      <div key={key} className="px-3 py-1 text-zinc-300 italic">
+        … {hidden} ligne{hidden > 1 ? "s" : ""} identique{hidden > 1 ? "s" : ""}
+      </div>,
+    );
+    hidden = 0;
+  };
   lines.forEach((line, index) => {
     if (!visible[index]) {
       hidden++;
       return;
     }
-    if (hidden > 0) {
-      rows.push(
-        <div key={`gap-${index}`} className="px-3 py-0.5 text-zinc-500 italic">
-          … {hidden} ligne{hidden > 1 ? "s" : ""} identique{hidden > 1 ? "s" : ""}
-        </div>,
-      );
-      hidden = 0;
-    }
-    const style =
-      line.kind === "added"
-        ? "bg-emerald-500/15 text-emerald-200"
-        : line.kind === "removed"
-          ? "bg-red-500/15 text-red-200"
-          : "text-zinc-400";
-    const sign = line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " ";
+    if (hidden > 0) pushGap(`gap-${index}`);
+    const style = DIFF_STYLES[line.kind];
     rows.push(
-      <div key={index} className={`px-3 whitespace-pre-wrap break-all ${style}`}>
-        <span className="mr-2 select-none opacity-60">{sign}</span>
+      <div key={index} className={`px-3 whitespace-pre-wrap break-all ${style.row}`}>
+        <span aria-hidden className="mr-2 inline-block w-3 font-bold select-none">
+          {style.sign}
+        </span>
+        <span className="sr-only">{style.spoken}</span>
         {line.text}
       </div>,
     );
   });
-  if (hidden > 0) {
-    rows.push(
-      <div key="gap-end" className="px-3 py-0.5 text-zinc-500 italic">
-        … {hidden} ligne{hidden > 1 ? "s" : ""} identique{hidden > 1 ? "s" : ""}
-      </div>,
-    );
-  }
+  if (hidden > 0) pushGap("gap-end");
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs">
-        <span className="text-emerald-300">+{added} ajoutée{added > 1 ? "s" : ""}</span>{" "}
-        <span className="text-red-300">−{removed} supprimée{removed > 1 ? "s" : ""}</span>
+      <p className="text-base">
+        <span className="font-bold text-sky-200">
+          + {added} ligne{added > 1 ? "s" : ""} ajoutée{added > 1 ? "s" : ""}
+        </span>
+        {", "}
+        <span className="font-bold text-orange-200">
+          − {removed} ligne{removed > 1 ? "s" : ""} supprimée{removed > 1 ? "s" : ""}
+        </span>
       </p>
       {added + removed === 0 ? (
-        <p className="text-sm text-zinc-500">Contenu identique à la version précédente.</p>
+        <p className="text-base text-zinc-300">Contenu identique à la version précédente.</p>
       ) : (
-        <div className="max-h-96 overflow-auto rounded-lg bg-black/40 py-2 font-mono text-xs leading-5">{rows}</div>
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Lignes modifiées"
+          className="max-h-[60vh] overflow-auto rounded-lg border border-zinc-700 bg-black/40 py-2 font-mono text-base leading-relaxed"
+        >
+          {rows}
+        </div>
       )}
     </div>
   );
@@ -133,6 +147,8 @@ function HubDiffView({ lines }: { lines: HubDiffLine[] }) {
 function HubVersionViewer({ projectId, viewer, onClose }: { projectId: number; viewer: Viewer; onClose: () => void }) {
   const key = `${versionKey(viewer.version)}:${viewer.mode}`;
   const [result, setResult] = useState<ViewerResult | null>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     let cancelled = false;
@@ -142,30 +158,37 @@ function HubVersionViewer({ projectId, viewer, onClose }: { projectId: number; v
     };
   }, [projectId, viewer, key]);
 
+  // À l'ouverture, le focus va sur le titre de l'aperçu : le lecteur d'écran l'annonce.
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, [key]);
+
   const ready = result?.key === key ? result : null;
+  const subtitle =
+    viewer.mode === "diff"
+      ? viewer.previous
+        ? `Changements entre le ${dateTimeFormat.format(viewer.previous.savedAt)} et le ${dateTimeFormat.format(viewer.version.savedAt)}`
+        : `Première version enregistrée, le ${dateTimeFormat.format(viewer.version.savedAt)}`
+      : `Contenu au ${dateTimeFormat.format(viewer.version.savedAt)}`;
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/30 p-4">
-      <header className="flex items-start justify-between gap-3">
+    <section aria-labelledby={titleId} className="flex flex-col gap-3 rounded-xl border-2 border-zinc-500 bg-black/30 p-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h4 className="truncate font-mono text-sm text-white">{viewer.version.filename}</h4>
-          <p className="text-xs text-zinc-500">
-            {viewer.mode === "diff"
-              ? viewer.previous
-                ? `Changements entre ${dateTimeFormat.format(viewer.previous.savedAt)} et ${dateTimeFormat.format(viewer.version.savedAt)}`
-                : `Première version enregistrée (${dateTimeFormat.format(viewer.version.savedAt)})`
-              : `Contenu au ${dateTimeFormat.format(viewer.version.savedAt)}`}
-          </p>
+          <h4 id={titleId} ref={titleRef} tabIndex={-1} className="font-mono text-lg font-bold break-all text-white">
+            {viewer.version.filename}
+          </h4>
+          <p className="text-base text-zinc-300">{subtitle}</p>
         </div>
-        <button type="button" onClick={onClose} className={ghostButton}>
+        <button type="button" onClick={onClose} aria-label="Fermer l'aperçu" className={hubSmallButton}>
           Fermer
         </button>
       </header>
 
       {ready === null ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
+        <HubStatus>Chargement…</HubStatus>
       ) : ready.kind === "unavailable" ? (
-        <p className="text-sm text-zinc-500">{ready.reason}</p>
+        <p className="text-base text-zinc-300">{ready.reason}</p>
       ) : viewer.mode === "diff" ? (
         (() => {
           const lines = hubDiffLines(
@@ -175,11 +198,15 @@ function HubVersionViewer({ projectId, viewer, onClose }: { projectId: number; v
           return lines ? (
             <HubDiffView lines={lines} />
           ) : (
-            <p className="text-sm text-zinc-500">Fichiers trop volumineux pour être comparés.</p>
+            <p className="text-base text-zinc-300">Fichiers trop volumineux pour être comparés.</p>
           );
         })()
       ) : (
-        <pre className="max-h-96 overflow-auto rounded-lg bg-black/40 p-3 font-mono text-xs leading-5 whitespace-pre-wrap break-all text-zinc-200">
+        <pre
+          tabIndex={0}
+          aria-label={`Contenu de ${viewer.version.filename}`}
+          className="max-h-[60vh] overflow-auto rounded-lg border border-zinc-700 bg-black/40 p-3 font-mono text-base leading-relaxed whitespace-pre-wrap break-all text-zinc-100"
+        >
           {hubComparableText(viewer.version.filename, ready.current)}
         </pre>
       )}
@@ -195,6 +222,9 @@ export function HubProjectHistory({ projectId, onRestored }: { projectId: number
   const [atDate, setAtDate] = useState(() => toLocalInputValue(Date.now()));
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const filterId = useId();
+  const dateId = useId();
 
   const load = useCallback(async () => {
     try {
@@ -243,6 +273,7 @@ export function HubProjectHistory({ projectId, onRestored }: { projectId: number
       await restoreFileVersion(projectId, version.filename, version.versionId);
       await Promise.all([load(), onRestored()]);
       setViewer(null);
+      setAnnouncement(`${version.filename} restauré à la version du ${dateTimeFormat.format(version.savedAt)}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -252,19 +283,41 @@ export function HubProjectHistory({ projectId, onRestored }: { projectId: number
 
   function renderActions(version: FileVersion) {
     const key = versionKey(version);
+    const which = `${version.filename}, version du ${dateTimeFormat.format(version.savedAt)}`;
     return (
-      <div className="flex shrink-0 flex-wrap justify-end gap-0.5">
-        <button type="button" onClick={() => setViewer({ version, previous: previousOf(version), mode: "diff" })} className={ghostButton}>
+      <div role="group" aria-label={`Actions pour ${which}`} className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setViewer({ version, previous: previousOf(version), mode: "diff" })}
+          aria-label={`Voir les changements de ${which}`}
+          className={hubSmallButton}
+        >
           Changements
         </button>
-        <button type="button" onClick={() => setViewer({ version, previous: null, mode: "content" })} className={ghostButton}>
+        <button
+          type="button"
+          onClick={() => setViewer({ version, previous: null, mode: "content" })}
+          aria-label={`Voir le contenu de ${which}`}
+          className={hubSmallButton}
+        >
           Contenu
         </button>
-        <button type="button" onClick={() => downloadVersion(projectId, version)} className={ghostButton}>
+        <button
+          type="button"
+          onClick={() => downloadVersion(projectId, version)}
+          aria-label={`Télécharger ${which}`}
+          className={hubSmallButton}
+        >
           Télécharger
         </button>
         {!latestKeys.has(key) && (
-          <button type="button" onClick={() => handleRestore(version)} disabled={restoring !== null} className={ghostButton}>
+          <button
+            type="button"
+            onClick={() => handleRestore(version)}
+            disabled={restoring !== null}
+            aria-label={`Restaurer ${which}`}
+            className={hubSmallButton}
+          >
             {restoring === key ? "Restauration…" : "Restaurer"}
           </button>
         )}
@@ -272,10 +325,10 @@ export function HubProjectHistory({ projectId, onRestored }: { projectId: number
     );
   }
 
-  if (error) return <p className="text-sm text-red-400">{error}</p>;
-  if (versions === null) return <p className="text-sm text-zinc-500">Chargement de l&apos;historique…</p>;
+  if (error) return <HubAlert>{error}</HubAlert>;
+  if (versions === null) return <HubStatus>Chargement de l&apos;historique…</HubStatus>;
   if (versions.length === 0) {
-    return <p className="text-sm text-zinc-500">Aucune modification enregistrée pour l&apos;instant.</p>;
+    return <p className="text-base text-zinc-300">Aucune modification enregistrée pour l&apos;instant.</p>;
   }
 
   const filtered = fileFilter ? versions.filter((version) => version.filename === fileFilter) : versions;
@@ -299,79 +352,94 @@ export function HubProjectHistory({ projectId, onRestored }: { projectId: number
     }));
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 rounded-full bg-white/5 p-0.5">
-          <button type="button" onClick={() => setMode("timeline")} className={tabButton(mode === "timeline")}>
+    <div className="flex flex-col gap-4">
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div role="group" aria-label="Mode d'affichage de l'historique" className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("timeline")}
+            aria-pressed={mode === "timeline"}
+            className={toggleButton(mode === "timeline")}
+          >
             Chronologie
           </button>
-          <button type="button" onClick={() => setMode("at-date")} className={tabButton(mode === "at-date")}>
+          <button
+            type="button"
+            onClick={() => setMode("at-date")}
+            aria-pressed={mode === "at-date"}
+            className={toggleButton(mode === "at-date")}
+          >
             État à une date
           </button>
         </div>
-        <select
-          value={fileFilter}
-          onChange={(event) => setFileFilter(event.target.value)}
-          aria-label="Filtrer par fichier"
-          className="rounded-full border border-white/15 bg-[#16161d] px-3 py-1 text-xs text-zinc-200"
-        >
-          <option value="">Tous les fichiers</option>
-          {filenames.map((filename) => (
-            <option key={filename} value={filename}>
-              {filename}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={filterId} className="text-sm font-semibold text-zinc-200">
+            Fichier affiché
+          </label>
+          <select id={filterId} value={fileFilter} onChange={(event) => setFileFilter(event.target.value)} className={hubInput}>
+            <option value="">Tous les fichiers</option>
+            {filenames.map((filename) => (
+              <option key={filename} value={filename}>
+                {filename}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {mode === "timeline" ? (
-        <div className="flex max-h-80 flex-col gap-3 overflow-auto pr-1">
+        <div className="flex flex-col gap-4">
           {days.map((day) => (
-            <div key={day.label}>
-              <h4 className="mb-1 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">{day.label}</h4>
-              <ol className="divide-y divide-white/5 rounded-xl border border-white/5 bg-black/20 text-sm">
+            <section key={day.label} aria-label={day.label}>
+              <h4 className={`mb-2 ${hubSectionLabel}`}>{day.label}</h4>
+              <ol className="divide-y divide-zinc-700 rounded-xl border border-zinc-700 text-base">
                 {day.items.map((version) => (
-                  <li key={versionKey(version)} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-                    <span className="font-mono text-xs text-zinc-400">{timeFormat.format(version.savedAt)}</span>
-                    <span className="min-w-0 flex-1 truncate font-mono text-zinc-200">
-                      {version.filename}
+                  <li key={versionKey(version)} className="flex flex-col gap-2 px-3 py-3">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="font-mono font-bold text-white">{timeFormat.format(version.savedAt)}</span>
+                      <span className="font-mono break-all text-zinc-100">{version.filename}</span>
                       {latestKeys.has(versionKey(version)) && (
-                        <span className="ml-2 rounded-full bg-emerald-500/15 px-1.5 py-0.5 font-sans text-[10px] text-emerald-300">
-                          actuelle
+                        <span className="rounded-full border border-zinc-300 px-2 text-sm font-semibold text-white">
+                          version actuelle
                         </span>
                       )}
-                    </span>
-                    <span className="text-xs text-zinc-500">{formatSize(version.size)}</span>
+                      <span className="text-sm text-zinc-300">{formatSize(version.size)}</span>
+                    </p>
                     {renderActions(version)}
                   </li>
                 ))}
               </ol>
-            </div>
+            </section>
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          <label className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
-            Afficher le projet tel qu&apos;il était le
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor={dateId} className="text-base font-semibold text-zinc-100">
+              Afficher le projet tel qu&apos;il était le
+            </label>
             <input
+              id={dateId}
               type="datetime-local"
               value={atDate}
               onChange={(event) => setAtDate(event.target.value)}
-              className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-sm text-white scheme-dark"
+              className={`self-start scheme-dark ${hubInput}`}
             />
-          </label>
-          <ul className="divide-y divide-white/5 rounded-xl border border-white/5 bg-black/20 text-sm">
+          </div>
+          <ul className="divide-y divide-zinc-700 rounded-xl border border-zinc-700 text-base">
             {snapshot.map(({ filename, version }) => (
-              <li key={filename} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-                <span className="min-w-0 flex-1 truncate font-mono text-zinc-200">{filename}</span>
-                {version ? (
-                  <>
-                    <span className="text-xs text-zinc-500">version du {dateTimeFormat.format(version.savedAt)}</span>
-                    {renderActions(version)}
-                  </>
-                ) : (
-                  <span className="text-xs text-zinc-500 italic">n&apos;existait pas encore</span>
-                )}
+              <li key={filename} className="flex flex-col gap-2 px-3 py-3">
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-mono break-all text-zinc-100">{filename}</span>
+                  <span className="text-sm text-zinc-300">
+                    {version ? `version du ${dateTimeFormat.format(version.savedAt)}` : "n'existait pas encore à cette date"}
+                  </span>
+                </p>
+                {version && renderActions(version)}
               </li>
             ))}
           </ul>
