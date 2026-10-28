@@ -123,7 +123,7 @@ function HubProjectList({ folderName, onChangeFolder }: { folderName: string; on
           Aucun projet. Créez-en un pour commencer.
         </p>
       ) : (
-        <ul aria-label={`${projects.length} projet${projects.length > 1 ? "s" : ""}`} className="grid gap-4 lg:grid-cols-2">
+        <ul aria-label={`${projects.length} projet${projects.length > 1 ? "s" : ""}`} className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))] gap-4">
           {projects.toReversed().map((project) => (
             <HubProjectCard key={project.id} project={project} onChanged={load} />
           ))}

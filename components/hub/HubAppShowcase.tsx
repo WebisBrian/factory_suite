@@ -10,7 +10,7 @@ export function HubAppShowcase() {
       <h2 id="hub-tools-title" className="text-2xl font-bold text-white">
         Les outils, en démonstration
       </h2>
-      <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-4">
         {HUB_TOOLS.map((tool, index) => (
           <li key={tool.slug}>
             <Link

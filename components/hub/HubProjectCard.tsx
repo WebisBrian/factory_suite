@@ -97,7 +97,7 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
   return (
     <li
       aria-labelledby={titleId}
-      className={`relative flex flex-col gap-5 p-5 ${hubCard} ${panel === "history" ? "lg:col-span-2" : ""}`}
+      className={`relative flex min-w-0 flex-col gap-4 p-4 sm:gap-5 sm:p-5 ${hubCard} ${panel === "history" ? "col-span-full" : ""}`}
     >
       <header className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
@@ -196,7 +196,7 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
       )}
 
       <nav aria-label={`Ouvrir le projet ${project.name} dans un outil`}>
-        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-2">
           {HUB_TOOLS.map((tool, index) => (
             <li key={tool.slug}>
               <Link
