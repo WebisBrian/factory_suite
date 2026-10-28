@@ -174,6 +174,8 @@ export function nodeLabel(node: DraftNode): string {
       return node.props.text;
     case "image":
       return node.props.alt || "Image";
+    case "video":
+      return node.props.title || "Vidéo";
     case "button":
       return node.props.label;
     case "shape":

@@ -11,6 +11,12 @@ const ICONS: Record<DraftNodeType, ReactNode> = {
       <path d="m3 16 5-5 4 4 3-3 6 6" />
     </>
   ),
+  video: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m10 9 5 3-5 3z" />
+    </>
+  ),
   button: (
     <>
       <rect x="3" y="8" width="18" height="8" rx="4" />

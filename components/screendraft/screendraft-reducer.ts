@@ -9,6 +9,7 @@ import type {
   ShapeNode,
   TextNode,
   TitleNode,
+  VideoNode,
 } from "@/components/screendraft/screendraft-schema";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
@@ -54,6 +55,7 @@ export type PropsPatch =
   | { nodeType: "title"; props: Partial<TitleNode["props"]> }
   | { nodeType: "text"; props: Partial<TextNode["props"]> }
   | { nodeType: "image"; props: Partial<ImageNode["props"]> }
+  | { nodeType: "video"; props: Partial<VideoNode["props"]> }
   | { nodeType: "button"; props: Partial<ButtonNode["props"]> }
   | { nodeType: "shape"; props: Partial<ShapeNode["props"]> };
 
@@ -143,6 +145,8 @@ function mergeProps(node: DraftNode, patch: PropsPatch): DraftNode {
       return node.type === "text" ? { ...node, props: { ...node.props, ...patch.props } } : node;
     case "image":
       return node.type === "image" ? { ...node, props: { ...node.props, ...patch.props } } : node;
+    case "video":
+      return node.type === "video" ? { ...node, props: { ...node.props, ...patch.props } } : node;
     case "button":
       return node.type === "button"
         ? { ...node, props: withoutUndefined({ ...node.props, ...patch.props }) }

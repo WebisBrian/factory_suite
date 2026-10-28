@@ -1,4 +1,4 @@
-import { useRef, type Dispatch } from "react";
+import { useId, useRef, useState, type Dispatch, type FormEvent } from "react";
 import {
   FIELD_CLASS,
   ScreendraftColorField,
@@ -8,8 +8,9 @@ import {
   ScreendraftSelectField,
 } from "@/components/screendraft/ScreendraftFields";
 import type { Geometry, ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { DraftNode, DraftNodeType, NodeStyle } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, DraftNodeType, NodeStyle, VideoNode } from "@/components/screendraft/screendraft-schema";
 import { SHAPE_LABELS } from "@/components/screendraft/screendraft-tree";
+import { parseVideoUrl } from "@/components/screendraft/screendraft-video";
 
 // Bornes des champs, en px.
 const MAX_POSITION = 10000;
@@ -23,7 +24,7 @@ const DEFAULT_FONT_SIZE = 16;
 
 const HAS_FILL: DraftNodeType[] = ["section", "button", "shape"];
 const HAS_TEXT_STYLE: DraftNodeType[] = ["title", "text", "button"];
-const HAS_BOX_STYLE: DraftNodeType[] = ["section", "image", "button", "shape"];
+const HAS_BOX_STYLE: DraftNodeType[] = ["section", "image", "video", "button", "shape"];
 
 const GEOMETRY_FIELDS: { key: keyof Geometry; label: string; min: number; max: number }[] = [
   { key: "x", label: "X", min: 0, max: MAX_POSITION },
@@ -238,6 +239,9 @@ function ContentFields({ node, dispatch }: ScreendraftNodePropertiesProps) {
           />
         </ScreendraftFieldGroup>
       );
+    // Remonté à chaque changement d'élément pour repartir de son lien.
+    case "video":
+      return <VideoFields key={node.id} node={node} dispatch={dispatch} />;
     case "shape":
       return (
         <ScreendraftFieldGroup title="Forme">
@@ -253,6 +257,71 @@ function ContentFields({ node, dispatch }: ScreendraftNodePropertiesProps) {
         </ScreendraftFieldGroup>
       );
   }
+}
+
+/**
+ * Le lien n'est appliqué qu'à la validation : un lien non reconnu ne modifie rien.
+ * Le titre, lui, s'applique à la frappe comme les autres champs.
+ */
+function VideoFields({ node, dispatch }: { node: VideoNode; dispatch: Dispatch<ScreendraftAction> }) {
+  const [url, setUrl] = useState(node.props.src);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
+  const errorId = useId();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = parseVideoUrl(url);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      setStatus("");
+      return;
+    }
+    setError(null);
+    setUrl(parsed.src);
+    dispatch({ type: "set-props", id: node.id, nodeType: "video", props: { src: parsed.src, kind: parsed.kind } });
+    setStatus("Vidéo mise à jour.");
+  }
+
+  return (
+    <ScreendraftFieldGroup title="Contenu">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-(--space-3)">
+        <ScreendraftField label="Lien de la vidéo">
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="https://www.youtube.com/watch?v=…"
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            aria-invalid={error !== null}
+            aria-describedby={error ? errorId : undefined}
+            className={FIELD_CLASS}
+          />
+        </ScreendraftField>
+        {error && (
+          <p id={errorId} role="alert" className="text-(--danger)">
+            Erreur : {error}
+          </p>
+        )}
+        <button type="submit" className={`${FIELD_CLASS} min-h-10 hover:bg-(--canvas)`}>
+          Appliquer le lien
+        </button>
+        <p role="status" className="text-(--ink-muted)">
+          {status}
+        </p>
+      </form>
+      <ScreendraftField label="Titre (lu par les lecteurs d’écran)">
+        <input
+          type="text"
+          value={node.props.title}
+          onChange={(event) =>
+            dispatch({ type: "set-props", id: node.id, nodeType: "video", props: { title: event.target.value } })
+          }
+          className={FIELD_CLASS}
+        />
+      </ScreendraftField>
+    </ScreendraftFieldGroup>
+  );
 }
 
 function ImagePicker({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<ScreendraftAction> }) {

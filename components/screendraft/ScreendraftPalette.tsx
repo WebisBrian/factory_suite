@@ -7,6 +7,7 @@ const BASE_COMPONENTS: { type: Exclude<DraftNodeType, "shape">; label: string }[
   { type: "title", label: "Titre" },
   { type: "text", label: "Texte" },
   { type: "image", label: "Image" },
+  { type: "video", label: "Vidéo" },
   { type: "button", label: "Bouton" },
 ];
 
