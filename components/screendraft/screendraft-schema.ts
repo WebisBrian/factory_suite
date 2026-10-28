@@ -67,6 +67,20 @@ export type NodeStyle = {
   borderColor?: HexColor;
 };
 
+/**
+ * Ce que les lecteurs d'écran lisent pour un élément (SCRUM-25). Champ facultatif :
+ * absent, l'élément est lu selon son contenu visible. Ajout compatible : SCHEMA_VERSION inchangé.
+ *
+ * Côté HTML généré :
+ * - `decorative: true` → `aria-hidden="true"` (`alt=""` pour une image) ;
+ * - `label` → `aria-label`, lu à la place du texte visible.
+ * Pour une image et une vidéo, le texte lu reste `props.alt` / `props.title` : `label` n'est pas utilisé.
+ */
+export type NodeA11y = {
+  label?: string;
+  decorative?: boolean;
+};
+
 type BaseNode = {
   /** Unique dans le document, tous écrans confondus. */
   id: string;
@@ -75,6 +89,7 @@ type BaseNode = {
   width: number;
   height: number;
   style: NodeStyle;
+  a11y?: NodeA11y;
 };
 
 export type SectionNode = BaseNode & {

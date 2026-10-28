@@ -17,6 +17,7 @@ import type {
   VideoNode,
 } from "@/components/screendraft/screendraft-schema";
 import { SHAPE_LABELS } from "@/components/screendraft/screendraft-tree";
+import { defaultSpokenText, hasOwnAccessibleText, spokenText } from "@/components/screendraft/screendraft-a11y";
 import { parseVideoUrl } from "@/components/screendraft/screendraft-video";
 
 // Bornes des champs, en px.
@@ -75,6 +76,8 @@ export function ScreendraftNodeProperties({ node, screens, screenId, dispatch }:
   return (
     <>
       <ContentFields node={node} screens={screens} screenId={screenId} dispatch={dispatch} />
+
+      <ScreenReaderFields node={node} dispatch={dispatch} />
 
       <ScreendraftFieldGroup title="Position et taille">
         <div className="grid grid-cols-2 gap-(--space-3)">
@@ -242,10 +245,12 @@ function ContentFields({ node, screens, screenId, dispatch }: ScreendraftNodePro
       return (
         <ScreendraftFieldGroup title="Contenu">
           <ImagePicker nodeId={node.id} dispatch={dispatch} />
-          <ScreendraftField label="Texte alternatif">
+          <ScreendraftField label={node.a11y?.decorative ? "Texte alternatif (ignoré : image décorative)" : "Texte alternatif (obligatoire)"}>
             <input
               type="text"
               value={node.props.alt}
+              disabled={node.a11y?.decorative}
+              aria-invalid={(!node.a11y?.decorative && node.props.alt.trim() === "") || undefined}
               onChange={(event) =>
                 dispatch({ type: "set-props", id: node.id, nodeType: "image", props: { alt: event.target.value } })
               }
@@ -390,7 +395,7 @@ function ImagePicker({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       if (typeof reader.result === "string") {
-        dispatch({ type: "set-image", id: nodeId, src: reader.result, alt: file.name });
+        dispatch({ type: "set-image", id: nodeId, src: reader.result });
       }
     });
     reader.readAsDataURL(file);
@@ -417,4 +422,70 @@ function ImagePicker({ nodeId, dispatch }: { nodeId: string; dispatch: Dispatch<
       </button>
     </>
   );
+}
+
+/** SCRUM-25 : ce que les lecteurs d'écran liront pour cet élément dans la page générée. */
+function ScreenReaderFields({ node, dispatch }: { node: DraftNode; dispatch: Dispatch<ScreendraftAction> }) {
+  const decorativeId = useId();
+  const labelId = useId();
+  const hintId = useId();
+  const decorative = node.a11y?.decorative === true;
+  // Image et vidéo ont déjà leur texte lu (texte alternatif, titre) dans « Contenu ».
+  const ownText = hasOwnAccessibleText(node);
+
+  return (
+    <ScreendraftFieldGroup title="Lecteurs d’écran">
+      <div className="flex min-h-10 items-center gap-(--space-2)">
+        <input
+          id={decorativeId}
+          type="checkbox"
+          checked={decorative}
+          aria-describedby={hintId}
+          onChange={(event) => dispatch({ type: "set-a11y", id: node.id, patch: { decorative: event.target.checked } })}
+          className="size-5 shrink-0 accent-(--draft)"
+        />
+        <label htmlFor={decorativeId}>Élément décoratif (ignoré par les lecteurs d’écran)</label>
+      </div>
+      {!decorative && !ownText && (
+        <div className="flex flex-col gap-(--space-1)">
+          <label htmlFor={labelId} className="text-(--ink-muted)">
+            Texte lu par les lecteurs d’écran
+          </label>
+          <textarea
+            id={labelId}
+            value={node.a11y?.label ?? ""}
+            aria-describedby={hintId}
+            onChange={(event) => dispatch({ type: "set-a11y", id: node.id, patch: { label: event.target.value } })}
+            className={`${FIELD_CLASS} min-h-20 resize-y`}
+          />
+        </div>
+      )}
+      <p id={hintId} className="text-(--ink-muted)">
+        {screenReaderHint(node)}
+      </p>
+    </ScreendraftFieldGroup>
+  );
+}
+
+function screenReaderHint(node: DraftNode): string {
+  const spoken = spokenText(node);
+  if (node.a11y?.decorative) {
+    return node.type === "image"
+      ? "L’image sera générée avec un texte alternatif vide (alt=\"\")."
+      : "L’élément sera masqué aux lecteurs d’écran (aria-hidden).";
+  }
+  if (node.type === "image") {
+    return spoken
+      ? `Lu : « ${spoken} ». Décrivez ce que l’image apporte, pas le nom du fichier.`
+      : "Erreur : texte alternatif manquant. Remplissez-le dans « Contenu », ou cochez « décoratif ».";
+  }
+  if (node.type === "video") {
+    return spoken
+      ? `Lu : « ${spoken} » (titre de la vidéo, dans « Contenu »).`
+      : "Erreur : titre manquant. Remplissez le titre de la vidéo dans « Contenu ».";
+  }
+  if (node.a11y?.label?.trim()) return `Lu à la place du texte visible : « ${spoken} ».`;
+  const fallback = defaultSpokenText(node);
+  if (fallback) return `Laissé vide, le texte visible est lu : « ${fallback} ».`;
+  return "Laissé vide, cet élément n’a rien à lire. Nommez-le s’il porte une information.";
 }

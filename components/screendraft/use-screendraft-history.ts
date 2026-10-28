@@ -46,6 +46,8 @@ function groupKey(action: ScreendraftAction): string | null {
       return `move:${action.id}`;
     case "set-text":
       return `text:${action.id}`;
+    case "set-a11y":
+      return `a11y:${action.id}:${Object.keys(action.patch).join()}`;
     case "rename-screen":
       return `screen-name:${action.screenId}`;
     // Glisser dans un sélecteur de couleur, taper un libellé ou un lien.

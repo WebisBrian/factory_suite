@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { a11yAttributes } from "@/components/screendraft/screendraft-a11y";
 import type { ButtonNode, DraftNode, NodeStyle, ShapeNode, VideoNode } from "@/components/screendraft/screendraft-schema";
 
 /**
@@ -7,11 +8,13 @@ import type { ButtonNode, DraftNode, NodeStyle, ShapeNode, VideoNode } from "@/c
  */
 export function ScreendraftNode({ node }: { node: DraftNode }) {
   const style = { ...boxStyle(node), ...toCss(node.style) };
+  // SCRUM-25 : mêmes attributs que dans la page générée.
+  const a11y = a11yAttributes(node);
 
   switch (node.type) {
     case "section":
       return (
-        <section data-node-id={node.id} style={style}>
+        <section data-node-id={node.id} {...a11y} style={style}>
           {node.children.map((child) => (
             <ScreendraftNode key={child.id} node={child} />
           ))}
@@ -20,14 +23,14 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
     case "title": {
       const Heading = `h${node.props.level}` as const;
       return (
-        <Heading data-node-id={node.id} style={style}>
+        <Heading data-node-id={node.id} {...a11y} style={style}>
           {node.props.text}
         </Heading>
       );
     }
     case "text":
       return (
-        <p data-node-id={node.id} style={style}>
+        <p data-node-id={node.id} {...a11y} style={style}>
           {node.props.text}
         </p>
       );
@@ -39,7 +42,7 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
         <img
           data-node-id={node.id}
           src={node.props.src}
-          alt={node.props.alt}
+          alt={node.a11y?.decorative ? "" : node.props.alt}
           draggable={false}
           style={{ ...style, objectFit: node.props.fit }}
         />
@@ -49,7 +52,7 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
     case "button":
       // Pas de vrai lien ni de vrai bouton : dans l'éditeur, un clic ne doit rien déclencher.
       return (
-        <div data-node-id={node.id} style={{ ...style, ...buttonLayout(node) }}>
+        <div data-node-id={node.id} {...a11y} style={{ ...style, ...buttonLayout(node) }}>
           {node.props.label}
         </div>
       );
@@ -66,7 +69,7 @@ function VideoNodeView({ node, style }: { node: VideoNode; style: CSSProperties 
   const { src, kind, title } = node.props;
   const playerStyle: CSSProperties = { width: "100%", height: "100%", border: 0, pointerEvents: "none" };
   return (
-    <div data-node-id={node.id} style={{ ...style, overflow: "hidden" }}>
+    <div data-node-id={node.id} {...a11yAttributes(node)} style={{ ...style, overflow: "hidden" }}>
       {!src ? (
         <div
           style={{
@@ -92,12 +95,13 @@ function VideoNodeView({ node, style }: { node: VideoNode; style: CSSProperties 
 function ShapeNodeView({ node, style }: { node: ShapeNode; style: CSSProperties }) {
   if (node.props.shape !== "triangle") {
     const borderRadius = node.props.shape === "circle" ? "50%" : style.borderRadius;
-    return <div data-node-id={node.id} style={{ ...style, borderRadius }} />;
+    return <div data-node-id={node.id} {...a11yAttributes(node)} style={{ ...style, borderRadius }} />;
   }
   // Le fond et la bordure d'un triangle se dessinent en SVG, pas en CSS.
   return (
     <svg
       data-node-id={node.id}
+      {...a11yAttributes(node)}
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       style={{ ...boxStyle(node), overflow: "visible" }}

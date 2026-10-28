@@ -4,6 +4,7 @@ import type {
   DraftNode,
   ImageNode,
   Maquette,
+  NodeA11y,
   NodeStyle,
   Screen,
   ShapeNode,
@@ -11,6 +12,7 @@ import type {
   TitleNode,
   VideoNode,
 } from "@/components/screendraft/screendraft-schema";
+import { withA11y } from "@/components/screendraft/screendraft-a11y";
 import { syncLinks } from "@/components/screendraft/screendraft-links";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
@@ -43,7 +45,9 @@ export type ScreendraftAction =
   | { type: "move-to-screen"; id: string; screenId: string; parentId: string | null; x: number; y: number }
   | { type: "move-node"; id: string; x: number; y: number }
   | { type: "set-text"; id: string; text: string }
-  | { type: "set-image"; id: string; src: string; alt: string }
+  | { type: "set-image"; id: string; src: string }
+  // SCRUM-25 : ce que les lecteurs d'écran liront pour l'élément.
+  | { type: "set-a11y"; id: string; patch: NodeA11y }
   | { type: "set-geometry"; id: string; geometry: Partial<Geometry> }
   | { type: "set-style"; id: string; style: NodeStyle }
   | ({ type: "set-props"; id: string } & PropsPatch);
@@ -129,10 +133,13 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         if (node.type === "title") return { ...node, props: { ...node.props, text: action.text } };
         return node;
       });
+    // Le texte alternatif est gardé : le nom du fichier n'est pas une alternative (RGAA 1.3).
     case "set-image":
       return withNode(draft, action.id, (node) =>
-        node.type === "image" ? { ...node, props: { ...node.props, src: action.src, alt: action.alt } } : node,
+        node.type === "image" ? { ...node, props: { ...node.props, src: action.src } } : node,
       );
+    case "set-a11y":
+      return withNode(draft, action.id, (node) => withA11y(node, action.patch));
     case "set-geometry":
       return withNode(draft, action.id, (node) => ({ ...node, ...action.geometry }));
     // Une valeur `undefined` retire la propriété : le rendu par défaut s'applique.
