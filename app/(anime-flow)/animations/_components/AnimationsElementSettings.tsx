@@ -1,18 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   AnimationsChoiceGroup,
   type AnimationsChoice,
 } from "@/app/(anime-flow)/animations/_components/AnimationsChoiceGroup";
-import { ANIMATION_PRESETS, describeEffect } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  ANIMATION_PRESETS,
+  describeEffect,
+  type AnimationPreset,
+} from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { TRIGGER_EVENTS, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
 
 const NO_ANIMATION = "none";
-
-const PRESET_CHOICES: readonly AnimationsChoice<string>[] = [
-  { value: NO_ANIMATION, name: "Aucune animation", description: "L'élément reste immobile." },
-  ...ANIMATION_PRESETS.map((preset) => ({ value: preset.id, name: preset.name, description: describeEffect(preset) })),
-];
 
 const EVENT_CHOICES: readonly AnimationsChoice<TriggerEventId>[] = TRIGGER_EVENTS.map((event) => ({
   value: event.id,
@@ -25,12 +25,32 @@ type Props = {
   /** null : aucune animation. */
   presetId: string | null;
   event: TriggerEventId;
+  customAnimations: readonly AnimationPreset[];
   onPresetChange: (presetId: string | null) => void;
   onEventChange: (event: TriggerEventId) => void;
 };
 
 /** Réglages de l'élément sélectionné : l'animation, puis ce qui la déclenche. */
-export function AnimationsElementSettings({ elementName, presetId, event, onPresetChange, onEventChange }: Props) {
+export function AnimationsElementSettings({
+  elementName,
+  presetId,
+  event,
+  customAnimations,
+  onPresetChange,
+  onEventChange,
+}: Props) {
+  const presetChoices = useMemo<readonly AnimationsChoice<string>[]>(
+    () => [
+      { value: NO_ANIMATION, name: "Aucune animation", description: "L'élément reste immobile." },
+      ...[...ANIMATION_PRESETS, ...customAnimations].map((preset) => ({
+        value: preset.id,
+        name: preset.custom ? `${preset.name} (personnalisée)` : preset.name,
+        description: describeEffect(preset),
+      })),
+    ],
+    [customAnimations],
+  );
+
   return (
     <section
       aria-labelledby="animations-settings-title"
@@ -42,7 +62,7 @@ export function AnimationsElementSettings({ elementName, presetId, event, onPres
       <AnimationsChoiceGroup
         legend="Animation"
         name="animations-preset"
-        choices={PRESET_CHOICES}
+        choices={presetChoices}
         value={presetId ?? NO_ANIMATION}
         onChange={(value) => onPresetChange(value === NO_ANIMATION ? null : value)}
       />

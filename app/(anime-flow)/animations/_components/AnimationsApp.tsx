@@ -8,7 +8,8 @@ import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsExport } from "@/app/(anime-flow)/animations/_components/AnimationsExport";
-import { AnimationsPreview } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import { AnimationsCustomEditor } from "@/app/(anime-flow)/animations/_components/AnimationsCustomEditor";
+import { AnimationsPreview, type PreviewPlay } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
 import {
   buildConfig,
   CONFIG_FILE,
@@ -16,7 +17,7 @@ import {
   type ElementAnimation,
   type RestoredConfig,
 } from "@/app/(anime-flow)/animations/_lib/animation-config";
-import { findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import { ANIMATION_PRESETS, findPreset, type AnimationPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { listPageElements, PAGE_FILE, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
@@ -78,6 +79,7 @@ export function AnimationsApp() {
   /** Animations posées, par id d'élément. Un élément sans animation n'a pas d'entrée. */
   const [animationByElement, setAnimationByElement] = useState<Record<string, ElementAnimation>>({});
   const [customAnimations, setCustomAnimations] = useState<AnimationPreset[]>([]);
+  const [previewPlay, setPreviewPlay] = useState<PreviewPlay | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
   // Reprend aussi le travail enregistré dans animations.json.
@@ -137,6 +139,25 @@ export function AnimationsApp() {
       setAnnouncement(`${describeAnimation(next[selected.id], customAnimations)} Ajoutée à ${selected.name}.`);
     }
     setAnimationByElement(next);
+  }
+
+  function handleTest(preset: AnimationPreset): string {
+    if (!selected) return "Sélectionnez d'abord un élément pour tester l'animation.";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return "Test impossible : votre système demande de réduire les animations.";
+    }
+    setPreviewPlay({ preset, nonce: (previewPlay?.nonce ?? 0) + 1 });
+    return `${preset.name} jouée sur ${selected.name} dans l'aperçu.`;
+  }
+
+  function handleCreate(preset: AnimationPreset): string {
+    setCustomAnimations([...customAnimations, preset]);
+    if (!selected) return `Animation « ${preset.name} » créée : choisissez un élément pour l'appliquer.`;
+    setAnimationByElement({
+      ...animationByElement,
+      [selected.id]: { animation: preset.id, event: selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT },
+    });
+    return `Animation « ${preset.name} » créée et appliquée à ${selected.name}.`;
   }
 
   function handleEventChange(event: TriggerEventId) {
@@ -212,6 +233,7 @@ export function AnimationsApp() {
                   elementName={selected.name}
                   presetId={selectedAnimation?.animation ?? null}
                   event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
+                  customAnimations={customAnimations}
                   onPresetChange={handlePresetChange}
                   onEventChange={handleEventChange}
                 />
@@ -220,7 +242,14 @@ export function AnimationsApp() {
                   Sélectionnez un élément dans la liste pour lui choisir une animation.
                 </p>
               )}
-              <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+              <AnimationsCustomEditor
+                selectedName={selected?.name ?? null}
+                takenNames={[...ANIMATION_PRESETS, ...customAnimations].map((preset) => preset.name)}
+                takenIds={[...ANIMATION_PRESETS, ...customAnimations].map((preset) => preset.id)}
+                onTest={handleTest}
+                onCreate={handleCreate}
+              />
+              <AnimationsPreview html={html} selectedId={selected?.id ?? null} play={previewPlay} />
               <AnimationsExport projectId={projectId} config={config} />
             </div>
           </div>
