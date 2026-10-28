@@ -96,7 +96,8 @@ export function placeNode(nodes: DraftNode[], id: string, placement: Placement):
   );
 }
 
-function removeNode(nodes: DraftNode[], id: string): DraftNode[] {
+/** Retire un élément (et ses enfants), où qu'il soit dans l'arbre. */
+export function removeNode(nodes: DraftNode[], id: string): DraftNode[] {
   return nodes
     .filter((node) => node.id !== id)
     .map((node) =>

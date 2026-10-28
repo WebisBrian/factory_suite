@@ -1,7 +1,7 @@
 "use client";
 
 import "@/components/screendraft/screendraft-theme.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import wordmark from "@/components/screendraft/brand/logos/screen-draft-wordmark.svg";
 import wordmarkWhite from "@/components/screendraft/brand/logos/screen-draft-wordmark-white.svg";
 import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
@@ -12,12 +12,27 @@ import { ScreendraftPropertiesPanel } from "@/components/screendraft/Screendraft
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
 import { downloadMaquette } from "@/components/screendraft/screendraft-file";
-import { historyShortcut, isEditableTarget } from "@/components/screendraft/screendraft-keyboard";
-import { createNode } from "@/components/screendraft/screendraft-new-node";
-import type { DraftNodeType, Maquette, ShapeKind } from "@/components/screendraft/screendraft-schema";
+import {
+  clipboardShortcut,
+  historyShortcut,
+  isDeleteShortcut,
+  isEditableTarget,
+} from "@/components/screendraft/screendraft-keyboard";
+import { cloneNode, createNode } from "@/components/screendraft/screendraft-new-node";
+import type {
+  DraftNode,
+  DraftNodeType,
+  Maquette,
+  ShapeKind,
+} from "@/components/screendraft/screendraft-schema";
 import { findNode } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
+
+/** Élément copié ou coupé, son ancien parent et le décalage à appliquer au prochain collage. */
+type ScreendraftClipboard = { node: DraftNode; parentId: string | null; offset: number };
+
+const PASTE_OFFSET = 16;
 
 type ScreendraftEditorProps = {
   initialDraft: Maquette;
@@ -33,6 +48,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const selection = selectedId ? findNode(draft.nodes, selectedId) : null;
   const { save, status: saveStatus, savedDraft } = useScreendraftSave(projectId, initialDraft);
   const isDirty = projectId !== null && draft !== savedDraft;
+  // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
+  const clipboard = useRef<ScreendraftClipboard | null>(null);
 
   function addNode(type: DraftNodeType, shape?: ShapeKind) {
     const node = createNode(type, draft.nodes.length, shape);
@@ -48,17 +65,45 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
         event.preventDefault();
         void save(draft);
       }
-      // Dans un champ de saisie, Ctrl/⌘ + Z annule la frappe : le navigateur s'en charge.
-      const shortcut = isEditableTarget(event.target) ? null : historyShortcut(event);
+      // Dans un champ de saisie, ces raccourcis agissent sur le texte : le navigateur s'en charge.
+      if (isEditableTarget(event.target)) return;
+      const shortcut = historyShortcut(event);
       if (shortcut) {
         event.preventDefault();
         if (shortcut === "undo") undo();
         else redo();
       }
+      if (isDeleteShortcut(event) && selection) {
+        event.preventDefault();
+        dispatch({ type: "delete-node", id: selection.node.id });
+        setSelectedId(null);
+      }
+      const clipboardAction = clipboardShortcut(event);
+      if (clipboardAction === "paste" && clipboard.current) {
+        event.preventDefault();
+        const { node, parentId, offset } = clipboard.current;
+        const pasted = cloneNode(node, offset);
+        dispatch({ type: "paste-node", node: pasted, parentId });
+        setSelectedId(pasted.id);
+        // Coller plusieurs fois décale chaque copie de la précédente.
+        clipboard.current = { node: pasted, parentId, offset: PASTE_OFFSET };
+      } else if (clipboardAction && selection) {
+        event.preventDefault();
+        // Une copie se colle décalée de l'original ; un élément coupé revient à sa place.
+        clipboard.current = {
+          node: selection.node,
+          parentId: selection.parentId,
+          offset: clipboardAction === "copy" ? PASTE_OFFSET : 0,
+        };
+        if (clipboardAction === "cut") {
+          dispatch({ type: "delete-node", id: selection.node.id });
+          setSelectedId(null);
+        }
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save, undo, redo]);
+  }, [draft, projectId, save, undo, redo, dispatch, selection]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {

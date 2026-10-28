@@ -14,3 +14,25 @@ export function historyShortcut(event: KeyboardEvent): HistoryShortcut | null {
   if (key === "y" && event.ctrlKey && !event.shiftKey) return "redo";
   return null;
 }
+
+export type ClipboardShortcut = "copy" | "cut" | "paste";
+
+/** Ctrl/⌘ + C : copier ; Ctrl/⌘ + X : couper ; Ctrl/⌘ + V : coller. */
+export function clipboardShortcut(event: KeyboardEvent): ClipboardShortcut | null {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return null;
+  switch (event.key.toLowerCase()) {
+    case "c":
+      return "copy";
+    case "x":
+      return "cut";
+    case "v":
+      return "paste";
+    default:
+      return null;
+  }
+}
+
+/** Suppr, ou Retour arrière pour les claviers Mac qui n'ont pas de touche Suppr. */
+export function isDeleteShortcut(event: KeyboardEvent): boolean {
+  return (event.key === "Delete" || event.key === "Backspace") && !(event.metaKey || event.ctrlKey || event.altKey);
+}
