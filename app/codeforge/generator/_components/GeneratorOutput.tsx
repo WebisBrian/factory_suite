@@ -137,8 +137,12 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
                 {multiple ? "Télécharger le site (ZIP)" : "Télécharger la page"}
               </button>
             </div>
-            <p role={download?.ok === false ? "alert" : "status"} className="text-sm text-[#2e2e2e]">
-              {download?.message}
+            {/* Deux régions live toujours présentes : changer le rôle d'une région existante n'est pas annoncé. */}
+            <p role="status" className="text-sm text-[#2e2e2e]">
+              {download?.ok ? download.message : null}
+            </p>
+            <p role="alert" className="text-sm font-semibold text-red-950">
+              {download?.ok === false ? download.message : null}
             </p>
           </div>
 
@@ -149,12 +153,12 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
             {projectId === null ? (
               <p className="text-base text-[#454545]">
                 Disponible quand CodeForge est ouvert depuis un projet du Hub : les pages sont alors écrites dans le
-                dossier de travail, et l&apos;étape suivante (Animations) peut les lire.
+                dossier de travail, et l&apos;étape suivante (AnimFlow) peut les lire.
               </p>
             ) : (
               <>
                 <p className="text-base text-[#454545]">
-                  Écrit les {pages.length} écran(s) en HTML/CSS dans le dossier du projet, pour l&apos;étape Animations.
+                  Écrit les {pages.length} écran(s) en HTML/CSS dans le dossier du projet, pour l&apos;étape AnimFlow.
                 </p>
                 <div>
                   <button
@@ -168,14 +172,18 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
                 </div>
               </>
             )}
-            {save?.status === "saved" && (
-              <p role="status" className={generatorSuccess}>
-                ✓ Enregistré à {save.at.toLocaleTimeString("fr-FR")}.{" "}
-                <Link href={toolHref("/animations", projectId)} className={generatorLink}>
-                  Ouvrir dans Animations
-                </Link>
-              </p>
-            )}
+            {/* Région live présente dès le départ : un rôle status inséré avec son texte est souvent ignoré. */}
+            <div role="status">
+              {save?.status === "saving" && <p className="sr-only">Enregistrement en cours…</p>}
+              {save?.status === "saved" && (
+                <p className={generatorSuccess}>
+                  <span aria-hidden>✓ </span>Enregistré à {save.at.toLocaleTimeString("fr-FR")}.{" "}
+                  <Link href={toolHref("/animations", projectId)} className={generatorLink}>
+                    Ouvrir dans AnimFlow
+                  </Link>
+                </p>
+              )}
+            </div>
             {save?.status === "error" && (
               <div role="alert" className={generatorError}>
                 <p className="font-semibold">Erreur : {save.message}</p>

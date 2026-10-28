@@ -59,19 +59,18 @@ export function GeneratorPreview({
             type="button"
             onClick={() => step(-1)}
             disabled={scale <= ZOOM_STEPS[0] + 0.001}
-            aria-label="Réduire le zoom"
             className={generatorSecondaryButton}
           >
-            − Zoom
+            {/* Nom accessible = texte visible (WCAG 2.5.3) : utilisable aussi à la commande vocale. */}
+            <span aria-hidden>−&nbsp;</span>Zoom arrière
           </button>
           <button
             type="button"
             onClick={() => step(1)}
             disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1] - 0.001}
-            aria-label="Augmenter le zoom"
             className={generatorSecondaryButton}
           >
-            + Zoom
+            <span aria-hidden>+&nbsp;</span>Zoom avant
           </button>
           <button
             type="button"
