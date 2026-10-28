@@ -11,6 +11,7 @@ import type {
   TitleNode,
   VideoNode,
 } from "@/components/screendraft/screendraft-schema";
+import { syncLinks } from "@/components/screendraft/screendraft-links";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
   findNode,
@@ -59,7 +60,15 @@ export type PropsPatch =
   | { nodeType: "button"; props: Partial<ButtonNode["props"]> }
   | { nodeType: "shape"; props: Partial<ShapeNode["props"]> };
 
+/**
+ * Applique une action, puis remet à jour les liens du prototype : renommer, supprimer ou
+ * ajouter un écran change les `path`, donc les `href` des boutons qui y mènent.
+ */
 export function screendraftReducer(draft: Maquette, action: ScreendraftAction): Maquette {
+  return syncLinks(applyAction(draft, action));
+}
+
+function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
     // Ajouté après les autres, donc à droite sur le canvas.
     case "add-screen":

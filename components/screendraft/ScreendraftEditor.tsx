@@ -10,6 +10,7 @@ import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
 import { ScreendraftLibrary } from "@/components/screendraft/ScreendraftLibrary";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
+import { ScreendraftPrototype } from "@/components/screendraft/ScreendraftPrototype";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
@@ -54,6 +55,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   // L'écran actif et la sélection sont des états de l'éditeur : ils ne sont pas exportés dans le JSON.
   const [activeScreenId, setActiveScreenId] = useState(initialDraft.screens[0].id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isPrototypeOpen, setIsPrototypeOpen] = useState(false);
   // Après une annulation ou une suppression, l'écran actif peut ne plus exister : on revient au premier.
   const activeScreen = draft.screens.find((screen) => screen.id === activeScreenId) ?? draft.screens[0];
   const selection = selectedId ? findScreenNode(draft.screens, selectedId) : null;
@@ -117,6 +119,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      // L'aperçu du prototype gère ses propres touches : l'éditeur derrière ne bouge pas.
+      if (isPrototypeOpen) return;
       if (event.key === "Escape") setSelectedId(null);
       const isSaveShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
       if (isSaveShortcut && projectId !== null) {
@@ -162,7 +166,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save, undo, redo, dispatch, selection, activeScreen.id]);
+  }, [draft, projectId, save, undo, redo, dispatch, selection, activeScreen.id, isPrototypeOpen]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {
@@ -179,7 +183,15 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     // et ferait défiler la page. Le conteneur absolu occupe exactement l'espace sous la barre du Hub.
     <div className="relative min-h-0 flex-1">
       <div className="screendraft absolute inset-0 flex flex-col bg-(--surface) text-(--ink)">
-        <header className="flex min-h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
+        {isPrototypeOpen && (
+          <ScreendraftPrototype
+            screens={draft.screens}
+            startScreenId={activeScreen.id}
+            onClose={() => setIsPrototypeOpen(false)}
+          />
+        )}
+        {/* Pendant l'aperçu, l'éditeur est inerte : ni clic, ni focus clavier. */}
+        <header inert={isPrototypeOpen} className="flex min-h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
           {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
@@ -190,6 +202,16 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
           </span>
           <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
           <div className="ml-auto flex items-center gap-(--space-3)">
+            <button
+              type="button"
+              onClick={() => setIsPrototypeOpen(true)}
+              className="text-body-sm flex min-h-10 items-center gap-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-4) py-(--space-2) font-semibold text-(--ink) hover:bg-(--canvas)"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
+                <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+              </svg>
+              Prototype
+            </button>
             <ScreendraftHistoryControls
               canUndo={canUndo}
               canRedo={canRedo}
@@ -207,7 +229,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1">
+        <div inert={isPrototypeOpen} className="flex min-h-0 flex-1">
           <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
             <ScreendraftPalette onAdd={addNode} />
             <ScreendraftScreens

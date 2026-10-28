@@ -77,7 +77,14 @@ export function ScreendraftPropertiesPanel({
 
   return (
     <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
-      {selection && <ScreendraftNodeProperties node={selection.node} dispatch={dispatch} />}
+      {selection && (
+        <ScreendraftNodeProperties
+          node={selection.node}
+          screens={screens}
+          screenId={selectionScreenId}
+          dispatch={dispatch}
+        />
+      )}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       {/* Équivalent clavier du glisser vers un autre écran. */}
       {selection && selectionScreenId && screens.length > 1 && (
