@@ -11,14 +11,14 @@ export function ScreendraftCanvas({ draft }: { draft: Maquette }) {
   return (
     <div
       ref={canvasRef}
-      className="relative min-w-0 flex-1 touch-none overflow-hidden bg-zinc-900/60 select-none"
+      className="relative min-w-0 flex-1 touch-none overflow-hidden bg-(--canvas) select-none"
       style={{ cursor }}
       {...panHandlers}
     >
       {viewport && (
         <>
           <p
-            className="pointer-events-none absolute text-xs whitespace-nowrap text-zinc-400"
+            className="text-body-sm pointer-events-none absolute whitespace-nowrap text-(--ink-muted)"
             style={{ left: viewport.x, top: viewport.y - 20 }}
           >
             {draft.name}
@@ -30,7 +30,7 @@ export function ScreendraftCanvas({ draft }: { draft: Maquette }) {
               left: 0,
               transformOrigin: "0 0",
               transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-              boxShadow: "0 12px 32px rgb(0 0 0 / 0.45)",
+              boxShadow: "var(--shadow-frame)",
             }}
           />
           <ScreendraftZoomControls zoom={viewport.zoom} onCommand={zoom} />

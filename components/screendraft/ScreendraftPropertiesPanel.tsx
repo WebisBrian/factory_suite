@@ -8,24 +8,24 @@ const DEVICE_LABELS: Record<Frame["device"], string> = {
 /** Propriétés de la maquette. Celles d'un élément viendront avec la sélection (SCRUM-8). */
 export function ScreendraftPropertiesPanel({ frame }: { frame: Frame }) {
   return (
-    <aside className="w-64 shrink-0 border-l border-white/10 bg-white/3">
-      <h2 className="px-4 pt-4 pb-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+    <aside className="w-64 shrink-0 border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
         Maquette
       </h2>
-      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 px-4 text-sm">
-        <dt className="text-zinc-400">Format</dt>
+      <dl className="text-body-sm grid grid-cols-[auto_1fr] items-center gap-x-(--space-4) gap-y-(--space-2)">
+        <dt className="text-(--ink-muted)">Format</dt>
         <dd>{DEVICE_LABELS[frame.device]}</dd>
-        <dt className="text-zinc-400">Taille</dt>
-        <dd className="tabular-nums">
+        <dt className="text-(--ink-muted)">Taille</dt>
+        <dd className="text-code tabular-nums">
           {frame.width} × {frame.height} px
         </dd>
-        <dt className="text-zinc-400">Fond</dt>
-        <dd className="flex items-center gap-2">
+        <dt className="text-(--ink-muted)">Fond</dt>
+        <dd className="flex items-center gap-(--space-2)">
           <span
-            className="size-4 rounded border border-white/20"
+            className="size-4 rounded-(--radius-sm) border border-(--line-strong)"
             style={{ backgroundColor: frame.backgroundColor }}
           />
-          <span className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-xs text-zinc-200 uppercase">
+          <span className="text-code rounded-(--radius-sm) bg-(--canvas) px-(--space-1) text-(--ink) uppercase">
             {frame.backgroundColor}
           </span>
         </dd>

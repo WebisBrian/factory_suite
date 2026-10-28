@@ -30,20 +30,20 @@ const BASE_COMPONENTS: { type: DraftNodeType; label: string; icon: ReactNode }[]
 /** Composants de base. L'insertion dans la maquette viendra avec SCRUM-4. */
 export function ScreendraftPalette() {
   return (
-    <aside className="w-56 shrink-0 border-r border-white/10 bg-white/3">
-      <h2 className="px-4 pt-4 pb-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+    <aside className="w-56 shrink-0 border-r border-(--line) bg-(--surface-raised) p-(--space-4)">
+      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
         Composants
       </h2>
-      <ul className="px-2">
+      <ul className="-mx-(--space-2)">
         {BASE_COMPONENTS.map(({ type, label, icon }) => (
           <li
             key={type}
-            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-300"
+            className="text-body-sm flex items-center gap-(--space-3) rounded-(--radius-md) p-(--space-2) text-(--ink)"
           >
             <svg
               aria-hidden
               viewBox="0 0 24 24"
-              className="size-5 shrink-0 fill-none stroke-zinc-400"
+              className="size-5 shrink-0 fill-none stroke-(--ink-muted)"
               strokeWidth={1.5}
               strokeLinecap="round"
               strokeLinejoin="round"
