@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Maquette } from "@/components/screendraft/screendraft-schema";
-import { ScreendraftNode } from "@/components/screendraft/BrandScreendraftNode";
+import { ScreendraftNode } from "@/components/screendraft/ScreendraftNode";
 
 // Rendu par défaut de ce que le schéma ne précise pas encore.
 const TEXT_DEFAULTS: CSSProperties = {

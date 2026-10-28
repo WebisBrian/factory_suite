@@ -58,6 +58,20 @@ State partagé entre outils : uniquement les fichiers projet (§4). State local 
 Export statique : interdits les Server Actions, Route Handlers, cookies/headers, rewrites/redirects, routes dynamiques sans generateStaticParams, next/image avec le loader par défaut.
 Imports : alias @/ (configuré par create-next-app). Pas de chemins relatifs profonds.
 Nommer les composants et fichiers en cohérence avec son squad pour éviter les collisions (GeneratorSidebar, pas Sidebar).
+5 bis. Accessibilité — OBLIGATOIRE (public malvoyant)
+Le site s'adresse à des personnes malvoyantes, qui utilisent un lecteur d'écran ou une extension qui lit l'élément survolé, l'agrandissement du texte et le clavier. Une fonctionnalité inaccessible n'est pas terminée.
+Cadre fourni par le Hub (ne pas recoder) : police Atkinson Hyperlegible (font-sans / font-mono), fond sombre #0b0b10, contour de focus jaune sur tout élément focusable, lien « Aller au contenu », réglage A−/A+ (texte de 100 % à 200 %) dans la barre du haut.
+Nom accessible : tout bouton, lien, champ et contrôle a un nom lisible. Texte visible explicite, sinon aria-label. Un bouton icône seul (×, ⋯, ▶) DOIT avoir un aria-label. Les noms répétés précisent leur cible : aria-label="Supprimer le projet Boulangerie", pas juste « Supprimer ».
+Champs de formulaire : un <label htmlFor> visible pour chaque champ (le placeholder n'est pas un label). Erreurs de saisie en texte, liées au champ (aria-describedby).
+Images : alt descriptif sur toute image porteuse d'information ; alt="" sur une image décorative. Icônes SVG décoratives : aria-hidden. SVG porteur de sens : role="img" + aria-label.
+Contraste (fond sombre) : texte principal text-white / text-zinc-100 / text-zinc-200 ; secondaire text-zinc-300 ; text-zinc-400 au minimum. INTERDIT pour du texte : zinc-500, zinc-600, opacités (text-white/50) et texte blanc sur fond clair ou saturé (orange-500, pink-500…). Viser 7:1 pour le texte (WCAG AAA), 3:1 minimum pour les bordures de contrôles (border-zinc-500 ou plus clair).
+Daltonisme : jamais d'information portée par la seule couleur. Toujours un 2e indice : texte, icône, signe (+ / −), soulignement, gras. Éviter la paire rouge/vert ; préférer bleu/orange.
+Taille du texte : en unités Tailwind (rem) uniquement : text-sm (14 px) au minimum, text-base (16 px) pour le contenu. INTERDIT : text-xs, tailles en px (text-[11px]), hauteurs fixes qui coupent le texte agrandi (h-10 sur un bloc de texte), truncate sur une information utile. Tester la route avec le réglage à 200 % : rien ne doit être coupé ni se chevaucher.
+Clavier : tout se fait au clavier (Tab, Entrée, Espace, Échap). Utiliser <button> / <a> / <input> natifs, jamais un <div onClick>. Ne jamais supprimer le contour de focus (pas de outline-none sur un élément interactif). Cibles cliquables de 40 px minimum (min-h-10).
+Structure : un seul <h1> par page, titres hiérarchiques (h2, h3…), landmarks (<main>, <nav aria-label>, <section aria-labelledby>), listes en <ul>/<ol>. L'état d'un bouton bascule se donne avec aria-pressed, l'élément courant avec aria-current.
+Annonces : messages de chargement en role="status", erreurs en role="alert" (texte « Erreur : » écrit en toutes lettres). Après une action sans changement de page (enregistrement, restauration), annoncer le résultat dans une zone role="status".
+Mouvement : animations et transitions de déplacement avec motion-safe: (respect de « réduire les animations ») ; rien qui clignote plus de 3 fois par seconde.
+Contenu affiché dans une iframe (HTML généré) : title sur l'<iframe> qui décrit son contenu.
 6. Git — anti-collision
 1 branche par squad : squad/screendraft, squad/generator, squad/animations, squad/hub.
 PR vers main. Jamais de commit direct sur main sauf intégration par le Hub.
@@ -74,6 +88,7 @@ Toujours faire passer build + lint avant une PR.
 La route tourne seule contre les fixtures (démontrable sans l'amont).
 Lit le project_id via useProjectId, lit/écrit ses fichiers via @/lib/project-fs.
 build et lint passent.
+Accessibilité (§5 bis) : utilisable entièrement au clavier, chaque contrôle a un nom accessible, rien n'est coupé avec le texte à 200 %, aucune information portée par la couleur seule.
 Aucun fichier hors de son dossier modifié (hors contrats gelés).
 Fallback démo : si l'intégration bout-à-bout M1→M2→M3 ne boucle pas en fin de journée, chaque route reste démontrable isolément contre les fixtures. On ne sacrifie jamais ça.
 9. Pour Claude Code spécifiquement

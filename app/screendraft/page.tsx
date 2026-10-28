@@ -1,11 +1,13 @@
-import { Suspense } from "react";
-import { BrandScreendraftEditor } from "@/components/screendraft/BrandScreendraftEditor";
+import type { Metadata } from "next";
+import { ScreendraftEditor } from "@/components/screendraft/ScreendraftEditor";
 import { maquetteFixture } from "@/components/screendraft/temp-fixture";
 
-export default function ScreenDraftPage() {
-  return (
-    <Suspense fallback={<main className="p-8 text-zinc-400">Chargement de Screendraft…</main>}>
-      <BrandScreendraftEditor draft={maquetteFixture} />
-    </Suspense>
-  );
+export const metadata: Metadata = {
+  title: "Screendraft — FactorySuite",
+  description: "Créez des maquettes de sites web à partir de composants.",
+};
+
+// Mode démo : l'éditeur ouvre la fixture. La lecture du projet (?project_id=) viendra avec project-fs.
+export default function ScreendraftPage() {
+  return <ScreendraftEditor initialDraft={maquetteFixture} />;
 }
