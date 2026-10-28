@@ -58,11 +58,15 @@ export interface HubChatReply {
   actions?: HubChatAction[];
   /** Nouvel état du parcours guidé : absent = inchangé, null = parcours terminé ou arrêté. */
   guide?: HubGuide | null;
+  /** Projet dont on parle désormais : absent = inchangé, null = plus aucun. */
+  currentProject?: ProjectInfo | null;
 }
 
 /** État de la conversation dont le moteur a besoin pour comprendre la demande. */
 export interface HubChatContext {
   guide: HubGuide | null;
+  /** Dernier projet dont on a parlé : sert quand une demande n'en désigne aucun (« ouvre ScreenDraft »). */
+  currentProject: ProjectInfo | null;
 }
 
 /** Exemples proposés à l'ouverture de l'assistant. */
@@ -99,13 +103,14 @@ const HELP_TEXT = [
   "",
   "**Outils**",
   "• Ouvrir : « ouvre CodeForge pour le projet 2 »",
-  "• Sans projet, l'outil s'ouvre en **mode démo**.",
   "",
   "**Parcours guidé**, d'outil en outil",
   "• Démarrer : « guide-moi pour le projet 2 » ou « crée un projet Café et guide-moi »",
   "• Pendant le parcours : « terminé », « passe l'étape », « arrête le guide »",
   "",
   "Un projet se désigne par son **numéro**, son **nom** ou « **le dernier projet** ».",
+  "Ensuite, **je retiens ce projet** : « ouvre CodeForge », « où en est-il ? » s'y rapportent.",
+  "Pour un outil sans projet, dites « ouvre ScreenDraft **en démo** ».",
 ].join("\n");
 
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" });
@@ -163,8 +168,21 @@ function findTool(text: string): HubTool | null {
 
 type ProjectRef = { kind: "found"; project: ProjectInfo } | { kind: "none" } | { kind: "unknown"; label: string };
 
-/** Retrouve le projet désigné : « projet 2 », « #2 », « le dernier projet » ou son nom. */
-function findProject(text: string, projects: readonly ProjectInfo[]): ProjectRef {
+/** Demande explicite du mode démo : « ouvre ScreenDraft en démo », « … sans projet ». */
+const DEMO_REQUEST = /\b(demo|demonstration|sans projet)\b/;
+
+/**
+ * Retrouve le projet désigné : « projet 2 », « #2 », « le dernier projet » ou son nom.
+ * Sinon, le projet de la conversation (`fallback`), s'il existe toujours.
+ */
+function findProject(text: string, projects: readonly ProjectInfo[], fallback: ProjectInfo | null): ProjectRef {
+  const explicit = findExplicitProject(text, projects);
+  if (explicit.kind !== "none" || !fallback) return explicit;
+  const project = projects.find((p) => p.id === fallback.id);
+  return project ? { kind: "found", project } : explicit;
+}
+
+function findExplicitProject(text: string, projects: readonly ProjectInfo[]): ProjectRef {
   const byNumber = text.match(/(?:projet|#|n°|numero)\s*(?:n°|numero|#)?\s*(\d+)\b/);
   if (byNumber) {
     const id = Number(byNumber[1]);
@@ -257,7 +275,7 @@ async function projectHistory(project: ProjectInfo): Promise<HubChatReply> {
   };
 }
 
-async function confirmDelete(project: ProjectInfo, guide: HubGuide | null): Promise<HubChatReply> {
+async function confirmDelete(project: ProjectInfo, { guide, currentProject }: HubChatContext): Promise<HubChatReply> {
   const files = await listProjectFiles(project.id);
   return {
     text: [
@@ -278,6 +296,7 @@ async function confirmDelete(project: ProjectInfo, guide: HubGuide | null): Prom
           return {
             text: `Le projet ${describeProject(project)} a été **supprimé**.${stopsGuide ? "\n\nSon parcours guidé est arrêté." : ""}`,
             ...(stopsGuide && { guide: null }),
+            ...(currentProject?.id === project.id && { currentProject: null }),
           };
         } catch (error) {
           return errorReply(error);
@@ -323,8 +342,14 @@ function respondToGuide(text: string, guide: HubGuide): Promise<HubChatReply> | 
   return null;
 }
 
-export async function respondToHubChat(request: string, { guide }: HubChatContext): Promise<HubChatReply> {
+export async function respondToHubChat(request: string, context: HubChatContext): Promise<HubChatReply> {
+  const { guide } = context;
   const text = normalize(request.trim());
+  // Projet par défaut : celui de la conversation, sinon celui du parcours guidé.
+  const fallback =
+    context.currentProject ?? (guide ? { id: guide.projectId, name: guide.projectName } : null);
+  /** Réponse qui porte sur `project` : il devient le projet de la conversation. */
+  const about = (project: ProjectInfo, reply: HubChatReply): HubChatReply => ({ ...reply, currentProject: project });
 
   if (/^(aide|help|\?)|que (sais|peux)[- ]tu|qu.est.ce que tu (sais|peux)|comment (ca|tu) (marche|fonctionne)/.test(text)) {
     return { text: HELP_TEXT };
@@ -344,19 +369,20 @@ export async function respondToHubChat(request: string, { guide }: HubChatContex
       const id = await createProject(name);
       notifyHubProjectsChanged();
       const label = name || `Projet ${id}`;
+      const project = { id, name: label };
       const created = `Projet « **${label}** » **créé** (n°${id}).`;
       if (wantsGuide) {
-        const reply = await startHubGuide({ id, name: label });
-        return { ...reply, text: `${created}\n\n${reply.text}` };
+        const reply = await startHubGuide(project);
+        return about(project, { ...reply, text: `${created}\n\n${reply.text}` });
       }
-      return {
+      return about(project, {
         text: [
           created,
           "",
           "**Prochaine étape : la maquette.**",
-          `Dites « ouvre ScreenDraft pour le projet ${id} » ou « guide-moi pour le projet ${id} ».`,
+          `Dites « ouvre ScreenDraft » ou « guide-moi » : je m'occupe de ce projet.`,
         ].join("\n"),
-      };
+      });
     }
 
     const detail = /\bhistorique\b|\bversions?\b/.test(text)
@@ -370,52 +396,58 @@ export async function respondToHubChat(request: string, { guide }: HubChatContex
 
     // Sans dossier de travail (ou sans autorisation), ouvrir un outil en mode démo reste possible.
     const projects = await listProjects().catch((error: unknown) => {
-      if (tool && !detail && !/\bprojet\b|#\s*\d/.test(text)) return null;
+      if (tool && !detail && (DEMO_REQUEST.test(text) || (!fallback && !/\bprojet\b|#\s*\d/.test(text)))) return null;
       throw error;
     });
     if (projects === null) return tool ? openTool(tool, null) : { text: UNKNOWN_TEXT };
 
     // Avant les outils et l'avancement : « guide-moi pour le projet AnimFlow » démarre un parcours.
     if (GUIDE_REQUEST.test(text)) {
-      const ref = findProject(text, projects);
-      if (ref.kind === "none" && projects.length === 1) return await startHubGuide(projects[0]);
+      const ref = findProject(text, projects, fallback);
+      if (ref.kind === "none" && projects.length === 1) return about(projects[0], await startHubGuide(projects[0]));
       if (ref.kind !== "found") return askWhichProject(ref, projects, "guide-moi pour le projet 1");
-      return await startHubGuide(ref.project);
+      return about(ref.project, await startHubGuide(ref.project));
     }
 
-    const rename = text.match(/\brenomm\w*\s+(?:le\s+)?(?:projet\s+)?(.+?)\s+en\s+(.+)$/);
+    // « renomme le projet 2 en … », « renomme Café en … » ou « renomme-le en … » (projet de la conversation).
+    const rename = text.match(/\brenomm\w*(?:-le|-la)?\s+(?:(?:le\s+|ce\s+)?(?:projet\s*)?(.*?)\s+)?en\s+(.+)$/);
     if (rename) {
-      const ref = findProject(/^\d+$/.test(rename[1].trim()) ? `projet ${rename[1]}` : rename[1], projects);
+      const target = (rename[1] ?? "").trim();
+      const ref = findProject(/^\d+$/.test(target) ? `projet ${target}` : target, projects, fallback);
       if (ref.kind !== "found") return askWhichProject(ref, projects, "renomme le projet 2 en Pâtisserie");
       const name = trailingGroup(request.trim(), rename, rename[2]);
       if (!name) return { text: "**Quel nouveau nom ?**\n\nPar exemple : « renomme le projet 2 en Pâtisserie »." };
       await renameProject(ref.project.id, name);
       notifyHubProjectsChanged();
-      return {
-        text: `Le projet n°${ref.project.id} s'appelle maintenant « **${name}** ».`,
-        ...(guide?.projectId === ref.project.id && { guide: { ...guide, projectName: name } }),
-      };
+      return about(
+        { id: ref.project.id, name },
+        {
+          text: `Le projet n°${ref.project.id} s'appelle maintenant « **${name}** ».`,
+          ...(guide?.projectId === ref.project.id && { guide: { ...guide, projectName: name } }),
+        },
+      );
     }
 
     if (/\b(supprim\w*|efface\w*|detrui\w*)\b/.test(text)) {
-      const ref = findProject(text, projects);
+      const ref = findProject(text, projects, fallback);
       if (ref.kind !== "found") return askWhichProject(ref, projects, "supprime le projet 2");
-      return await confirmDelete(ref.project, guide);
+      return await confirmDelete(ref.project, context);
     }
 
     if (detail) {
-      const ref = findProject(text, projects);
+      const ref = findProject(text, projects, fallback);
       // Un seul projet : pas besoin de le préciser.
-      if (ref.kind === "none" && projects.length === 1) return await detail.run(projects[0]);
+      if (ref.kind === "none" && projects.length === 1) return about(projects[0], await detail.run(projects[0]));
       if (ref.kind !== "found") return askWhichProject(ref, projects, detail.example);
-      return await detail.run(ref.project);
+      return about(ref.project, await detail.run(ref.project));
     }
 
     // Après l'avancement : « où en est la maquette du projet 2 » ne doit pas ouvrir ScreenDraft.
     if (tool) {
-      const ref = findProject(text, projects);
+      if (DEMO_REQUEST.test(text)) return openTool(tool, null);
+      const ref = findProject(text, projects, fallback);
       if (ref.kind === "unknown") return askWhichProject(ref, projects, `ouvre ${tool.label} pour le projet 1`);
-      return openTool(tool, ref.kind === "found" ? ref.project : null);
+      return ref.kind === "found" ? about(ref.project, openTool(tool, ref.project)) : openTool(tool, null);
     }
 
     if (/\bprojets\b/.test(text)) return { text: projectListText(projects) };

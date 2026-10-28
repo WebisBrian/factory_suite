@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import type { ProjectInfo } from "@/lib/project-fs";
 import { HubLogo } from "@/components/hub/HubAppIcon";
 import { HubChatText, hubChatPlainText } from "@/components/hub/HubChatText";
 import {
@@ -90,6 +91,7 @@ export function HubChat() {
   const [announcement, setAnnouncement] = useState("");
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
   const [guide, setGuide] = useState<HubGuide | null>(null);
+  const [currentProject, setCurrentProject] = useState<ProjectInfo | null>(null);
   /** Parcours en cours au chargement du Hub : l'utilisateur revient d'un outil, on vérifiera l'étape. */
   const [guideCheckDue, setGuideCheckDue] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -120,6 +122,7 @@ export function HubChat() {
       if (session && session.messages.length > 0) {
         setMessages(session.messages);
         setGuide(session.guide);
+        setCurrentProject(session.currentProject);
         setGuideCheckDue(session.guide !== null);
         nextId.current = Math.max(...session.messages.map((message) => message.id)) + 1;
       }
@@ -131,8 +134,8 @@ export function HubChat() {
   }, []);
 
   useEffect(() => {
-    if (restored) saveHubChatSession({ messages, guide });
-  }, [messages, guide, restored]);
+    if (restored) saveHubChatSession({ messages, guide, currentProject });
+  }, [messages, guide, currentProject, restored]);
 
   function openChat() {
     dialogRef.current?.showModal();
@@ -167,6 +170,7 @@ export function HubChat() {
     }
     const id = push({ author: "assistant", text: reply.text, isError: reply.isError, actions: reply.actions });
     if (reply.guide !== undefined) setGuide(reply.guide);
+    if (reply.currentProject !== undefined) setCurrentProject(reply.currentProject);
     setAnnouncement(`Assistant : ${reply.isError ? "Erreur : " : ""}${hubChatPlainText(reply.text)}`);
     setPending(false);
     if (reply.navigateTo) {
@@ -190,7 +194,7 @@ export function HubChat() {
     if (awaiting && isHubChatYes(request)) void answer(awaiting.run);
     else if (awaiting && isHubChatNo(request)) void answer(async () => ({ text: awaiting.cancelText }));
     // Autre demande pendant une confirmation : l'action en attente est abandonnée.
-    else void answer(() => respondToHubChat(request, { guide }));
+    else void answer(() => respondToHubChat(request, { guide, currentProject }));
   }
 
   function handleConfirm(awaiting: PendingConfirmation) {
@@ -218,6 +222,8 @@ export function HubChat() {
   function handleClear() {
     setMessages([WELCOME]);
     setConfirmation(null);
+    // Nouvelle conversation : on oublie le projet dont on parlait (le parcours guidé, lui, continue).
+    setCurrentProject(null);
     setAnnouncement("Conversation effacée.");
     inputRef.current?.focus();
   }
@@ -268,6 +274,14 @@ export function HubChat() {
               </button>
             </div>
           </header>
+
+          {/* Le parcours guidé a son propre bandeau, qui nomme déjà le projet. */}
+          {!guide && currentProject && (
+            <p className="rounded-xl border border-zinc-500 px-3 py-2 text-base text-zinc-100">
+              <strong className="font-bold text-white">Projet en cours :</strong> {currentProject.name} (n°
+              {currentProject.id})
+            </p>
+          )}
 
           {guide && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-sky-300 bg-sky-950/50 px-3 py-2">

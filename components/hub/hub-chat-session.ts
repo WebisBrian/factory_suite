@@ -2,6 +2,7 @@
 // fait quitter le Hub pour un outil, la conversation doit être là au retour.
 // Donnée propre au Hub, jamais lue par les outils (les échanges entre outils passent par les fichiers projet).
 
+import type { ProjectInfo } from "@/lib/project-fs";
 import type { HubChatMessage } from "@/components/hub/hub-chat";
 import type { HubGuide } from "@/components/hub/hub-chat-guide";
 
@@ -10,6 +11,7 @@ const STORAGE_KEY = "factorysuite-hub-assistant";
 export interface HubChatSession {
   messages: HubChatMessage[];
   guide: HubGuide | null;
+  currentProject: ProjectInfo | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -23,6 +25,10 @@ function isMessage(value: unknown): value is HubChatMessage {
     (value.author === "user" || value.author === "assistant") &&
     typeof value.text === "string"
   );
+}
+
+function isProject(value: unknown): value is ProjectInfo {
+  return isRecord(value) && typeof value.id === "number" && typeof value.name === "string";
 }
 
 function isGuide(value: unknown): value is HubGuide {
@@ -40,7 +46,11 @@ export function loadHubChatSession(): HubChatSession | null {
   try {
     const data: unknown = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "null");
     if (!isRecord(data) || !Array.isArray(data.messages) || !data.messages.every(isMessage)) return null;
-    return { messages: data.messages, guide: isGuide(data.guide) ? data.guide : null };
+    return {
+      messages: data.messages,
+      guide: isGuide(data.guide) ? data.guide : null,
+      currentProject: isProject(data.currentProject) ? data.currentProject : null,
+    };
   } catch {
     return null;
   }
