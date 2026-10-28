@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { ProjectFsError, readProjectText, useProjectId } from "@/lib/project-fs";
+import { dropUnsupportedNodes } from "@/app/codeforge/generator/_lib/supported-nodes";
 import { MAQUETTE_FILE, parseMaquette, type Maquette } from "@/app/codeforge/generator/_lib/maquette";
 import { maquetteFixture } from "@/app/codeforge/generator/_lib/maquette-fixture";
 import {
@@ -17,19 +18,20 @@ import {
 import { GeneratorOutput } from "@/app/codeforge/generator/_components/GeneratorOutput";
 
 type ProjectLoad =
-  | { status: "ok"; maquette: Maquette }
+  | { status: "ok"; maquette: Maquette; skipped: string[] }
   | { status: "missing" }
   | { status: "invalid"; errors: string[] }
   | { status: "fs-error"; message: string };
 
-type Imported = { fileName: string; ok: true; maquette: Maquette } | { fileName: string; ok: false; errors: string[] };
+type Imported = { fileName: string; ok: true; maquette: Maquette; skipped: string[] } | { fileName: string; ok: false; errors: string[] };
 
 async function loadProjectMaquette(projectId: number): Promise<ProjectLoad> {
   try {
     const text = await readProjectText(projectId, MAQUETTE_FILE);
     if (text === null) return { status: "missing" };
-    const parsed = parseMaquette(text);
-    return parsed.ok ? { status: "ok", maquette: parsed.maquette } : { status: "invalid", errors: parsed.errors };
+    const { json, skipped } = dropUnsupportedNodes(text);
+    const parsed = parseMaquette(json);
+    return parsed.ok ? { status: "ok", maquette: parsed.maquette, skipped } : { status: "invalid", errors: parsed.errors };
   } catch (e) {
     const message = e instanceof ProjectFsError || e instanceof Error ? e.message : String(e);
     return { status: "fs-error", message };
@@ -58,15 +60,18 @@ export function GeneratorApp() {
   // Priorité : fichier importé à la main, puis fichier du projet, puis fixture en mode démo.
   let maquette: Maquette | null = null;
   let sourceLabel = "";
+  let skipped: string[] = [];
   if (imported?.ok) {
     maquette = imported.maquette;
     sourceLabel = `Fichier importé : ${imported.fileName}`;
+    skipped = imported.skipped;
   } else if (projectId === null) {
     maquette = maquetteFixture;
     sourceLabel = "Maquette de démo (fixture)";
   } else if (projectLoad?.status === "ok") {
     maquette = projectLoad.maquette;
     sourceLabel = `${MAQUETTE_FILE} du projet #${projectId}`;
+    skipped = projectLoad.skipped;
   }
 
   // Relance depuis un clic : déclenche l'invite d'autorisation si besoin.
@@ -77,10 +82,11 @@ export function GeneratorApp() {
   }
 
   async function receiveFile(file: File) {
-    const parsed = parseMaquette(await file.text());
+    const { json, skipped } = dropUnsupportedNodes(await file.text());
+    const parsed = parseMaquette(json);
     setImported(
       parsed.ok
-        ? { fileName: file.name, ok: true, maquette: parsed.maquette }
+        ? { fileName: file.name, ok: true, maquette: parsed.maquette, skipped }
         : { fileName: file.name, ok: false, errors: parsed.errors },
     );
   }
@@ -117,6 +123,9 @@ export function GeneratorApp() {
           <dl className={`${generatorPaper} grid gap-x-6 gap-y-3 p-5 sm:grid-cols-2 lg:grid-cols-4`}>
             <GeneratorFact label="Nom" value={maquette.name} />
             <GeneratorFact label="Source" value={sourceLabel} />
+            {skipped.length > 0 && (
+              <GeneratorFact label="Non générés" value={`${skipped.join(", ")} (pas encore pris en charge)`} />
+            )}
             <GeneratorFact
               label={maquette.screens.length > 1 ? "Écrans" : "Écran"}
               value={maquette.screens.map((screen) => screen.name).join(", ")}
