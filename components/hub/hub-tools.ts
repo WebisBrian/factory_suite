@@ -67,7 +67,7 @@ export const HUB_TOOLS: readonly HubTool[] = [
     description: "Contrôle qualité de la page",
     outputFile: "qualite.json",
     theme: {
-      icon: "bg-[#2e2e2e] ring-2 ring-amber-300",
+      icon: "bg-[#B45309] ring-2 ring-amber-300",
       text: "text-amber-300",
       hover: "hover:border-amber-300 hover:shadow-amber-500/20",
       glow: "bg-amber-500/30",
