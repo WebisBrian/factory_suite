@@ -101,7 +101,9 @@ export function GeneratorPreview({
           <iframe
             title={`Aperçu de la page générée « ${name} », ${width} par ${height} pixels`}
             srcDoc={html}
-            sandbox=""
+            // allow-same-origin : l'aperçu envoie le Referer de l'application, exigé par OpenStreetMap pour ses tuiles
+            // (sans lui : erreur 403). Aucun script n'est autorisé, la page générée reste inerte.
+            sandbox="allow-same-origin"
             width={width}
             height={height}
             className="origin-top-left rounded-sm border-0 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_14px_32px_rgba(0,0,0,0.1)]"
