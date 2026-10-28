@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { findPreset, playAnimation } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import type { ElementAnimation } from "@/app/(anime-flow)/animations/_lib/element-animation";
 import { pageWidth } from "@/app/(anime-flow)/animations/_lib/page-source";
+
+export type AnimationsPreviewHandle = {
+  /** Joue l'animation sur l'élément dans l'aperçu. Renvoie false si l'élément est introuvable. */
+  play: (elementId: string, animation: ElementAnimation) => boolean;
+};
 
 const SELECTED_ATTR = "data-anime-flow-selected";
 // Les variables de la charte n'existent pas dans l'iframe : couleurs en dur (voir _brand/BRAND.md,
@@ -15,17 +22,34 @@ const SELECTED_CSS = `[${SELECTED_ATTR}] {
 type Props = {
   html: string;
   selectedId: string | null;
+  ref?: Ref<AnimationsPreviewHandle>;
 };
 
 /**
  * Aperçu de la page dans une iframe isolée, avec l'élément sélectionné entouré.
  * Une page de largeur fixe (celles du Générateur) est réduite pour tenir dans la largeur disponible.
  */
-export function AnimationsPreview({ html, selectedId }: Props) {
+export function AnimationsPreview({ html, selectedId, ref }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<Document | null>(null);
   const [boxSize, setBoxSize] = useState<{ width: number; height: number } | null>(null);
+
+  // Lecture sur demande explicite de l'utilisateur : jouée même si son système réduit les animations.
+  useImperativeHandle(
+    ref,
+    () => ({
+      play(elementId, animation) {
+        const element = doc?.getElementById(elementId);
+        const preset = findPreset(animation.animation);
+        if (!element || !preset) return false;
+        element.scrollIntoView({ block: "nearest" });
+        playAnimation(element, preset, animation.duration, animation.delay);
+        return true;
+      },
+    }),
+    [doc],
+  );
 
   useEffect(() => {
     const element = box.current;

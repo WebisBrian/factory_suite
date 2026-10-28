@@ -3,13 +3,16 @@
 import "@/app/(anime-flow)/animations/_brand/anime-flow-theme.css";
 import animflowMark from "@/app/(anime-flow)/animations/_brand/logos/animflow-mark.svg";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsPageSource } from "@/app/(anime-flow)/animations/_components/AnimationsPageSource";
-import { AnimationsPreview } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
-import { findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  AnimationsPreview,
+  type AnimationsPreviewHandle,
+} from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import { describePreset, findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { listPageElements, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
@@ -77,6 +80,7 @@ export function AnimationsApp() {
   /** Animations posées, par id d'élément. Un élément sans animation n'a pas d'entrée. */
   const [animationByElement, setAnimationByElement] = useState<Record<string, ElementAnimation>>({});
   const [announcement, setAnnouncement] = useState("");
+  const preview = useRef<AnimationsPreviewHandle>(null);
 
   // Chargement initial de la page du projet (si l'accès est déjà accordé).
   useEffect(() => {
@@ -169,6 +173,21 @@ export function AnimationsApp() {
     setAnimationByElement({ ...animationByElement, [selected.id]: { ...selectedAnimation, ...timing } });
   }
 
+  function handlePreview() {
+    if (!selected || !selectedAnimation) return;
+    const preset = findPreset(selectedAnimation.animation);
+    if (!preset || !preview.current?.play(selected.id, selectedAnimation)) {
+      setAnnouncement(`Aperçu impossible : ${selected.name} est introuvable dans la page.`);
+      return;
+    }
+    // Audiodescription : ce que fait l'animation, pour qui ne la voit pas.
+    const delay =
+      selectedAnimation.delay > 0
+        ? ` Après ${(selectedAnimation.delay / 1000).toLocaleString("fr-FR")} s d'attente.`
+        : "";
+    setAnnouncement(`Aperçu. ${describePreset(preset, selectedAnimation.duration)}${delay}`);
+  }
+
   return (
     <div className="anime-flow flex flex-1 flex-col">
       <header className="border-b border-(--line) bg-(--surface-raised)">
@@ -244,13 +263,14 @@ export function AnimationsApp() {
                   onPresetChange={handlePresetChange}
                   onEventChange={handleEventChange}
                   onTimingChange={handleTimingChange}
+                  onPreview={handlePreview}
                 />
               ) : (
                 <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-sm text-(--ink-muted)">
                   Sélectionnez un élément dans la liste pour lui choisir une animation.
                 </p>
               )}
-              <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+              <AnimationsPreview ref={preview} html={html} selectedId={selected?.id ?? null} />
             </div>
           </div>
         )}

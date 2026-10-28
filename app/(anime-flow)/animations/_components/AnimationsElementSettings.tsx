@@ -33,6 +33,7 @@ type Props = {
   onPresetChange: (presetId: string | null) => void;
   onEventChange: (event: TriggerEventId) => void;
   onTimingChange: (timing: Partial<Pick<ElementAnimation, "duration" | "delay">>) => void;
+  onPreview: () => void;
 };
 
 /** Réglages de l'élément sélectionné : l'animation, ce qui la déclenche, puis sa durée et son délai. */
@@ -42,15 +43,27 @@ export function AnimationsElementSettings({
   onPresetChange,
   onEventChange,
   onTimingChange,
+  onPreview,
 }: Props) {
   return (
     <section
       aria-labelledby="animations-settings-title"
       className="flex flex-col gap-5 rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
     >
-      <h2 id="animations-settings-title" className="text-lg font-semibold">
-        Réglages de : {elementName}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="animations-settings-title" className="text-lg font-semibold">
+          Réglages de : {elementName}
+        </h2>
+        {animation && (
+          <button
+            type="button"
+            onClick={onPreview}
+            className="min-h-10 rounded-full border-2 border-(--line-strong) bg-(--surface-raised) px-5 text-sm font-semibold hover:bg-(--motion-soft)"
+          >
+            Prévisualiser
+          </button>
+        )}
+      </div>
       <AnimationsChoiceGroup
         legend="Animation"
         name="animations-preset"
