@@ -172,8 +172,35 @@ const TOOL_PATTERNS: Record<HubTool["slug"], RegExp> = {
   animations: /\b(anim ?flow|anime ?flow|animations?|anim)\b/,
 };
 
+/** Noms d'outils reconnus malgré une faute de frappe (« screndraft », « codefroge »). */
+const TOOL_NAMES: Record<HubTool["slug"], string> = {
+  screendraft: "screendraft",
+  generator: "codeforge",
+  animations: "animflow",
+};
+
+/** Distance d'édition (insertion, suppression, substitution d'un caractère). */
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
 function findTool(text: string): HubTool | null {
-  return HUB_TOOLS.find((tool) => TOOL_PATTERNS[tool.slug].test(text)) ?? null;
+  const exact = HUB_TOOLS.find((tool) => TOOL_PATTERNS[tool.slug].test(text));
+  if (exact) return exact;
+  // Mots seuls et paires de mots (« screen drat ») comparés aux noms d'outils, 2 fautes au plus.
+  const words = text.split(/[^a-z0-9]+/).filter(Boolean);
+  const candidates = [...words, ...words.slice(1).map((word, i) => words[i] + word)].filter((w) => w.length >= 6);
+  return (
+    HUB_TOOLS.find((tool) => candidates.some((word) => editDistance(word, TOOL_NAMES[tool.slug]) <= 2)) ?? null
+  );
 }
 
 type ProjectRef = { kind: "found"; project: ProjectInfo } | { kind: "none" } | { kind: "unknown"; label: string };
@@ -192,7 +219,20 @@ function findProject(text: string, projects: readonly ProjectInfo[], fallback: P
   return project ? { kind: "found", project } : explicit;
 }
 
-function findExplicitProject(text: string, projects: readonly ProjectInfo[]): ProjectRef {
+const NUMBER_WORDS: Record<string, number> = {
+  un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10,
+  onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15, seize: 16, vingt: 20,
+};
+
+function findExplicitProject(rawText: string, projects: readonly ProjectInfo[]): ProjectRef {
+  // « projet deux » → « projet 2 » (copie locale : le texte d'origine garde sa longueur).
+  const text = rawText.replace(
+    /\b(projet|numero|n°)\s+(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt)\b/g,
+    (_, prefix: string, word: string) => `${prefix} ${NUMBER_WORDS[word]}`,
+  );
+  if (/\bpremier projet\b|\bprojet le plus ancien\b/.test(text) && projects.length > 0) {
+    return { kind: "found", project: projects[0] };
+  }
   const byNumber = text.match(/(?:projet|#|n°|numero)\s*(?:n°|numero|#)?\s*(\d+)\b/);
   if (byNumber) {
     const id = Number(byNumber[1]);
@@ -391,6 +431,20 @@ const UNKNOWN_TEXT = [
   "Dites « **aide** » pour voir des exemples.",
 ].join("\n");
 
+/** Politesse et petites questions : une réponse courte plutôt que « je n'ai pas compris ». */
+function respondToSmallTalk(text: string): HubChatReply | null {
+  if (/^(bonjour|bonsoir|salut|coucou|hello|bjr)\b/.test(text)) {
+    return { text: "Bonjour ! Que voulez-vous faire ?\n\nDites « **aide** » pour voir des exemples." };
+  }
+  if (/^(merci|super|parfait|genial|top)\b/.test(text)) {
+    return { text: "Avec plaisir. Dites-moi si vous avez besoin d'autre chose." };
+  }
+  if (/\bqui es[- ]tu\b|\btu es qui\b|\bc'est quoi (ce|cet) (assistant|chat ?bot)\b/.test(text)) {
+    return { text: HUB_CHAT_WELCOME };
+  }
+  return null;
+}
+
 const FOLDER_PICK = /\b(choisi\w*|change[rsz]?|changement|selectionne\w*|definir|definis|modifie[rsz]?)\b.*\bdossier\b/;
 const FOLDER_ACCESS = /\b(autorise\w*|donne\w* (l'|l )?acces|acces au dossier|redonne\w* (l'|l )?acces|permission)\b/;
 const FOLDER_STATUS = /\b(quel|quels|ou est|ou se trouve)\b.*\bdossier\b|^dossier( de travail)?\s*\??$/;
@@ -484,9 +538,15 @@ export async function respondToHubChat(request: string, context: HubChatContext)
   /** Réponse qui porte sur `project` : il devient le projet de la conversation. */
   const about = (project: ProjectInfo, reply: HubChatReply): HubChatReply => ({ ...reply, currentProject: project });
 
-  if (/^(aide|help|\?)|que (sais|peux)[- ]tu|qu.est.ce que tu (sais|peux)|comment (ca|tu) (marche|fonctionne)/.test(text)) {
+  if (
+    /^(aide|help|\?|commandes?|exemples?)\b|que (sais|peux)[- ]tu|qu.est.ce que tu (sais|peux)|que (puis|peux)[- ]je|comment (ca|tu) (marche|fonctionne)/.test(
+      text,
+    )
+  ) {
     return { text: HELP_TEXT };
   }
+  const smallTalk = respondToSmallTalk(text);
+  if (smallTalk) return smallTalk;
 
   const folderReply = respondToFolder(text, guide);
   if (folderReply) return folderReply;
@@ -497,7 +557,7 @@ export async function respondToHubChat(request: string, context: HubChatContext)
 
     // Création d'abord : le nom du projet peut contenir un nom d'outil (« crée un projet AnimFlow »).
     const create = text.match(
-      /\b(?:(?:cree[rsz]?|ajoute[rsz]?)\s+(?:un\s+)?(?:nouveau\s+)?|nouveau\s+)projet\b\s*(?:(?:nomme|appele|intitule)e?\s+|:\s*)?(.*)$/,
+      /\b(?:(?:cree[rsz]?|ajoute[rsz]?|demarre[rsz]?|commence[rsz]?|lance[rsz]?)\s+(?:un\s+)?(?:nouveau\s+)?|nouveau\s+)projet\b\s*(?:(?:nomme|appele|intitule)e?\s+|:\s*)?(.*)$/,
     );
     if (create) {
       const wantsGuide = GUIDE_SUFFIX.test(create[1]);
@@ -525,7 +585,8 @@ export async function respondToHubChat(request: string, context: HubChatContext)
       ? { run: projectHistory, example: "historique du projet 2" }
       : /\bfichiers?\b/.test(text)
         ? { run: projectFiles, example: "fichiers du projet 2" }
-        : /\bou en est\b|\bavancement\b|\betat\b|\bstatut\b|\bsuivi\b|\betapes?\b/.test(text)
+        : /\bou en est\b|\bavancement\b|\betat\b|\bstatut\b|\bsuivi\b|\betapes?\b/.test(text) ||
+            /\b(montre|affiche|details?|infos?|informations?|resume)\b.*\bprojet\b(?!s)/.test(text)
           ? { run: projectStatus, example: "où en est le projet 2 ?" }
           : null;
     const tool = findTool(text);
@@ -564,7 +625,7 @@ export async function respondToHubChat(request: string, context: HubChatContext)
       );
     }
 
-    if (/\b(supprim\w*|efface\w*|detrui\w*)\b/.test(text)) {
+    if (/\b(supprim\w*|efface\w*|detrui\w*|retire[rsz]?|enleve[rsz]?)\b/.test(text)) {
       const ref = findProject(text, projects, fallback);
       if (ref.kind !== "found") return askWhichProject(ref, projects, "supprime le projet 2");
       return await confirmDelete(ref.project, context);
@@ -594,7 +655,7 @@ export async function respondToHubChat(request: string, context: HubChatContext)
       return ref.kind === "found" ? about(ref.project, openTool(tool, ref.project)) : openTool(tool, null);
     }
 
-    if (/\bprojets\b/.test(text)) return { text: projectListText(projects) };
+    if (/\bprojets\b|\bcombien de projet/.test(text)) return { text: projectListText(projects) };
   } catch (error) {
     return errorReply(error);
   }
