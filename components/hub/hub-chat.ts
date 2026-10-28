@@ -61,7 +61,7 @@ const HELP_TEXT = [
   "• Avancement : « où en est le projet Boulangerie ? »",
   "• Fichiers : « fichiers du projet 2 »",
   "• Historique : « historique du projet 2 »",
-  "• Ouvrir un outil : « ouvre le générateur du projet 2 » (sans projet : mode démo)",
+  "• Ouvrir un outil : « ouvre CodeForge pour le projet 2 » (sans projet : mode démo)",
   "Un projet se désigne par son numéro, son nom ou « le dernier projet ».",
 ].join("\n");
 
@@ -110,15 +110,8 @@ export function isHubChatNo(text: string): boolean {
 
 const TOOL_PATTERNS: Record<HubTool["slug"], RegExp> = {
   screendraft: /\b(screen ?draft|maquett\w*)\b/,
-  generator: /\b(generateur|generator|codeforge|html)\b/,
-  animations: /\b(animations?|anim|anime ?flow)\b/,
-};
-
-/** Nom de l'outil dans une phrase : « J'ouvre le Générateur », « J'ouvre Screendraft ». */
-const TOOL_IN_SENTENCE: Record<HubTool["slug"], string> = {
-  screendraft: "Screendraft",
-  generator: "le Générateur",
-  animations: "Animations",
+  generator: /\b(code ?forge|generateur|generator|html)\b/,
+  animations: /\b(anim ?flow|anime ?flow|animations?|anim)\b/,
 };
 
 function findTool(text: string): HubTool | null {
@@ -193,7 +186,7 @@ async function projectStatus(project: ProjectInfo): Promise<HubChatReply> {
   );
   const next = steps.find((step) => !step.file);
   const conclusion = next
-    ? `Prochaine étape : ${next.tool.label}. Dites « ouvre ${TOOL_IN_SENTENCE[next.tool.slug]} pour le projet ${project.id} ».`
+    ? `Prochaine étape : ${next.tool.label}. Dites « ouvre ${next.tool.label} pour le projet ${project.id} ».`
     : "Les trois étapes sont faites.";
   return { text: [`Avancement du projet ${describe(project)} :`, ...lines, conclusion].join("\n") };
 }
@@ -243,8 +236,8 @@ async function confirmDelete(project: ProjectInfo): Promise<HubChatReply> {
 function openTool(tool: HubTool, project: ProjectInfo | null): HubChatReply {
   return {
     text: project
-      ? `J'ouvre ${TOOL_IN_SENTENCE[tool.slug]} pour le projet ${describe(project)}.`
-      : `J'ouvre ${TOOL_IN_SENTENCE[tool.slug]} en mode démo (sans projet).`,
+      ? `J'ouvre ${tool.label} pour le projet ${describe(project)}.`
+      : `J'ouvre ${tool.label} en mode démo (sans projet).`,
     navigateTo: hubToolHref(tool, project?.id ?? null),
   };
 }
@@ -260,7 +253,7 @@ export async function respondToHubChat(request: string): Promise<HubChatReply> {
   }
 
   try {
-    // Création d'abord : le nom du projet peut contenir un nom d'outil (« crée un projet Animations »).
+    // Création d'abord : le nom du projet peut contenir un nom d'outil (« crée un projet AnimFlow »).
     const create = text.match(
       /\b(?:(?:cree[rsz]?|ajoute[rsz]?)\s+(?:un\s+)?(?:nouveau\s+)?|nouveau\s+)projet\b\s*(?:(?:nomme|appele|intitule)e?\s+|:\s*)?(.*)$/,
     );
@@ -270,7 +263,7 @@ export async function respondToHubChat(request: string): Promise<HubChatReply> {
       notifyHubProjectsChanged();
       const label = name || `Projet ${id}`;
       return {
-        text: `Projet « ${label} » créé (n°${id}). Prochaine étape : la maquette. Dites « ouvre Screendraft pour le projet ${id} ».`,
+        text: `Projet « ${label} » créé (n°${id}). Prochaine étape : la maquette. Dites « ouvre ScreenDraft pour le projet ${id} ».`,
       };
     }
 
@@ -315,10 +308,10 @@ export async function respondToHubChat(request: string): Promise<HubChatReply> {
       return await detail.run(ref.project);
     }
 
-    // Après l'avancement : « où en est la maquette du projet 2 » ne doit pas ouvrir Screendraft.
+    // Après l'avancement : « où en est la maquette du projet 2 » ne doit pas ouvrir ScreenDraft.
     if (tool) {
       const ref = findProject(text, projects);
-      if (ref.kind === "unknown") return askWhichProject(ref, projects, `ouvre ${TOOL_IN_SENTENCE[tool.slug]} pour le projet 1`);
+      if (ref.kind === "unknown") return askWhichProject(ref, projects, `ouvre ${tool.label} pour le projet 1`);
       return openTool(tool, ref.kind === "found" ? ref.project : null);
     }
 
