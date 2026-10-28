@@ -5,11 +5,15 @@ import type { PageElement } from "@/app/(anime-flow)/animations/_lib/page-elemen
 type Props = {
   elements: PageElement[];
   selectedId: string | null;
+  /** Élément survolé, dans la liste ou dans l'aperçu. */
+  hoveredId: string | null;
   onSelect: (element: PageElement) => void;
+  /** Survol ou focus clavier d'une ligne : l'élément est entouré dans l'aperçu. */
+  onHover: (id: string | null) => void;
 };
 
 /** Barre listant les éléments de la page, pour choisir lequel animer (SCRUM-6). */
-export function AnimationsElementBar({ elements, selectedId, onSelect }: Props) {
+export function AnimationsElementBar({ elements, selectedId, hoveredId, onSelect, onHover }: Props) {
   return (
     <nav
       aria-labelledby="animations-elements-title"
@@ -25,7 +29,14 @@ export function AnimationsElementBar({ elements, selectedId, onSelect }: Props) 
       ) : (
         <ul className="mt-4 flex flex-col gap-1">
           {elements.map((element) => (
-            <AnimationsElementItem key={element.id} element={element} selectedId={selectedId} onSelect={onSelect} />
+            <AnimationsElementItem
+              key={element.id}
+              element={element}
+              selectedId={selectedId}
+              hoveredId={hoveredId}
+              onSelect={onSelect}
+              onHover={onHover}
+            />
           ))}
         </ul>
       )}
@@ -33,8 +44,10 @@ export function AnimationsElementBar({ elements, selectedId, onSelect }: Props) 
   );
 }
 
-function AnimationsElementItem({ element, selectedId, onSelect }: Omit<Props, "elements"> & { element: PageElement }) {
+function AnimationsElementItem({ element, ...props }: Omit<Props, "elements"> & { element: PageElement }) {
+  const { selectedId, hoveredId, onSelect, onHover } = props;
   const selected = element.id === selectedId;
+  const hovered = element.id === hoveredId;
 
   return (
     <li>
@@ -42,8 +55,17 @@ function AnimationsElementItem({ element, selectedId, onSelect }: Omit<Props, "e
         type="button"
         aria-pressed={selected}
         onClick={() => onSelect(element)}
+        onMouseEnter={() => onHover(element.id)}
+        onMouseLeave={() => onHover(null)}
+        onFocus={() => onHover(element.id)}
+        onBlur={() => onHover(null)}
         className={`flex min-h-12 w-full items-center gap-2 rounded-xl border-2 px-4 py-2 text-left text-lg ${
-          selected ? "border-(--motion) bg-(--motion-soft) font-semibold" : "border-transparent hover:bg-(--motion-soft)"
+          selected
+            ? "border-(--motion) bg-(--motion-soft) font-semibold"
+            : hovered
+              ? // Survolé dans l'aperçu : pointillés, comme la surcouche de l'aperçu (pas que la couleur).
+                "border-dashed border-(--motion) bg-(--motion-soft)"
+              : "border-transparent hover:bg-(--motion-soft)"
         }`}
       >
         {/* La sélection ne passe pas que par la couleur : coche visible + aria-pressed. */}
@@ -55,7 +77,7 @@ function AnimationsElementItem({ element, selectedId, onSelect }: Omit<Props, "e
       {element.children.length > 0 && (
         <ul className="mt-1 ml-6 flex flex-col gap-1 border-l-2 border-(--line) pl-2">
           {element.children.map((child) => (
-            <AnimationsElementItem key={child.id} element={child} selectedId={selectedId} onSelect={onSelect} />
+            <AnimationsElementItem key={child.id} element={child} {...props} />
           ))}
         </ul>
       )}

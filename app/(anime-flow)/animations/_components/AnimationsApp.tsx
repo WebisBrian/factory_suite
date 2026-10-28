@@ -80,6 +80,8 @@ export function AnimationsApp() {
   const [animationByElement, setAnimationByElement] = useState<Record<string, ElementAnimation>>({});
   const [customAnimations, setCustomAnimations] = useState<AnimationPreset[]>([]);
   const [previewPlay, setPreviewPlay] = useState<PreviewPlay | null>(null);
+  /** Élément survolé, dans la liste ou dans l'aperçu : entouré des deux côtés. */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
   // Reprend aussi le travail enregistré dans animations.json.
@@ -234,7 +236,13 @@ export function AnimationsApp() {
           projectLoad?.status !== "fs-error" && <p className="text-lg text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[minmax(18rem,1fr)_2fr]">
-            <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+            <AnimationsElementBar
+              elements={elements}
+              selectedId={selected?.id ?? null}
+              hoveredId={hoveredId}
+              onSelect={handleSelect}
+              onHover={setHoveredId}
+            />
             <div className="flex flex-col gap-6">
               {selected ? (
                 <AnimationsElementSettings
@@ -261,7 +269,9 @@ export function AnimationsApp() {
               <AnimationsPreview
                 html={html}
                 selectedId={selected?.id ?? null}
+                hoveredId={hoveredId}
                 elementNames={elementNames}
+                onHoverId={setHoveredId}
                 onSelectId={handleSelectId}
                 play={previewPlay}
               />

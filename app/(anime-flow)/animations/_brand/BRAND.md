@@ -66,7 +66,7 @@ Plus strict que les autres outils de la suite :
 
 - **En-tête d'outil** : logo AnimFlow en 48 px, titre « Animations », phrase d'aide en `--ink-muted`, et à droite le badge du mode (« Mode démo » ou « Projet #N »). Le même logo que dans la barre du Hub.
 - **Élément sélectionné dans l'aperçu** : double contour, blanc à l'intérieur et violet `#6d28d9` à l'extérieur. Le violet seul ne ressort pas sur une page sombre (2,5:1) ; le double contour est visible sur n'importe quel fond.
-- **Élément survolé dans l'aperçu (inspecteur)** : contour en pointillés `#6d28d9` et étiquette en aplat `spark` qui donne le nom de l'élément (« Bouton « Contact » »), en texte `on-spark`.
+- **Élément survolé dans l'aperçu (inspecteur)** : surcouche posée par-dessus l'élément (pointillés `#6d28d9`, fond violet très léger), comme l'inspecteur F12 : elle n'est ni coupée ni masquée par le style de la page. Étiquette en aplat `spark` qui donne le nom et la taille de l'élément (« Bouton « Contact » · 120 × 40 »), en texte `on-spark`. Elle suit l'élément au défilement. La ligne de la liste « Éléments de la page » correspondante passe en pointillés, et inversement : survoler ou atteindre au clavier une ligne de la liste entoure l'élément dans l'aperçu. Code : `_lib/preview-inspector.ts`.
 
 ## Logo
 
