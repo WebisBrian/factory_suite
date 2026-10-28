@@ -19,9 +19,13 @@ import { useScreendraftViewport } from "@/components/screendraft/use-screendraft
 type ScreendraftCanvasProps = {
   screens: Screen[];
   activeScreenId: string;
-  selection: ScreenNodeLocation | null;
-  /** Clic sur le canvas : l'écran sous le pointeur (null : hors écran) et l'élément cliqué (null : aucun). */
-  onPick: (screenId: string | null, nodeId: string | null) => void;
+  /** Éléments sélectionnés, tous dans le même écran. */
+  selections: ScreenNodeLocation[];
+  /**
+   * Clic sur le canvas : l'écran sous le pointeur (null : hors écran), l'élément cliqué (null : aucun),
+   * et `additive` si Maj est enfoncée (ajouter ou retirer l'élément de la sélection).
+   */
+  onPick: (screenId: string | null, nodeId: string | null, additive: boolean) => void;
   onMove: (id: string, x: number, y: number) => void;
   /** Fin d'un déplacement dans le même écran, au-dessus d'une autre section (ou hors de toute section : `null`). */
   onDropInto: (id: string, parentId: string | null) => void;
@@ -47,7 +51,7 @@ const DRAG_THRESHOLD = 3;
 export function ScreendraftCanvas({
   screens,
   activeScreenId,
-  selection,
+  selections,
   onPick,
   onMove,
   onDropInto,
@@ -68,9 +72,10 @@ export function ScreendraftCanvas({
     const target = event.target instanceof Element ? event.target : null;
     const id = target?.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId ?? null;
     const screenId = target?.closest<HTMLElement>("[data-screen-id]")?.dataset.screenId ?? null;
-    onPick(screenId, id);
+    onPick(screenId, id, event.shiftKey);
 
-    // Glisser l'élément cliqué le déplace.
+    // Glisser l'élément cliqué le déplace. Maj + clic ne fait que changer la sélection.
+    if (event.shiftKey) return;
     const location = id ? findScreenNode(screens, id)?.location : null;
     if (!location) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -173,7 +178,7 @@ export function ScreendraftCanvas({
                 type="button"
                 data-screen-id={screen.id}
                 aria-current={isActive || undefined}
-                onClick={() => onPick(screen.id, null)}
+                onClick={() => onPick(screen.id, null, false)}
                 className={`text-body-sm absolute max-w-full truncate rounded-(--radius-sm) px-(--space-1) whitespace-nowrap ${
                   isActive || isDropTarget
                     ? "bg-(--draft-soft) font-semibold text-(--draft)"
@@ -201,15 +206,18 @@ export function ScreendraftCanvas({
         })}
       {viewport && (
         <>
-          {selection && (
+          {selections.map((selection) => (
             <ScreendraftSelection
+              key={selection.location.node.id}
               rect={rectToScreen(
                 offsetRect(frameRect(selection.location), origins.get(selection.screen.id)),
                 viewport,
               )}
             />
+          ))}
+          {selections.length === 1 && (
+            <LinkArrow selection={selections[0]} screens={screens} origins={origins} viewport={viewport} />
           )}
-          {selection && <LinkArrow selection={selection} screens={screens} origins={origins} viewport={viewport} />}
           <ScreendraftZoomControls zoom={viewport.zoom} onCommand={zoom} />
         </>
       )}
