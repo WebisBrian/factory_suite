@@ -12,6 +12,30 @@ type SaveState = { status: "saving" } | { status: "saved"; at: Date } | { status
 export function GeneratorOutput({ maquette, projectId, sourceLabel }: { maquette: Maquette; projectId: number | null; sourceLabel: string }) {
   const page = useMemo(() => generatePage(maquette), [maquette]);
   const [save, setSave] = useState<SaveState | null>(null);
+  const [download, setDownload] = useState<{ ok: boolean; message: string } | null>(null);
+
+  function handleDownload() {
+    let url: string | undefined;
+    const link = document.createElement("a");
+    try {
+      const blob = new Blob([page.standaloneHtml], { type: "text/html;charset=utf-8" });
+      url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = HTML_FILE;
+      document.body.appendChild(link);
+      link.click();
+      setDownload({ ok: true, message: "Téléchargement de page.html lancé. Ouvrez ce fichier dans votre navigateur : le CSS est intégré." });
+    } catch {
+      setDownload({ ok: false, message: "Erreur : le téléchargement a échoué. Réessayez avec le bouton Télécharger la page." });
+    } finally {
+      link.remove();
+      // Laisser au navigateur le temps de démarrer le téléchargement avant de libérer l'URL.
+      if (url !== undefined) {
+        const downloadUrl = url;
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+      }
+    }
+  }
 
   // Écriture depuis un clic : Chrome peut afficher l'invite d'autorisation.
   async function handleSave() {
@@ -45,17 +69,34 @@ export function GeneratorOutput({ maquette, projectId, sourceLabel }: { maquette
             )}
           </p>
         </div>
-        {projectId !== null && (
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={handleSave}
-            disabled={save?.status === "saving"}
-            className="min-h-10 rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+            onClick={handleDownload}
+            aria-describedby="generator-download-description"
+            className="min-h-10 rounded-full border border-zinc-500 bg-white/5 px-5 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
           >
-            {save?.status === "saving" ? "Enregistrement…" : "Générer et enregistrer"}
+            Télécharger la page
           </button>
-        )}
+          {projectId !== null && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={save?.status === "saving"}
+              className="min-h-10 rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+            >
+              {save?.status === "saving" ? "Enregistrement…" : "Générer et enregistrer"}
+            </button>
+          )}
+        </div>
       </div>
+
+      <p id="generator-download-description" className="mt-3 text-sm text-zinc-300">
+        Un fichier HTML avec le CSS intégré, à ouvrir directement dans un navigateur.
+      </p>
+      <p role={download?.ok === false ? "alert" : "status"} className="mt-2 text-sm text-zinc-200">
+        {download?.message}
+      </p>
 
       {save?.status === "saved" && (
         <p role="status" className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
