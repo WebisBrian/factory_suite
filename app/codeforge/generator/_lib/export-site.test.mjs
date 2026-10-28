@@ -152,6 +152,7 @@ test("le bouton télécharge le site entier en démo et enregistre tous les écr
     "@/lib/project-fs": { writeProjectFile: async (...args) => { writes.push(args); } },
     "@/app/codeforge/generator/_lib/generate-html": generator,
     "@/app/codeforge/generator/_lib/export-site": exporter,
+    "@/app/codeforge/generator/_lib/generator-styles": load("generator-styles.ts"),
     "@/app/codeforge/generator/_components/GeneratorPreview": {},
   }, {
     document: { createElement: () => link, body: { appendChild() {} } },
@@ -161,7 +162,8 @@ test("le bouton télécharge le site entier en démo et enregistre tous les écr
   function find(node, predicate) {
     if (Array.isArray(node)) return node.map((n) => find(n, predicate)).find(Boolean);
     if (!node || typeof node !== "object") return;
-    return predicate(node) ? node : find(node.props?.children, predicate);
+    // Toutes les props, pas seulement children : le choix d'écran est passé dans `leading`.
+    return predicate(node) ? node : find(Object.values(node.props ?? {}), predicate);
   }
   for (const projectId of [null, 7]) {
     const tree = GeneratorOutput({ maquette: parse(fixture), projectId, sourceLabel: "Test" });
@@ -188,4 +190,35 @@ test("le bouton télécharge le site entier en démo et enregistre tous les écr
   button.props.onClick();
   assert.equal(feedback.ok, false);
   assert.ok(feedback.message.startsWith("Erreur :"));
+});
+
+test("accessibilité : repère main, ordre de lecture visuel, empilement conservé et noms non vides", () => {
+  const style = {};
+  const maquette = parse({
+    schemaVersion: 2,
+    id: "a11y",
+    name: "A11y",
+    screens: [{
+      id: "s1", name: "Accueil", path: "index.html",
+      frame: { device: "desktop", width: 800, height: 600, backgroundColor: "#ffffff" },
+      nodes: [
+        { id: "fond", type: "shape", x: 0, y: 0, width: 800, height: 600, style, props: { shape: "rectangle" } },
+        { id: "bas", type: "text", x: 40, y: 400, width: 200, height: 40, style, props: { text: "Bas" } },
+        { id: "droite", type: "button", x: 400, y: 100, width: 120, height: 40, style, props: { label: "Droite" } },
+        { id: "gauche", type: "title", x: 40, y: 102, width: 200, height: 40, style, props: { text: "Gauche", level: 1 } },
+        { id: "vide", type: "title", x: 40, y: 500, width: 200, height: 40, style, props: { text: " ", level: 2 } },
+        { id: "video", type: "video", x: 40, y: 540, width: 200, height: 40, style, props: { src: "", kind: "file", title: "" } },
+      ],
+    }],
+  });
+  const [page] = generateSite(maquette);
+  assert.ok(page.html.includes('<main class="maquette-frame"'));
+  const order = Array.from(page.html.matchAll(/data-node-id="([^"]+)"/g), (m) => m[1]);
+  assert.deepEqual(order, ["fond", "gauche", "droite", "bas", "vide", "video"]);
+  // Le dernier élément du tableau reste au-dessus, quel que soit l'ordre HTML.
+  assert.ok(page.css.includes("#fond {") && /#fond \{[^}]*z-index: 1;/.test(page.css));
+  assert.ok(/#gauche \{[^}]*z-index: 4;/.test(page.css));
+  assert.ok(!page.html.includes("<h2"));
+  assert.ok(page.html.includes('aria-label="Vidéo"'));
+  assert.ok(page.css.includes(":focus-visible"));
 });

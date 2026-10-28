@@ -28,6 +28,7 @@ import {
   patchTheme,
   type ThemePatch,
 } from "@/components/screendraft/screendraft-mockup-theme";
+import { groupNodes } from "@/components/screendraft/screendraft-group";
 import { findScreenNode } from "@/components/screendraft/screendraft-screens";
 import {
   findNode,
@@ -45,6 +46,8 @@ import {
  * Les actions sur un élément retrouvent seules son écran ; les autres le nomment.
  */
 export type ScreendraftAction =
+  /** Remplace tout le contenu par celui d'un modèle ; la maquette garde son id. */
+  | { type: "load-template"; template: Maquette }
   | { type: "add-screen"; screen: Screen }
   | { type: "rename-screen"; screenId: string; name: string }
   | { type: "delete-screen"; screenId: string }
@@ -69,6 +72,8 @@ export type ScreendraftAction =
   | { type: "reset-instance"; id: string; component: CustomComponent }
   | { type: "detach-instance"; id: string }
   | { type: "detach-component"; componentId: string }
+  | { type: "group-nodes"; ids: string[]; wrapperId: string; component?: CustomComponent }
+  | { type: "delete-nodes"; ids: string[] }
   /** Modifie la charte : tous les éléments qui la suivent sont mis à jour, sur tous les écrans. */
   | { type: "set-theme"; patch: ThemePatch }
   /** Lie des propriétés de l'élément à la charte ; une valeur `undefined` retire le lien. */
@@ -96,6 +101,13 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
 
 function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
+    case "load-template":
+      return {
+        ...draft,
+        name: action.template.name,
+        theme: action.template.theme,
+        screens: structuredClone(action.template.screens),
+      };
     // Ajouté après les autres, donc à droite sur le canvas.
     case "add-screen":
       return applyTheme({ ...draft, screens: [...draft.screens, action.screen] });
@@ -204,6 +216,23 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         mapInstances(nodes, (instance) =>
           instance.componentId === action.componentId ? detachInstance(instance) : null,
         ),
+      );
+    // Sélection multiple : les éléments, d'un même écran, passent dans une nouvelle section.
+    // Avec `component`, la section devient aussitôt son instance : une seule étape à annuler.
+    case "group-nodes": {
+      const { ids, wrapperId, component } = action;
+      if (ids.length === 0) return draft;
+      return withNodesOf(draft, ids[0], (nodes) => {
+        const grouped = groupNodes(nodes, ids, wrapperId);
+        if (!grouped) return nodes;
+        if (!component) return grouped.nodes;
+        return updateNode(grouped.nodes, wrapperId, (node) => buildInstance(component, node.id, node.x, node.y));
+      });
+    }
+    case "delete-nodes":
+      return action.ids.reduce(
+        (current, id) => withNodesOf(current, id, (nodes) => removeNode(nodes, id)),
+        draft,
       );
     case "set-theme":
       return applyTheme({ ...draft, theme: patchTheme(draft.theme, action.patch) });
