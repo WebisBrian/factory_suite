@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { HubLogo } from "@/components/hub/HubAppIcon";
+import { HubChatText, hubChatPlainText } from "@/components/hub/HubChatText";
 import {
   HUB_CHAT_SUGGESTIONS,
   HUB_CHAT_WELCOME,
@@ -44,7 +45,7 @@ function HubChatBubble({
     // L'auteur est écrit en toutes lettres : l'alignement et la couleur ne sont qu'un indice de plus.
     <li className={`flex ${fromUser ? "justify-end" : ""}`}>
       <div
-        className={`max-w-[90%] rounded-2xl px-4 py-2 text-base break-words ${
+        className={`max-w-[90%] rounded-2xl px-4 py-3 text-base break-words ${
           message.isError
             ? "border-2 border-red-400 bg-red-950/60 text-red-50"
             : fromUser
@@ -52,13 +53,17 @@ function HubChatBubble({
               : "border border-zinc-500 bg-[#1b1b24] text-zinc-100"
         }`}
       >
-        <p className="text-sm font-bold text-zinc-200">{fromUser ? "Vous" : "Assistant"}</p>
-        <p className="whitespace-pre-line">
-          {message.isError && <strong className="font-bold text-white">Erreur : </strong>}
-          {message.text}
-        </p>
+        <p className="mb-1 text-sm font-bold text-zinc-200">{fromUser ? "Vous" : "Assistant"}</p>
+        {fromUser ? (
+          <p className="whitespace-pre-line">{message.text}</p>
+        ) : (
+          <HubChatText
+            text={message.text}
+            prefix={message.isError && <strong className="font-bold text-white">Erreur : </strong>}
+          />
+        )}
         {showActions && message.actions && message.actions.length > 0 && (
-          <ul className="mt-3 flex flex-wrap gap-2">
+          <ul className="mt-4 flex flex-wrap gap-2">
             {message.actions.map((action) => (
               <li key={action.href}>
                 <Link href={action.href} className={hubPrimaryButton}>
@@ -162,7 +167,7 @@ export function HubChat() {
     }
     const id = push({ author: "assistant", text: reply.text, isError: reply.isError, actions: reply.actions });
     if (reply.guide !== undefined) setGuide(reply.guide);
-    setAnnouncement(`Assistant : ${reply.isError ? "Erreur : " : ""}${reply.text}`);
+    setAnnouncement(`Assistant : ${reply.isError ? "Erreur : " : ""}${hubChatPlainText(reply.text)}`);
     setPending(false);
     if (reply.navigateTo) {
       closeChat();
@@ -289,11 +294,11 @@ export function HubChat() {
             aria-label="Conversation avec l'assistant"
             className="min-h-32 flex-1 overflow-y-auto rounded-xl border border-zinc-700 bg-[#0f0f15] p-3"
           >
-            <ol className="flex flex-col gap-3">
+            <ol className="flex flex-col gap-4">
               {messages.map((message, index) => (
                 <HubChatBubble key={message.id} message={message} showActions={index === messages.length - 1}>
                   {confirmation?.messageId === message.id && (
-                    <div role="group" aria-label="Confirmer l'action" className="mt-3 flex flex-wrap gap-2">
+                    <div role="group" aria-label="Confirmer l'action" className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => handleCancel(confirmation)}

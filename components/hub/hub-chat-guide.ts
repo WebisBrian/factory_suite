@@ -15,13 +15,16 @@ export interface HubGuide {
   stepStartedAt: number;
 }
 
-/** Ce qu'il faut faire dans chaque outil, avec le libellé exact de ses boutons. */
-const STEP_HOWTO: Record<HubTool["slug"], string> = {
+/** Ce qu'il faut faire dans chaque outil, une action par ligne, avec le libellé exact des boutons. */
+const STEP_HOWTO: Record<HubTool["slug"], readonly string[]> = {
   // Premier passage sur un projet : ScreenDraft propose ses modèles avant l'éditeur.
-  screendraft:
-    "Choisissez un modèle (bouton « Utiliser ») ou la maquette vierge, adaptez-la, puis cliquez sur « Enregistrer » (ou Ctrl+S).",
-  generator: "Vérifiez l'aperçu de la page, puis cliquez sur « Générer et enregistrer ».",
-  animations: "Sélectionnez les éléments de la page et choisissez leurs animations.",
+  screendraft: [
+    "Choisissez un modèle (bouton « **Utiliser** ») ou la maquette vierge.",
+    "Adaptez la maquette.",
+    "Cliquez sur « **Enregistrer** » (ou Ctrl+S).",
+  ],
+  generator: ["Vérifiez l'aperçu de la page.", "Cliquez sur « **Générer et enregistrer** »."],
+  animations: ["Sélectionnez les éléments de la page.", "Choisissez leurs animations et leur déclencheur."],
 };
 
 /** AnimFlow n'écrit encore aucun fichier : la fin de son étape est déclarée par l'utilisateur. */
@@ -30,7 +33,7 @@ const UNVERIFIABLE_STEPS: ReadonlySet<HubTool["slug"]> = new Set(["animations"])
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" });
 
 export function describeProject(project: ProjectInfo): string {
-  return `« ${project.name} » (n°${project.id})`;
+  return `« **${project.name}** » (n°${project.id})`;
 }
 
 function guidedProject(guide: HubGuide): ProjectInfo {
@@ -40,14 +43,16 @@ function guidedProject(guide: HubGuide): ProjectInfo {
 function stepReply(guide: HubGuide, intro: string[]): HubChatReply {
   const tool = HUB_TOOLS[guide.step];
   const verification = UNVERIFIABLE_STEPS.has(tool.slug)
-    ? `${tool.label} n'enregistre pas encore de fichier : je ne pourrai pas vérifier cette étape. Quand vous avez fini, revenez au Hub et dites « terminé ».`
-    : "Revenez ensuite au Hub (logo FactorySuite, en haut à gauche) et rouvrez l'assistant : je vérifierai l'étape.";
+    ? `${tool.label} n'enregistre pas encore de fichier : je ne pourrai pas vérifier cette étape. Quand vous avez fini, revenez au Hub et dites « **terminé** ».`
+    : "Revenez ensuite au Hub (logo **FactorySuite**, en haut à gauche) et rouvrez l'assistant : je vérifierai l'étape.";
   return {
     text: [
-      ...intro,
-      `Étape ${guide.step + 1} sur ${HUB_TOOLS.length} : ${tool.label} (${tool.description}).`,
-      STEP_HOWTO[tool.slug],
+      ...(intro.length > 0 ? [...intro, ""] : []),
+      `**Étape ${guide.step + 1} sur ${HUB_TOOLS.length} : ${tool.label}** (${tool.description})`,
+      ...STEP_HOWTO[tool.slug].map((line) => `• ${line}`),
+      "",
       verification,
+      "",
       "Vous pouvez aussi dire « passe l'étape » ou « arrête le guide ».",
     ].join("\n"),
     actions: [{ label: `Ouvrir ${tool.label} pour le projet ${guide.projectName}`, href: hubToolHref(tool, guide.projectId) }],
@@ -59,7 +64,11 @@ function advance(guide: HubGuide, intro: string[]): HubChatReply {
   const next = guide.step + 1;
   if (next >= HUB_TOOLS.length) {
     return {
-      text: [...intro, `Parcours terminé : les ${HUB_TOOLS.length} étapes du projet ${describeProject(guidedProject(guide))} sont faites.`].join("\n"),
+      text: [
+        ...intro,
+        "",
+        `**Parcours terminé** : les ${HUB_TOOLS.length} étapes du projet ${describeProject(guidedProject(guide))} sont faites.`,
+      ].join("\n"),
       guide: null,
     };
   }
@@ -69,13 +78,13 @@ function advance(guide: HubGuide, intro: string[]): HubChatReply {
 /** Démarre le parcours à la première étape dont le fichier manque. */
 export async function startHubGuide(project: ProjectInfo): Promise<HubChatReply> {
   const files = await listProjectFiles(project.id);
-  const intro = [`Parcours guidé du projet ${describeProject(project)}.`];
+  const intro = [`**Parcours guidé** du projet ${describeProject(project)}.`];
   let step = 0;
   for (; step < HUB_TOOLS.length; step++) {
     const tool = HUB_TOOLS[step];
     const file = files.find((f) => f.name === tool.outputFile);
     if (UNVERIFIABLE_STEPS.has(tool.slug) || !file) break;
-    intro.push(`✓ Étape ${step + 1} (${tool.label}) déjà faite : ${file.name} du ${dateFormat.format(file.lastModified)}.`);
+    intro.push(`✓ Étape ${step + 1} (${tool.label}) **déjà faite** : ${file.name} du ${dateFormat.format(file.lastModified)}.`);
   }
   return stepReply({ projectId: project.id, projectName: project.name, step, stepStartedAt: Date.now() }, intro);
 }
@@ -89,8 +98,8 @@ export async function checkHubGuide(guide: HubGuide, userSaysDone: boolean): Pro
   const label = `Étape ${guide.step + 1} (${tool.label})`;
   if (UNVERIFIABLE_STEPS.has(tool.slug)) {
     return userSaysDone
-      ? advance(guide, [`✓ ${label} notée comme faite.`])
-      : stepReply(guide, [`Avez-vous terminé dans ${tool.label} ?`]);
+      ? advance(guide, [`✓ ${label} **notée comme faite**.`])
+      : stepReply(guide, [`**Avez-vous terminé** dans ${tool.label} ?`]);
   }
 
   let files: ProjectFileInfo[];
@@ -98,7 +107,11 @@ export async function checkHubGuide(guide: HubGuide, userSaysDone: boolean): Pro
     files = await listProjectFiles(guide.projectId);
   } catch (error) {
     if (error instanceof ProjectFsError && error.code === "project-not-found") {
-      return { text: `Le projet n°${guide.projectId} n'existe plus : parcours guidé arrêté.`, isError: true, guide: null };
+      return {
+        text: `Le projet n°${guide.projectId} **n'existe plus** : parcours guidé arrêté.`,
+        isError: true,
+        guide: null,
+      };
     }
     throw error;
   }
@@ -108,7 +121,7 @@ export async function checkHubGuide(guide: HubGuide, userSaysDone: boolean): Pro
   const file = files.find((f) => f.name === tool.outputFile);
 
   if (file && file.lastModified >= guide.stepStartedAt) {
-    const done = [`✓ ${label} faite : ${file.name} enregistré le ${dateFormat.format(file.lastModified)}.`];
+    const done = [`✓ ${label} **faite** : ${file.name} enregistré le ${dateFormat.format(file.lastModified)}.`];
     // L'utilisateur a pu enchaîner sans repasser par le Hub (CodeForge a un lien direct vers AnimFlow) :
     // on valide aussi les étapes suivantes dont le fichier a été enregistré entre-temps.
     let step = guide.step;
@@ -116,7 +129,7 @@ export async function checkHubGuide(guide: HubGuide, userSaysDone: boolean): Pro
       const nextFile = savedSinceStart(next);
       if (!nextFile) break;
       done.push(
-        `✓ Étape ${next + 1} (${HUB_TOOLS[next].label}) faite aussi : ${nextFile.name} enregistré le ${dateFormat.format(nextFile.lastModified)}.`,
+        `✓ Étape ${next + 1} (${HUB_TOOLS[next].label}) **faite aussi** : ${nextFile.name} enregistré le ${dateFormat.format(nextFile.lastModified)}.`,
       );
       step = next;
     }
@@ -124,19 +137,20 @@ export async function checkHubGuide(guide: HubGuide, userSaysDone: boolean): Pro
   }
   if (file) {
     return stepReply(guide, [
-      `${file.name} existe (version du ${dateFormat.format(file.lastModified)}), mais n'a pas été réenregistré depuis le début de l'étape. Dites « passe l'étape » pour garder cette version.`,
+      `${file.name} existe (version du ${dateFormat.format(file.lastModified)}), mais **n'a pas été réenregistré** depuis le début de l'étape.`,
+      "Dites « passe l'étape » pour garder cette version.",
     ]);
   }
-  return stepReply(guide, [`${label} pas encore faite : je ne trouve pas ${tool.outputFile} dans le projet.`]);
+  return stepReply(guide, [`${label} **pas encore faite** : je ne trouve pas ${tool.outputFile} dans le projet.`]);
 }
 
 export function skipHubGuideStep(guide: HubGuide): HubChatReply {
-  return advance(guide, [`Étape ${guide.step + 1} (${HUB_TOOLS[guide.step].label}) passée.`]);
+  return advance(guide, [`Étape ${guide.step + 1} (${HUB_TOOLS[guide.step].label}) **passée**.`]);
 }
 
 export function stopHubGuide(guide: HubGuide): HubChatReply {
   return {
-    text: `Parcours guidé arrêté. Dites « guide-moi pour le projet ${guide.projectId} » pour le reprendre.`,
+    text: `**Parcours guidé arrêté.**\n\nDites « guide-moi pour le projet ${guide.projectId} » pour le reprendre.`,
     guide: null,
   };
 }
