@@ -5,21 +5,24 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { ScreendraftEditor } from "@/components/screendraft/ScreendraftEditor";
+import { ScreendraftNewProject } from "@/components/screendraft/ScreendraftNewProject";
 import {
   MAQUETTE_FILE,
-  createEmptyMaquette,
   parseMaquette,
   type ParsedMaquette,
 } from "@/components/screendraft/screendraft-file";
 import { maquetteFixture } from "@/components/screendraft/temp-fixture";
 
-type ProjectLoad = { projectId: number; result: ParsedMaquette };
+/** `draft: null` : le projet n'a pas encore de `maquette.json`. */
+type MaquetteLoad = ParsedMaquette | { ok: true; draft: null };
 
-async function loadMaquette(projectId: number): Promise<ParsedMaquette> {
+type ProjectLoad = { projectId: number; result: MaquetteLoad };
+
+async function loadMaquette(projectId: number): Promise<MaquetteLoad> {
   try {
     const text = await readProjectText(projectId, MAQUETTE_FILE);
-    // Premier passage dans Screendraft pour ce projet : on part d'une maquette vide.
-    if (text === null) return { ok: true, draft: createEmptyMaquette(projectId) };
+    // Premier passage dans Screendraft pour ce projet : l'utilisateur choisit un modèle.
+    if (text === null) return { ok: true, draft: null };
     return parseMaquette(text);
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -28,7 +31,7 @@ async function loadMaquette(projectId: number): Promise<ParsedMaquette> {
 
 /**
  * Sans `?project_id=` : mode démo sur la fixture, aucun accès disque.
- * Avec : ouvre le `maquette.json` du projet, ou une maquette vide s'il n'existe pas encore.
+ * Avec : ouvre le `maquette.json` du projet, ou propose les modèles s'il n'existe pas encore.
  */
 export function ScreendraftApp() {
   const projectId = useProjectId();
@@ -74,6 +77,14 @@ export function ScreendraftApp() {
           </Link>
         </div>
       </ScreendraftNotice>
+    );
+  }
+  if (load.result.draft === null) {
+    return (
+      <ScreendraftNewProject
+        projectId={projectId}
+        onCreated={(draft) => setLoad({ projectId, result: { ok: true, draft } })}
+      />
     );
   }
   return <ScreendraftEditor key={projectId} initialDraft={load.result.draft} projectId={projectId} />;

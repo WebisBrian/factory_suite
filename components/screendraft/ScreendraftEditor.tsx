@@ -16,6 +16,7 @@ import {
 import { ScreendraftPrototype } from "@/components/screendraft/ScreendraftPrototype";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
+import { ScreendraftTemplateDialog } from "@/components/screendraft/ScreendraftTemplateDialog";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
 import {
   instantiateComponent,
@@ -40,6 +41,7 @@ import { frameRect } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftLibrary } from "@/components/screendraft/use-screendraft-library";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
+import type { ScreendraftTemplate } from "@/components/screendraft/templates/screendraft-templates";
 
 /** Élément copié ou coupé, son ancien parent et le décalage à appliquer au prochain collage. */
 type ScreendraftClipboard = { node: DraftNode; parentId: string | null; offset: number };
@@ -59,6 +61,11 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const [activeScreenId, setActiveScreenId] = useState(initialDraft.screens[0].id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPrototypeOpen, setIsPrototypeOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState("");
+  const templatesButton = useRef<HTMLButtonElement>(null);
+  // Une fenêtre (prototype ou modèles) couvre l'éditeur : il est inerte et ignore ses raccourcis.
+  const isOverlayOpen = isPrototypeOpen || isTemplatesOpen;
   // Après une annulation ou une suppression, l'écran actif peut ne plus exister : on revient au premier.
   const activeScreen = draft.screens.find((screen) => screen.id === activeScreenId) ?? draft.screens[0];
   const selection = selectedId ? findScreenNode(draft.screens, selectedId) : null;
@@ -102,6 +109,21 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     if (await library.remove(componentId)) dispatch({ type: "detach-component", componentId });
   }
 
+  // Le modèle remplace la maquette, en une étape de l'historique : Ctrl/⌘ + Z la rend.
+  function loadTemplate(template: ScreendraftTemplate) {
+    dispatch({ type: "load-template", template: template.maquette });
+    setActiveScreenId(template.maquette.screens[0].id);
+    setSelectedId(null);
+    setIsTemplatesOpen(false);
+    setTemplateMessage(`Modèle « ${template.name} » chargé. Ctrl/⌘ + Z pour annuler.`);
+    requestAnimationFrame(() => templatesButton.current?.focus());
+  }
+
+  function closeTemplates() {
+    setIsTemplatesOpen(false);
+    requestAnimationFrame(() => templatesButton.current?.focus());
+  }
+
   // Nouvel écran au format de l'écran actif, ajouté à droite et activé.
   function addScreen() {
     const screen = createScreen(draft.screens, activeScreen.frame);
@@ -143,8 +165,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      // L'aperçu du prototype gère ses propres touches : l'éditeur derrière ne bouge pas.
-      if (isPrototypeOpen) return;
+      // L'aperçu du prototype et les modèles gèrent leurs propres touches : l'éditeur derrière ne bouge pas.
+      if (isOverlayOpen) return;
       if (event.key === "Escape") setSelectedId(null);
       const isSaveShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
       if (isSaveShortcut && projectId !== null) {
@@ -190,7 +212,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draft, projectId, save, undo, redo, dispatch, selection, activeScreen.id, isPrototypeOpen]);
+  }, [draft, projectId, save, undo, redo, dispatch, selection, activeScreen.id, isOverlayOpen]);
 
   // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
   useEffect(() => {
@@ -214,8 +236,9 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             onClose={() => setIsPrototypeOpen(false)}
           />
         )}
+        {isTemplatesOpen && <ScreendraftTemplateDialog onChoose={loadTemplate} onClose={closeTemplates} />}
         {/* Pendant l'aperçu, l'éditeur est inerte : ni clic, ni focus clavier. */}
-        <header inert={isPrototypeOpen} className="flex min-h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
+        <header inert={isOverlayOpen} className="flex min-h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
           {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
@@ -225,7 +248,22 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
             /
           </span>
           <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
+          <p role="status" className="sr-only">
+            {templateMessage}
+          </p>
           <div className="ml-auto flex items-center gap-(--space-3)">
+            <button
+              ref={templatesButton}
+              type="button"
+              onClick={() => setIsTemplatesOpen(true)}
+              aria-haspopup="dialog"
+              className="text-body-sm flex min-h-10 items-center gap-(--space-2) rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) px-(--space-4) py-(--space-2) font-semibold text-(--ink) hover:bg-(--canvas)"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="size-4 fill-current">
+                <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" />
+              </svg>
+              Modèles
+            </button>
             <button
               type="button"
               onClick={() => setIsPrototypeOpen(true)}
@@ -253,7 +291,7 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
           </div>
         </header>
 
-        <div inert={isPrototypeOpen} className="flex min-h-0 flex-1">
+        <div inert={isOverlayOpen} className="flex min-h-0 flex-1">
           <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
             <ScreendraftPalette onAdd={addNode} />
             <ScreendraftScreens
@@ -278,10 +316,10 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
               onPlace={(id, placement) => dispatch({ type: "place-node", id, placement })}
             />
           </div>
-          {/* Ajouter, supprimer un écran ou changer de format (donc de largeur) recrée le canvas,
-              qui se réajuste pour montrer tous les écrans. */}
+          {/* Ajouter, supprimer un écran, changer de format (donc de largeur) ou charger un modèle
+              recrée le canvas, qui se réajuste pour montrer tous les écrans. */}
           <ScreendraftCanvas
-            key={draft.screens.map((screen) => screen.frame.width).join(",")}
+            key={draft.screens.map((screen) => `${screen.id}:${screen.frame.width}`).join(",")}
             screens={draft.screens}
             activeScreenId={activeScreen.id}
             selection={selection}
