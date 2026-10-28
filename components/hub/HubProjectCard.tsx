@@ -11,6 +11,7 @@ import {
 } from "@/lib/project-fs";
 import { HubAlert, HubStatus } from "@/components/hub/HubAlert";
 import { HubAppIcon } from "@/components/hub/HubAppIcon";
+import { HubProjectCommunication } from "@/components/hub/HubProjectCommunication";
 import { HubProjectHistory } from "@/components/hub/HubProjectHistory";
 import {
   hubCard,
@@ -29,7 +30,9 @@ function formatSize(bytes: number): string {
 
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" });
 
-type Panel = "files" | "history";
+type Panel = "files" | "history" | "communication";
+
+const PANEL_LABELS: Record<Panel, string> = { files: "Fichiers", history: "Historique", communication: "Communication" };
 
 export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; onChanged: () => Promise<void> }) {
   const projectId = project.id;
@@ -97,7 +100,7 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
   return (
     <li
       aria-labelledby={titleId}
-      className={`relative flex flex-col gap-5 p-5 ${hubCard} ${panel === "history" ? "lg:col-span-2" : ""}`}
+      className={`relative flex flex-col gap-5 p-5 ${hubCard} ${panel !== "files" ? "lg:col-span-2" : ""}`}
     >
       <header className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
@@ -196,7 +199,8 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
       )}
 
       <nav aria-label={`Ouvrir le projet ${project.name} dans un outil`}>
-        <ol className="grid gap-2 sm:grid-cols-3">
+        {/* Colonnes d'au moins 13rem : les noms d'outils ne sont jamais coupés en plein mot, même à 200 %. */}
+        <ol className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2">
           {HUB_TOOLS.map((tool, index) => (
             <li key={tool.slug}>
               <Link
@@ -217,9 +221,9 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
         </ol>
       </nav>
 
-      <section aria-label={panel === "files" ? `Fichiers du projet ${project.name}` : `Historique du projet ${project.name}`}>
+      <section aria-label={`${PANEL_LABELS[panel]} du projet ${project.name}`}>
         <div role="group" aria-label="Affichage" className="mb-3 flex flex-wrap gap-2">
-          {(["files", "history"] as const).map((tab) => (
+          {(["files", "history", "communication"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -232,12 +236,14 @@ export function HubProjectCard({ project, onChanged }: { project: ProjectInfo; o
                   : "text-zinc-300 hover:bg-white/10 hover:text-white"
               }`}
             >
-              {tab === "files" ? "Fichiers" : "Historique"}
+              {PANEL_LABELS[tab]}
             </button>
           ))}
         </div>
         {panel === "history" ? (
           <HubProjectHistory projectId={projectId} onRestored={load} />
+        ) : panel === "communication" ? (
+          <HubProjectCommunication projectId={projectId} projectName={project.name} onSaved={load} />
         ) : error ? (
           <HubAlert>{error}</HubAlert>
         ) : files === null ? (
