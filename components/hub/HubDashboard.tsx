@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createProject, EXPECTED_DATA_DIR, listProjects, useProjectFolder } from "@/lib/project-fs";
+import {
+  createProject,
+  EXPECTED_DATA_DIR,
+  listProjects,
+  useProjectFolder,
+  type ProjectInfo,
+} from "@/lib/project-fs";
 import { HubProjectCard } from "@/components/hub/HubProjectCard";
 
 const primaryButton =
@@ -29,7 +35,8 @@ function ExpectedDirHint() {
 }
 
 function HubProjectList({ folderName, onChangeFolder }: { folderName: string; onChangeFolder: () => void }) {
-  const [projects, setProjects] = useState<number[] | null>(null);
+  const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
+  const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,10 +60,12 @@ function HubProjectList({ folderName, onChangeFolder }: { folderName: string; on
     };
   }, []);
 
-  async function handleCreate() {
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setCreating(true);
     try {
-      await createProject();
+      await createProject(newName);
+      setNewName("");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -74,15 +83,24 @@ function HubProjectList({ folderName, onChangeFolder }: { folderName: string; on
             Dossier de travail : <code className={codeChip}>{folderName}</code>
           </p>
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={onChangeFolder} className={secondaryButton}>
-            Changer de dossier
-          </button>
-          <button type="button" onClick={handleCreate} disabled={creating} className={primaryButton}>
-            {creating ? "Création…" : "+ Nouveau projet"}
-          </button>
-        </div>
+        <button type="button" onClick={onChangeFolder} className={secondaryButton}>
+          Changer de dossier
+        </button>
       </div>
+
+      <form onSubmit={handleCreate} className="flex flex-wrap gap-2">
+        <input
+          type="text"
+          value={newName}
+          onChange={(event) => setNewName(event.target.value)}
+          placeholder="Nom du nouveau projet"
+          maxLength={80}
+          className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/5 px-5 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-pink-500/60 focus:outline-none"
+        />
+        <button type="submit" disabled={creating} className={primaryButton}>
+          {creating ? "Création…" : "+ Nouveau projet"}
+        </button>
+      </form>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -94,8 +112,8 @@ function HubProjectList({ folderName, onChangeFolder }: { folderName: string; on
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {projects.toReversed().map((id) => (
-            <HubProjectCard key={id} projectId={id} />
+          {projects.toReversed().map((project) => (
+            <HubProjectCard key={project.id} project={project} onChanged={load} />
           ))}
         </div>
       )}
