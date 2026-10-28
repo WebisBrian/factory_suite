@@ -1,18 +1,31 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { HubLogo } from "@/components/hub/HubAppIcon";
 import {
   HUB_CHAT_SUGGESTIONS,
   HUB_CHAT_WELCOME,
+  isHubChatNo,
+  isHubChatYes,
   respondToHubChat,
+  type HubChatConfirmation,
   type HubChatMessage,
+  type HubChatReply,
 } from "@/components/hub/hub-chat";
-import { hubInput, hubPrimaryButton, hubSectionLabel, hubSmallButton } from "@/components/hub/hub-styles";
+import {
+  hubDangerButton,
+  hubInput,
+  hubPrimaryButton,
+  hubSectionLabel,
+  hubSmallButton,
+} from "@/components/hub/hub-styles";
 
 const WELCOME: HubChatMessage = { id: 0, author: "assistant", text: HUB_CHAT_WELCOME };
 
-function HubChatBubble({ message }: { message: HubChatMessage }) {
+type PendingConfirmation = HubChatConfirmation & { messageId: number };
+
+function HubChatBubble({ message, children }: { message: HubChatMessage; children?: React.ReactNode }) {
   const fromUser = message.author === "user";
   return (
     // L'auteur est écrit en toutes lettres : l'alignement et la couleur ne sont qu'un indice de plus.
@@ -31,6 +44,7 @@ function HubChatBubble({ message }: { message: HubChatMessage }) {
           {message.isError && <strong className="font-bold text-white">Erreur : </strong>}
           {message.text}
         </p>
+        {children}
       </div>
     </li>
   );
@@ -45,6 +59,8 @@ export function HubChat() {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
+  const router = useRouter();
   const nextId = useRef(1);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -72,39 +88,68 @@ export function HubChat() {
     dialogRef.current?.close();
   }
 
-  function push(message: Omit<HubChatMessage, "id">) {
+  function push(message: Omit<HubChatMessage, "id">): number {
     const id = nextId.current++;
     setMessages((previous) => [...previous, { ...message, id }]);
+    return id;
   }
 
-  async function send(text: string) {
-    const request = text.trim();
-    if (!request || pending) return;
-    push({ author: "user", text: request });
-    setDraft("");
+  async function answer(getReply: () => Promise<HubChatReply>) {
     setPending(true);
     setAnnouncement("L'assistant prépare sa réponse…");
+    let reply: HubChatReply;
     try {
-      const reply = await respondToHubChat(request);
-      push({ author: "assistant", text: reply.text, isError: reply.isError });
-      setAnnouncement(`Assistant : ${reply.isError ? "Erreur : " : ""}${reply.text}`);
+      reply = await getReply();
     } catch (e) {
-      const text = e instanceof Error ? e.message : String(e);
-      push({ author: "assistant", text, isError: true });
-      setAnnouncement(`Assistant : Erreur : ${text}`);
-    } finally {
-      setPending(false);
+      reply = { text: e instanceof Error ? e.message : String(e), isError: true };
+    }
+    const id = push({ author: "assistant", text: reply.text, isError: reply.isError });
+    setAnnouncement(`Assistant : ${reply.isError ? "Erreur : " : ""}${reply.text}`);
+    setPending(false);
+    if (reply.navigateTo) {
+      closeChat();
+      router.push(reply.navigateTo);
+    } else if (reply.confirmation) {
+      // Le focus ira sur « Annuler » (autoFocus) : le choix sans risque est celui par défaut.
+      setConfirmation({ ...reply.confirmation, messageId: id });
+    } else {
       inputRef.current?.focus();
     }
   }
 
+  function send(text: string) {
+    const request = text.trim();
+    if (!request || pending) return;
+    push({ author: "user", text: request });
+    setDraft("");
+    const awaiting = confirmation;
+    setConfirmation(null);
+    if (awaiting && isHubChatYes(request)) void answer(awaiting.run);
+    else if (awaiting && isHubChatNo(request)) void answer(async () => ({ text: awaiting.cancelText }));
+    // Autre demande pendant une confirmation : l'action en attente est abandonnée.
+    else void answer(() => respondToHubChat(request));
+  }
+
+  function handleConfirm(awaiting: PendingConfirmation) {
+    setConfirmation(null);
+    push({ author: "user", text: awaiting.label });
+    void answer(awaiting.run);
+  }
+
+  function handleCancel(awaiting: PendingConfirmation) {
+    setConfirmation(null);
+    push({ author: "user", text: "Annuler" });
+    void answer(async () => ({ text: awaiting.cancelText }));
+  }
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void send(draft);
+    send(draft);
   }
 
   function handleClear() {
     setMessages([WELCOME]);
+    setConfirmation(null);
     setAnnouncement("Conversation effacée.");
     inputRef.current?.focus();
   }
@@ -160,7 +205,23 @@ export function HubChat() {
           >
             <ol className="flex flex-col gap-3">
               {messages.map((message) => (
-                <HubChatBubble key={message.id} message={message} />
+                <HubChatBubble key={message.id} message={message}>
+                  {confirmation?.messageId === message.id && (
+                    <div role="group" aria-label="Confirmer l'action" className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCancel(confirmation)}
+                        autoFocus
+                        className={hubSmallButton}
+                      >
+                        Annuler
+                      </button>
+                      <button type="button" onClick={() => handleConfirm(confirmation)} className={hubDangerButton}>
+                        {confirmation.label}
+                      </button>
+                    </div>
+                  )}
+                </HubChatBubble>
               ))}
             </ol>
             {pending && (
@@ -185,7 +246,7 @@ export function HubChat() {
                   <li key={suggestion}>
                     <button
                       type="button"
-                      onClick={() => void send(suggestion)}
+                      onClick={() => send(suggestion)}
                       disabled={pending}
                       aria-label={`Envoyer la demande : ${suggestion}`}
                       className={hubSmallButton}
