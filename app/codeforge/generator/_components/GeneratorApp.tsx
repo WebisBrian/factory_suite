@@ -5,7 +5,23 @@ import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "r
 import { ProjectFsError, readProjectText, useProjectId } from "@/lib/project-fs";
 import { MAQUETTE_FILE, parseMaquette, type Maquette } from "@/app/codeforge/generator/_lib/maquette";
 import { maquetteFixture } from "@/app/codeforge/generator/_lib/maquette-fixture";
+import {
+  generatorCard,
+  generatorDisplay,
+  generatorError,
+  generatorKicker,
+  generatorLink,
+  generatorPaper,
+  generatorPrimaryButton,
+  generatorSecondaryButton,
+} from "@/app/codeforge/generator/_lib/generator-styles";
 import { GeneratorOutput } from "@/app/codeforge/generator/_components/GeneratorOutput";
+
+const CHAIN = [
+  { tool: "Screendraft", role: "Étape amont", file: "écrit maquette.json", current: false },
+  { tool: "CodeForge", role: "Vous êtes ici", file: "maquette.json → pages HTML/CSS", current: true },
+  { tool: "Animations", role: "Étape aval", file: "lit page.html", current: false },
+] as const;
 
 type ProjectLoad =
   | { status: "ok"; maquette: Maquette }
@@ -91,23 +107,44 @@ export function GeneratorApp() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Générateur</h1>
-          <p className="text-sm text-zinc-400">
-            Transmettez la maquette JSON produite par Screendraft pour la convertir en HTML/CSS.
-          </p>
-        </div>
-        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-300">
+    <div className="flex flex-col gap-16">
+      <header className="flex flex-col items-center gap-6 text-center">
+        <p className="rounded-full bg-[#f7f7f7] px-4 py-1.5 text-sm font-medium text-[#2e2e2e] ring-1 ring-black/15">
           {projectId === null ? "Mode démo" : `Projet #${projectId}`}
-        </span>
+        </p>
+        <h1 className={`${generatorDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>CodeForge</h1>
+        <p className="max-w-prose text-lg text-[#454545]">
+          Transforme la maquette JSON de Screendraft en pages HTML/CSS, prêtes à être animées.
+        </p>
+
+        <nav aria-label="Chaîne FactorySuite" className="w-full">
+          <ol className="grid gap-3 text-left sm:grid-cols-3">
+            {CHAIN.map((step, index) => (
+              <li
+                key={step.tool}
+                aria-current={step.current ? "step" : undefined}
+                className={`flex flex-col gap-1 p-4 ${
+                  step.current ? "rounded-lg border-2 border-[#2e2e2e] bg-[#fdfcfb]" : generatorPaper
+                }`}
+              >
+                <span className="text-sm font-semibold text-[#454545]">
+                  {index + 1}. {step.role}
+                </span>
+                <span className="text-xl font-medium text-[#2e2e2e]">{step.tool}</span>
+                <span className="font-mono text-sm text-[#454545]">{step.file}</span>
+              </li>
+            ))}
+          </ol>
+        </nav>
       </header>
 
       {projectId === null && (
-        <section className="rounded-2xl border border-white/10 bg-white/3 p-5">
-          <h2 className="text-base font-semibold text-zinc-100">Maquette d&apos;entrée</h2>
-          <p className="mt-1 text-sm text-zinc-300">
+        <section aria-labelledby="generator-input-title" className={`${generatorCard} p-6`}>
+          <p className={generatorKicker}>Étape 1</p>
+          <h2 id="generator-input-title" className={`${generatorDisplay} mt-1 text-3xl tracking-tight`}>
+            Maquette d&apos;entrée
+          </h2>
+          <p className="mt-2 text-base text-[#454545]">
             Sans projet, la maquette de démo est utilisée. Vous pouvez aussi importer votre propre fichier.
           </p>
 
@@ -118,25 +155,19 @@ export function GeneratorApp() {
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
-            className={`mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-8 text-center transition-colors ${
-              dragging ? "border-emerald-400 bg-emerald-500/10" : "border-white/15 bg-black/20"
+            className={`mt-4 flex flex-col items-start gap-3 rounded-lg p-5 ${generatorPaper} border-2 border-dashed ${
+              dragging ? "border-[#2e2e2e]" : "border-zinc-500"
             }`}
           >
-            <p className="text-sm text-zinc-300">Glissez-déposez un fichier JSON de maquette ici</p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black hover:bg-emerald-400"
-              >
+            <p className="text-base text-[#2e2e2e]">
+              {dragging ? "Relâchez pour importer le fichier" : "Glissez-déposez un fichier JSON de maquette ici"}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={() => fileInput.current?.click()} className={generatorPrimaryButton}>
                 Importer un fichier JSON
               </button>
               {imported && (
-                <button
-                  type="button"
-                  onClick={() => setImported(null)}
-                  className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10"
-                >
+                <button type="button" onClick={() => setImported(null)} className={generatorSecondaryButton}>
                   Annuler l&apos;import
                 </button>
               )}
@@ -175,7 +206,7 @@ export function GeneratorApp() {
       ) : (
         projectId !== null &&
         projectLoad === null && (
-          <p className="text-base text-zinc-300" role="status">
+          <p className="text-base text-[#454545]" role="status">
             Lecture de {MAQUETTE_FILE}…
           </p>
         )
@@ -186,10 +217,10 @@ export function GeneratorApp() {
 
 function GeneratorErrorBox({ title, errors, onRetry }: { title: string; errors: string[]; onRetry?: () => void }) {
   return (
-    <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-      <p>{title}</p>
+    <div role="alert" className={`mt-4 ${generatorError}`}>
+      <p className="font-semibold">Erreur : {title}</p>
       {errors.length > 0 && (
-        <ul className="mt-2 list-disc space-y-0.5 pl-5 font-mono text-sm text-red-200">
+        <ul className="mt-2 list-disc space-y-1 pl-5 font-mono text-sm">
           {errors.map((error) => (
             <li key={error}>{error}</li>
           ))}
@@ -197,11 +228,11 @@ function GeneratorErrorBox({ title, errors, onRetry }: { title: string; errors: 
       )}
       <div className="mt-2 flex gap-4">
         {onRetry && (
-          <button type="button" onClick={onRetry} className="underline">
+          <button type="button" onClick={onRetry} className={`min-h-10 ${generatorLink}`}>
             Réessayer
           </button>
         )}
-        <Link href="/" className="underline">
+        <Link href="/" className={`inline-flex min-h-10 items-center ${generatorLink}`}>
           Retour au Hub
         </Link>
       </div>
