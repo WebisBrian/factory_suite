@@ -3,14 +3,23 @@
 import "@/app/(anime-flow)/animations/_brand/anime-flow-theme.css";
 import animflowMark from "@/app/(anime-flow)/animations/_brand/logos/animflow-mark.svg";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsPageSource } from "@/app/(anime-flow)/animations/_components/AnimationsPageSource";
-import { AnimationsPreview } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
-import { findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
-import { listPageElements, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
+import { AnimationsPlacedList } from "@/app/(anime-flow)/animations/_components/AnimationsPlacedList";
+import {
+  AnimationsPreview,
+  type AnimationsPreviewHandle,
+} from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import { SETTINGS_ID } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
+import { describePreset, findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
+import {
+  flattenElements,
+  listPageElements,
+  type PageElement,
+} from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 import {
   inlineStylesheet,
@@ -18,14 +27,8 @@ import {
   PAGE_FILE,
   STYLE_FILE,
 } from "@/app/(anime-flow)/animations/_lib/page-source";
-import {
-  DEFAULT_TRIGGER_EVENT,
-  findTriggerEvent,
-  type TriggerEventId,
-} from "@/app/(anime-flow)/animations/_lib/trigger-events";
-
-/** Animation posée sur un élément : laquelle, et ce qui la déclenche. */
-type ElementAnimation = { animation: string; event: TriggerEventId };
+import { findTriggerEvent, type TriggerEventId } from "@/app/(anime-flow)/animations/_lib/trigger-events";
+import { withPreset, type ElementAnimation } from "@/app/(anime-flow)/animations/_lib/element-animation";
 
 type ProjectLoad = { status: "ok"; html: string } | { status: "missing" } | { status: "fs-error"; message: string };
 
@@ -83,6 +86,7 @@ export function AnimationsApp() {
   /** Animations posées, par id d'élément. Un élément sans animation n'a pas d'entrée. */
   const [animationByElement, setAnimationByElement] = useState<Record<string, ElementAnimation>>({});
   const [announcement, setAnnouncement] = useState("");
+  const preview = useRef<AnimationsPreviewHandle>(null);
 
   // Chargement initial de la page du projet (si l'accès est déjà accordé).
   useEffect(() => {
@@ -111,6 +115,15 @@ export function AnimationsApp() {
   }
   // DOMParser n'existe que dans le navigateur.
   const elements = useMemo(() => (html === null || !isBrowser ? null : listPageElements(html)), [html, isBrowser]);
+  // Seulement les animations des éléments présents dans la page affichée, dans l'ordre de la page.
+  const placed = useMemo(
+    () =>
+      flattenElements(elements ?? []).flatMap((element) => {
+        const animation = animationByElement[element.id];
+        return animation ? [{ element, animation }] : [];
+      }),
+    [elements, animationByElement],
+  );
 
   function changePage(announce: string) {
     // L'élément sélectionné n'existe peut-être pas dans la nouvelle page.
@@ -156,8 +169,7 @@ export function AnimationsApp() {
       delete next[selected.id];
       setAnnouncement(`Animation retirée de ${selected.name}.`);
     } else {
-      // On garde le déclencheur déjà choisi quand on change seulement d'animation.
-      next[selected.id] = { animation: presetId, event: selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT };
+      next[selected.id] = withPreset(presetId, selectedAnimation);
       setAnnouncement(`${describeAnimation(next[selected.id])} Ajoutée à ${selected.name}.`);
     }
     setAnimationByElement(next);
@@ -170,21 +182,55 @@ export function AnimationsApp() {
     setAnnouncement(`${describeAnimation(updated)} Sur ${selected.name}.`);
   }
 
+  // Pas d'annonce : le lecteur d'écran lit déjà la valeur saisie dans le champ.
+  function handleTimingChange(timing: Partial<Pick<ElementAnimation, "duration" | "delay">>) {
+    if (!selected || !selectedAnimation) return;
+    setAnimationByElement({ ...animationByElement, [selected.id]: { ...selectedAnimation, ...timing } });
+  }
+
+  function handleEdit(element: PageElement) {
+    handleSelect(element);
+    // Amène le clavier sur les réglages, une fois le panneau affiché.
+    requestAnimationFrame(() => document.getElementById(SETTINGS_ID)?.focus());
+  }
+
+  function handleRemove(element: PageElement) {
+    const next = { ...animationByElement };
+    delete next[element.id];
+    setAnimationByElement(next);
+    setAnnouncement(`Animation retirée de ${element.name}.`);
+  }
+
+  function handlePreview() {
+    if (!selected || !selectedAnimation) return;
+    const preset = findPreset(selectedAnimation.animation);
+    if (!preset || !preview.current?.play(selected.id, selectedAnimation)) {
+      setAnnouncement(`Aperçu impossible : ${selected.name} est introuvable dans la page.`);
+      return;
+    }
+    // Audiodescription : ce que fait l'animation, pour qui ne la voit pas.
+    const delay =
+      selectedAnimation.delay > 0
+        ? ` Après ${(selectedAnimation.delay / 1000).toLocaleString("fr-FR")} s d'attente.`
+        : "";
+    setAnnouncement(`Aperçu. ${describePreset(preset, selectedAnimation.duration)}${delay}`);
+  }
+
   return (
     <div className="anime-flow flex flex-1 flex-col">
       <header className="border-b border-(--line) bg-(--surface-raised)">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 py-5">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-4">
             {/* Logo décoratif : le titre « Animations » juste à côté nomme déjà l'outil. */}
             {/* eslint-disable-next-line @next/next/no-img-element -- next/image est exclu par l'export statique. */}
-            <img src={animflowMark.src} alt="" width={48} height={48} className="size-12 shrink-0" />
+            <img src={animflowMark.src} alt="" width={40} height={40} className="size-10 shrink-0" />
 
             <div>
-              <h1 className="text-3xl font-semibold">Animations</h1>
-              <p className="text-lg text-(--ink-muted)">Importez votre page, puis choisissez les éléments à animer.</p>
+              <h1 className="text-2xl font-semibold">Animations</h1>
+              <p className="text-sm text-(--ink-muted)">Importez votre page, puis choisissez les éléments à animer.</p>
             </div>
           </div>
-          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-4 py-1 text-lg font-medium">
+          <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-3 py-1 text-sm font-medium">
             {projectId === null ? "Mode démo" : `Projet #${projectId}`}
           </span>
         </div>
@@ -211,7 +257,7 @@ export function AnimationsApp() {
         {!imported && projectId !== null && projectLoad && projectLoad.status !== "ok" && (
           <div
             role="alert"
-            className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-lg text-(--danger)"
+            className="rounded-xl border-2 border-(--danger) bg-(--danger-soft) p-4 text-sm text-(--danger)"
           >
             <p>
               {projectLoad.status === "missing"
@@ -219,10 +265,10 @@ export function AnimationsApp() {
                 : projectLoad.message}
             </p>
             <div className="mt-2 flex gap-6">
-              <button type="button" onClick={handleReload} className="min-h-12 underline">
+              <button type="button" onClick={handleReload} className="min-h-10 underline">
                 Réessayer
               </button>
-              <Link href="/" className="inline-flex min-h-12 items-center underline">
+              <Link href="/" className="inline-flex min-h-10 items-center underline">
                 Retour au Hub
               </Link>
             </div>
@@ -231,25 +277,31 @@ export function AnimationsApp() {
 
         {html === null || elements === null ? (
           projectLoad?.status !== "missing" &&
-          projectLoad?.status !== "fs-error" && <p className="text-lg text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
+          projectLoad?.status !== "fs-error" && <p className="text-sm text-(--ink-muted)">Lecture de {PAGE_FILE}…</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
-            <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+            <div className="flex flex-col gap-6">
+              <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+              <AnimationsPlacedList items={placed} onEdit={handleEdit} onRemove={handleRemove} />
+            </div>
             <div className="flex flex-col gap-6">
               {selected ? (
                 <AnimationsElementSettings
+                  // key : les champs de durée repartent des valeurs de l'élément choisi.
+                  key={selected.id}
                   elementName={selected.name}
-                  presetId={selectedAnimation?.animation ?? null}
-                  event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
+                  animation={selectedAnimation}
                   onPresetChange={handlePresetChange}
                   onEventChange={handleEventChange}
+                  onTimingChange={handleTimingChange}
+                  onPreview={handlePreview}
                 />
               ) : (
-                <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-lg text-(--ink-muted)">
+                <p className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5 text-sm text-(--ink-muted)">
                   Sélectionnez un élément dans la liste pour lui choisir une animation.
                 </p>
               )}
-              <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+              <AnimationsPreview ref={preview} html={html} selectedId={selected?.id ?? null} />
             </div>
           </div>
         )}

@@ -49,6 +49,11 @@ export function listPageElements(html: string): PageElement[] {
   return collect(doc.body);
 }
 
+/** Les éléments à plat, dans l'ordre de la page. */
+export function flattenElements(elements: PageElement[]): PageElement[] {
+  return elements.flatMap((element) => [element, ...flattenElements(element.children)]);
+}
+
 function collect(parent: Element): PageElement[] {
   return Array.from(parent.children).flatMap((child) => {
     // Un conteneur sans id n'est pas animable, mais ses descendants peuvent l'être.
