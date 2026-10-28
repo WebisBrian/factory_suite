@@ -67,6 +67,45 @@ export function ScreendraftNumberField({ label, value, min, max, onCommit }: Num
   );
 }
 
+type DecimalFieldProps = {
+  label: string;
+  value: number;
+  isValid: (value: number) => boolean;
+  onCommit: (value: number) => void;
+};
+
+/**
+ * Nombre décimal (ex. coordonnées), validé à la sortie du champ ou sur Entrée.
+ * La virgule française est acceptée ; une valeur refusée remet la valeur actuelle.
+ */
+export function ScreendraftDecimalField({ label, value, isValid, onCommit }: DecimalFieldProps) {
+  function commit(input: HTMLInputElement) {
+    const next = Number(input.value.trim().replace(",", "."));
+    if (input.value.trim() === "" || !isValid(next)) {
+      input.value = String(value);
+      return;
+    }
+    if (next !== value) onCommit(next);
+  }
+
+  return (
+    <ScreendraftField label={label}>
+      <input
+        // Recréé quand la valeur change ailleurs (lien collé, annulation).
+        key={value}
+        type="text"
+        inputMode="decimal"
+        defaultValue={value}
+        onBlur={(event) => commit(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+        className={`${FIELD_CLASS} text-code tabular-nums`}
+      />
+    </ScreendraftField>
+  );
+}
+
 type ColorFieldProps = {
   label: string;
   value: HexColor | undefined;

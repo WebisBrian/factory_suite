@@ -1,10 +1,12 @@
 import { useContext, type CSSProperties } from "react";
 import { a11yAttributes } from "@/components/screendraft/screendraft-a11y";
 import { CarouselPreviewContext, wrapSlideIndex } from "@/components/screendraft/screendraft-carousel";
+import { TILE_SIZE, pointInMap, visibleTiles } from "@/components/screendraft/screendraft-map";
 import type {
   ButtonNode,
   CarouselNode,
   DraftNode,
+  MapNode,
   NodeStyle,
   ShapeNode,
   VideoNode,
@@ -59,6 +61,8 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
       return <VideoNodeView node={node} style={style} />;
     case "carousel":
       return <CarouselNodeView node={node} style={style} />;
+    case "map":
+      return <MapNodeView node={node} style={style} />;
     case "button":
       // Pas de vrai lien ni de vrai bouton : dans l'éditeur, un clic ne doit rien déclencher.
       return (
@@ -69,6 +73,92 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
     case "shape":
       return <ShapeNodeView node={node} style={style} />;
   }
+}
+
+/**
+ * Carte OpenStreetMap figée sur son centre et son zoom, avec ses points d'intérêt.
+ * Les tuiles et les points sont placés par calcul (screendraft-map) : ni bibliothèque, ni API.
+ */
+function MapNodeView({ node, style }: { node: MapNode; style: CSSProperties }) {
+  const { latitude, longitude, zoom, markers, title } = node.props;
+  const center = { latitude, longitude };
+  const size = { width: node.width, height: node.height };
+
+  return (
+    <div
+      data-node-id={node.id}
+      role="img"
+      aria-label={title}
+      {...a11yAttributes(node)}
+      // Couleur de la mer d'OpenStreetMap, le temps que les tuiles arrivent.
+      style={{ ...style, overflow: "hidden", backgroundColor: style.backgroundColor ?? "#aad3df" }}
+    >
+      {visibleTiles(center, zoom, size).map((tile) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={tile.key}
+          src={tile.src}
+          alt=""
+          draggable={false}
+          style={{ position: "absolute", left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }}
+        />
+      ))}
+      {markers.map((marker) => {
+        const point = pointInMap(marker, center, zoom, size);
+        return (
+          <div
+            key={marker.id}
+            style={{
+              position: "absolute",
+              left: point.x,
+              top: point.y,
+              transform: "translate(-50%, -100%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <span
+              style={{
+                padding: "2px 6px",
+                borderRadius: 4,
+                backgroundColor: "#ffffff",
+                color: "#111827",
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                boxShadow: "0 1px 3px rgb(0 0 0 / 0.35)",
+              }}
+            >
+              {marker.label}
+            </span>
+            <svg width={24} height={32} viewBox="0 0 24 32" aria-hidden>
+              <path
+                d="M12 1C5.9 1 1 5.9 1 12c0 8.3 11 19 11 19s11-10.7 11-19C23 5.9 18.1 1 12 1z"
+                fill="#dc2626"
+                stroke="#ffffff"
+                strokeWidth={2}
+              />
+              <circle cx={12} cy={12} r={4} fill="#ffffff" />
+            </svg>
+          </div>
+        );
+      })}
+      <span
+        style={{
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          padding: "1px 6px",
+          backgroundColor: "rgb(255 255 255 / 0.85)",
+          color: "#111827",
+          fontSize: 12,
+        }}
+      >
+        © OpenStreetMap
+      </span>
+    </div>
+  );
 }
 
 const CAROUSEL_ARROW: CSSProperties = {
