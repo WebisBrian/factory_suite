@@ -4,13 +4,15 @@ import { writeProjectFile } from "@/lib/project-fs";
 import { generateSite } from "@/app/codeforge/generator/_lib/generate-html";
 import { projectFiles } from "@/app/codeforge/generator/_lib/export-site";
 import { parseMaquette } from "@/app/codeforge/generator/_lib/maquette";
+import { dropUnsupportedNodes } from "@/app/codeforge/generator/_lib/supported-nodes";
 import { MAQUETTE_FILE, serializeMaquette } from "@/components/screendraft/screendraft-file";
 import type { Maquette } from "@/components/screendraft/screendraft-schema";
 
 export type SaveStatus =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; at: Date }
+  /** `note` : avertissement qui n'empêche pas l'enregistrement (ex. pages HTML non générées). */
+  | { kind: "saved"; at: Date; note?: string }
   | { kind: "error"; message: string };
 
 /**
@@ -31,13 +33,23 @@ export function useScreendraftSave(projectId: number | null, initialDraft: Maque
       try {
         const json = serializeMaquette(draft);
         await writeProjectFile(projectId, MAQUETTE_FILE, json);
-        const parsed = parseMaquette(json);
-        if (!parsed.ok) throw new Error(`Maquette enregistrée, mais pages non générées : ${parsed.errors.join(" ; ")}`);
-        for (const file of projectFiles(generateSite(parsed.maquette))) {
-          await writeProjectFile(projectId, file.name, file.content);
-        }
         setSavedDraft(draft);
-        setStatus({ kind: "saved", at: new Date() });
+        // La maquette est enregistrée : un échec de génération est un avertissement, pas une erreur d'enregistrement.
+        let note: string | undefined;
+        try {
+          const generatable = dropUnsupportedNodes(json);
+          const parsed = parseMaquette(generatable.json);
+          if (!parsed.ok) throw new Error(parsed.errors.join(" ; "));
+          for (const file of projectFiles(generateSite(parsed.maquette))) {
+            await writeProjectFile(projectId, file.name, file.content);
+          }
+          if (generatable.skipped.length > 0) {
+            note = `absents de la page générée : ${generatable.skipped.join(", ")}`;
+          }
+        } catch (error) {
+          note = `pages HTML non générées (${error instanceof Error ? error.message : String(error)})`;
+        }
+        setStatus({ kind: "saved", at: new Date(), note });
         return true;
       } catch (error) {
         setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });

@@ -59,7 +59,13 @@ export type MaquetteNode =
   | (BaseNode & { type: "image"; props: { src: string; alt: string; fit: "cover" | "contain" } })
   | (BaseNode & { type: "button"; props: { label: string; href?: string; targetScreenId?: string } })
   | (BaseNode & { type: "shape"; props: { shape: "circle" | "rectangle" | "triangle" } })
-  | (BaseNode & { type: "video"; props: { src: string; kind: "embed" | "file"; title: string } });
+  | (BaseNode & { type: "video"; props: { src: string; kind: "embed" | "file"; title: string } })
+  | (BaseNode & {
+      type: "map";
+      props: { latitude: number; longitude: number; zoom: number; title: string; markers: MaquetteMapMarker[] };
+    });
+
+export type MaquetteMapMarker = { id: string; label: string; latitude: number; longitude: number };
 
 export type MaquetteNodeType = MaquetteNode["type"];
 
@@ -67,7 +73,7 @@ export type ParseResult = { ok: true; maquette: Maquette } | { ok: false; errors
 
 type Json = Record<string, unknown>;
 
-const NODE_TYPES: readonly string[] = ["section", "title", "text", "image", "button", "shape", "video"];
+const NODE_TYPES: readonly string[] = ["section", "title", "text", "image", "button", "shape", "video", "map"];
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const MAX_ERRORS = 20;
 
@@ -226,6 +232,20 @@ function validateNode(node: unknown, path: string, ids: Set<string>, fail: (path
       checkString(props, "src", at, fail);
       checkString(props, "title", at, fail);
       if (props.kind !== "embed" && props.kind !== "file") fail(`${at}.kind`, "embed ou file attendu");
+      break;
+    case "map":
+      checkString(props, "title", at, fail);
+      if (typeof props.latitude !== "number" || props.latitude < -90 || props.latitude > 90) fail(`${at}.latitude`, "nombre entre -90 et 90 attendu");
+      if (typeof props.longitude !== "number" || props.longitude < -180 || props.longitude > 180) fail(`${at}.longitude`, "nombre entre -180 et 180 attendu");
+      if (!Number.isInteger(props.zoom) || (props.zoom as number) < 1 || (props.zoom as number) > 19) fail(`${at}.zoom`, "entier de 1 à 19 attendu");
+      if (!Array.isArray(props.markers)) fail(`${at}.markers`, "tableau attendu");
+      else {
+        props.markers.forEach((marker, i) => {
+          if (!isObject(marker) || typeof marker.label !== "string" || typeof marker.latitude !== "number" || typeof marker.longitude !== "number") {
+            fail(`${at}.markers[${i}]`, "objet { label, latitude, longitude } attendu");
+          }
+        });
+      }
       break;
   }
 }

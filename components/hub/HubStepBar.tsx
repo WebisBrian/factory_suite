@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, type MouseEvent } from "react";
 import { useProjectId } from "@/lib/project-fs";
+import { requestStepLeave } from "@/components/hub/hub-step-events";
 import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 
 const buttonBase =
@@ -16,8 +18,23 @@ const buttonBase =
 export function HubStepBar() {
   const pathname = usePathname();
   const projectId = useProjectId();
+  const router = useRouter();
+  const [leaving, setLeaving] = useState(false);
   const index = HUB_TOOLS.findIndex((tool) => pathname.startsWith(tool.path ?? `/${tool.slug}`));
   if (index === -1) return null;
+
+  // L'outil courant peut enregistrer avant le départ (ScreenDraft) ; s'il échoue, on reste pour afficher son erreur.
+  async function go(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    if (leaving) return;
+    setLeaving(true);
+    try {
+      if (await requestStepLeave()) router.push(href);
+    } finally {
+      setLeaving(false);
+    }
+  }
 
   const light = pathname.startsWith("/quality") || pathname.startsWith("/codeforge");
   const previous = HUB_TOOLS[index - 1];
@@ -35,11 +52,15 @@ export function HubStepBar() {
         light ? "border-black/15 bg-[#f7f7f7] [&_:focus-visible]:outline-[#0a4fb8]!" : "border-zinc-700 bg-[#0f0f15]"
       }`}
     >
+      <p role="status" className="sr-only">
+        {leaving ? "Enregistrement avant de changer d'étape…" : ""}
+      </p>
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
         <div className="min-w-24">
           {previous && (
             <Link
               href={hubToolHref(previous, projectId)}
+              onClick={(event) => go(event, hubToolHref(previous, projectId))}
               aria-label={`Étape précédente : ${previous.label}, ${previous.description}`}
               className={`${buttonBase} ${secondary}`}
             >
@@ -55,6 +76,7 @@ export function HubStepBar() {
               <li key={tool.slug}>
                 <Link
                   href={hubToolHref(tool, projectId)}
+                  onClick={(event) => go(event, hubToolHref(tool, projectId))}
                   aria-current={current ? "step" : undefined}
                   className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-base ${
                     current
@@ -78,6 +100,7 @@ export function HubStepBar() {
           {next ? (
             <Link
               href={hubToolHref(next, projectId)}
+              onClick={(event) => go(event, hubToolHref(next, projectId))}
               aria-label={`Continuer vers l'étape ${index + 2} : ${next.label}, ${next.description}`}
               className={`${buttonBase} ${primary}`}
             >

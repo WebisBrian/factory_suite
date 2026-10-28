@@ -48,6 +48,7 @@ import {
 import { frameRect } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftLibrary } from "@/components/screendraft/use-screendraft-library";
+import { onStepLeave } from "@/components/hub/hub-step-events";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
 import type { ScreendraftTemplate } from "@/components/screendraft/templates/screendraft-templates";
 
@@ -85,6 +86,8 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const selection = selections.length === 1 ? selections[0] : null;
   const { save, status: saveStatus, savedDraft } = useScreendraftSave(projectId, initialDraft);
   const isDirty = projectId !== null && draft !== savedDraft;
+  // « Continuer » (barre d'étapes du Hub) enregistre d'abord : l'étape suivante lit les fichiers du projet.
+  useEffect(() => (projectId === null ? undefined : onStepLeave(() => save(draft))), [projectId, draft, save]);
   // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
   const clipboard = useRef<ScreendraftClipboard | null>(null);
   const library = useScreendraftLibrary(projectId);

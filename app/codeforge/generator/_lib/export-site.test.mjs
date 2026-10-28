@@ -23,7 +23,7 @@ function load(name, imports = {}, globals = {}) {
 }
 
 const { validateMaquette } = load("maquette.ts");
-const generator = load("generate-html.ts");
+const generator = load("generate-html.ts", { "@/app/codeforge/generator/_lib/map-tiles": load("map-tiles.ts") });
 const { generateSite } = generator;
 const exporter = load("export-site.ts", { "@/app/codeforge/generator/_lib/generate-html": generator });
 const { siteFiles, projectFiles, createSiteZip } = exporter;
@@ -221,4 +221,19 @@ test("accessibilité : repère main, ordre de lecture visuel, empilement conserv
   assert.ok(!page.html.includes("<h2"));
   assert.ok(page.html.includes('aria-label="Vidéo"'));
   assert.ok(page.css.includes(":focus-visible"));
+});
+
+test("une carte est générée en tuiles OpenStreetMap, avec ses points, sa liste texte et l'attribution", () => {
+  const page = generator.generatePage({
+    id: "s", name: "Carte", path: "carte.html", frame: { device: "desktop", width: 800, height: 600, backgroundColor: "#ffffff" },
+    nodes: [{
+      id: "map_1", type: "map", x: 0, y: 0, width: 600, height: 400, style: {},
+      props: { latitude: 48.8566, longitude: 2.3522, zoom: 12, title: "Notre agence", markers: [{ id: "m1", label: "Paris", latitude: 48.8566, longitude: 2.3522 }] },
+    }],
+  });
+  assert.match(page.html, /https:\/\/tile\.openstreetmap\.org\/12\/\d+\/\d+\.png/);
+  assert.match(page.html, /aria-label="Notre agence"/);
+  assert.match(page.html, /<li>Paris \(48\.8566, 2\.3522\)<\/li>/);
+  assert.match(page.html, /© OpenStreetMap/);
+  assert.ok(validateMaquette({ schemaVersion: 2, id: "x", name: "x", screens: [{ id: "s", name: "s", path: "a.html", frame: { device: "desktop", width: 800, height: 600, backgroundColor: "#ffffff" }, nodes: [{ id: "map_1", type: "map", x: 0, y: 0, width: 600, height: 400, style: {}, props: { latitude: 95, longitude: 0, zoom: 12, title: "t", markers: [] } }] }] }).ok === false);
 });
