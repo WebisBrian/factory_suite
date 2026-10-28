@@ -17,6 +17,13 @@ const ICONS: Record<DraftNodeType, ReactNode> = {
       <path d="M9 12h6" />
     </>
   ),
+  shape: (
+    <>
+      <circle cx="8" cy="8" r="4" />
+      <path d="m16 4 5 8h-10z" />
+      <rect x="4" y="15" width="16" height="5" rx="1" />
+    </>
+  ),
 };
 
 /** Icône d'un type de composant, dans la couleur du texte qui l'entoure. */

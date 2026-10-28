@@ -10,7 +10,8 @@ import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette"
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
 import { screendraftReducer } from "@/components/screendraft/screendraft-reducer";
-import type { Maquette } from "@/components/screendraft/screendraft-schema";
+import { createNode } from "@/components/screendraft/screendraft-new-node";
+import type { DraftNodeType, Maquette, ShapeKind } from "@/components/screendraft/screendraft-schema";
 import { findNode } from "@/components/screendraft/screendraft-tree";
 
 /** Éditeur plein écran, dans l'espace laissé sous la barre du Hub. */
@@ -19,6 +20,12 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
   // La sélection est un état de l'éditeur : elle n'est pas exportée dans le JSON.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selection = selectedId ? findNode(draft.nodes, selectedId) : null;
+
+  function addNode(type: DraftNodeType, shape?: ShapeKind) {
+    const node = createNode(type, draft.nodes.length, shape);
+    dispatch({ type: "add-node", node });
+    setSelectedId(node.id);
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -47,7 +54,7 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
 
       <div className="flex min-h-0 flex-1">
         <div className="flex w-56 shrink-0 flex-col border-r border-(--line) bg-(--surface-raised)">
-          <ScreendraftPalette />
+          <ScreendraftPalette onAdd={addNode} />
           <ScreendraftLayers nodes={draft.nodes} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
         {/* Changer de format (donc de largeur) recrée le canvas, qui se réajuste à l'écran. */}
@@ -56,6 +63,7 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
           draft={draft}
           selection={selection}
           onSelect={setSelectedId}
+          onMove={(id, x, y) => dispatch({ type: "move-node", id, x, y })}
         />
         <ScreendraftPropertiesPanel frame={draft.frame} selection={selection} dispatch={dispatch} />
       </div>

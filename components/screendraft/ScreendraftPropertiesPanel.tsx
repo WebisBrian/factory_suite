@@ -1,5 +1,6 @@
 import type { ChangeEvent, Dispatch } from "react";
 import { ScreendraftDepthControls } from "@/components/screendraft/ScreendraftDepthControls";
+import { ScreendraftNodeProperties } from "@/components/screendraft/ScreendraftNodeProperties";
 import {
   FRAME_PRESETS,
   MAX_FRAME_HEIGHT,
@@ -28,7 +29,7 @@ type ScreendraftPropertiesPanelProps = {
   dispatch: Dispatch<ScreendraftAction>;
 };
 
-/** Profondeur de l'élément sélectionné et propriétés de la maquette. Le reste viendra avec SCRUM-8. */
+/** Contenu et profondeur de l'élément sélectionné, puis propriétés de la maquette. Le reste viendra avec SCRUM-8. */
 export function ScreendraftPropertiesPanel({
   frame,
   selection,
@@ -53,6 +54,7 @@ export function ScreendraftPropertiesPanel({
 
   return (
     <aside className="w-64 shrink-0 overflow-y-auto border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
+      {selection && <ScreendraftNodeProperties node={selection.node} dispatch={dispatch} />}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
         Maquette

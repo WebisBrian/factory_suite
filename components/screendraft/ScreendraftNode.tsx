@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { ButtonNode, DraftNode, NodeStyle } from "@/components/screendraft/screendraft-schema";
+import type { ButtonNode, DraftNode, NodeStyle, ShapeNode } from "@/components/screendraft/screendraft-schema";
 
 /**
  * Un élément de la maquette, à l'échelle 1, positionné dans son parent.
@@ -51,7 +51,33 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
           {node.props.label}
         </div>
       );
+    case "shape":
+      return <ShapeNodeView node={node} style={style} />;
   }
+}
+
+function ShapeNodeView({ node, style }: { node: ShapeNode; style: CSSProperties }) {
+  if (node.props.shape !== "triangle") {
+    const borderRadius = node.props.shape === "circle" ? "50%" : style.borderRadius;
+    return <div data-node-id={node.id} style={{ ...style, borderRadius }} />;
+  }
+  // Le fond et la bordure d'un triangle se dessinent en SVG, pas en CSS.
+  return (
+    <svg
+      data-node-id={node.id}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      style={{ ...boxStyle(node), overflow: "visible" }}
+    >
+      <polygon
+        points="50,0 100,100 0,100"
+        fill={node.style.backgroundColor}
+        stroke={node.style.borderColor}
+        strokeWidth={node.style.borderWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
 }
 
 function boxStyle(node: DraftNode): CSSProperties {

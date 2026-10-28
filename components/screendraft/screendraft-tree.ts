@@ -1,4 +1,4 @@
-import type { DraftNode } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, ShapeKind } from "@/components/screendraft/screendraft-schema";
 
 /** Déplacement d'un élément dans l'ordre d'empilement de ses voisins (SCRUM-9). */
 export type DepthMove = "front" | "forward" | "backward" | "back";
@@ -89,5 +89,35 @@ export function nodeLabel(node: DraftNode): string {
       return node.props.alt || "Image";
     case "button":
       return node.props.label;
+    case "shape":
+      return SHAPE_LABELS[node.props.shape];
   }
+}
+
+export const SHAPE_LABELS: Record<ShapeKind, string> = {
+  circle: "Rond",
+  rectangle: "Rectangle",
+  triangle: "Triangle",
+};
+
+/** Remplace un élément, où qu'il soit dans l'arbre. Renvoie le même tableau si rien ne change. */
+export function updateNode(
+  nodes: DraftNode[],
+  id: string,
+  update: (node: DraftNode) => DraftNode,
+): DraftNode[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (node.id === id) {
+      const updated = update(node);
+      changed ||= updated !== node;
+      return updated;
+    }
+    if (node.type !== "section") return node;
+    const children = updateNode(node.children, id, update);
+    if (children === node.children) return node;
+    changed = true;
+    return { ...node, children };
+  });
+  return changed ? next : nodes;
 }

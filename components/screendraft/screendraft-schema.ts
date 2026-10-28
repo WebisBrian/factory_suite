@@ -80,11 +80,19 @@ export type ButtonNode = BaseNode & {
   props: { label: string; href?: string };
 };
 
+export type ShapeKind = "circle" | "rectangle" | "triangle";
+
+export type ShapeNode = BaseNode & {
+  type: "shape";
+  props: { shape: ShapeKind };
+};
+
 export type DraftNode =
   | SectionNode
   | TitleNode
   | TextNode
   | ImageNode
-  | ButtonNode;
+  | ButtonNode
+  | ShapeNode;
 
 export type DraftNodeType = DraftNode["type"];
