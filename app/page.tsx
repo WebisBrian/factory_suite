@@ -14,7 +14,7 @@ export default function HubPage() {
           .
         </h1>
         <p className="max-w-2xl text-lg text-zinc-200">
-          Quatre étapes à la suite : ScreenDraft, puis CodeForge, puis AnimFlow, puis le contrôle qualité. Chaque projet a son propre
+          Trois étapes à la suite : ScreenDraft (qui génère aussi les pages HTML/CSS), puis AnimFlow, puis le contrôle qualité. Chaque projet a son propre
           dossier, partagé par les trois outils.
         </p>
       </div>

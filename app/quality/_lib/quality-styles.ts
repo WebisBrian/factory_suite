@@ -1,5 +1,5 @@
 // Identité visuelle de l'étape 4 : bureau de recherche lumineux (papier chaud, boutons graphite).
-// Même charte que CodeForge, redéclarée ici car un squad n'importe jamais le code d'un autre.
+// Charte Heptabase, propre à cette étape.
 // Texte ≥ 7:1 (#2e2e2e / #454545 sur #fdfcfb), tailles ≥ 14 px, cibles ≥ 40 px (CLAUDE.md §5 bis).
 
 export const qualityPrimaryButton =

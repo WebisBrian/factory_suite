@@ -1,4 +1,4 @@
-// Page de démonstration, utilisée sans project_id : ce que CodeForge produit pour la maquette d'exemple.
+// Page de démonstration, utilisée sans project_id : ce que ScreenDraft génère pour la maquette d'exemple.
 // Volontairement imparfaite (pas de meta description, une image sans dimensions) pour montrer des échecs.
 export const pageFixtureHtml = `<!doctype html>
 <html lang="fr">

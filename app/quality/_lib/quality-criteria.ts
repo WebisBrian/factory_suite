@@ -1,4 +1,4 @@
-// Critères de qualité de l'étape 4. Chaque critère est vérifié sur la page produite par CodeForge
+// Critères de qualité de l'étape 4. Chaque critère est vérifié sur la page générée par ScreenDraft
 // (page.html + page.css), par analyse statique dans le navigateur. Ce qui ne peut pas l'être
 // (contraste réel, lecteur d'écran, temps de chargement) est un critère « manuel » à cocher.
 

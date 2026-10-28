@@ -156,7 +156,7 @@ export function QualityApp() {
   async function handleSaveFixed() {
     if (projectId === null || !page || !currentFixed) return;
     try {
-      // Fichier à part : les pages générées appartiennent à CodeForge et ne sont jamais écrasées.
+      // Fichier à part : les pages générées sont générées par ScreenDraft et ne sont jamais écrasées.
       await writeProjectFile(projectId, fixedName(page.path), currentFixed.html);
       setSaveMessage({ ok: true, text: `Page corrigée enregistrée dans ${fixedName(page.path)}.` });
     } catch (e) {
@@ -208,12 +208,12 @@ export function QualityApp() {
 
       {projectId !== null && load?.status === "missing" && (
         <div role="alert" className={qualityError}>
-          Erreur : <span className={qualityCode}>{HTML_FILE}</span> est introuvable dans le projet #{projectId}. Générez la
-          page dans{" "}
-          <Link href={toolHref("/codeforge/generator", projectId)} className={qualityLink}>
-            CodeForge
+          Erreur : <span className={qualityCode}>{HTML_FILE}</span> est introuvable dans le projet #{projectId}. Enregistrez la
+          maquette dans{" "}
+          <Link href={toolHref("/screendraft", projectId)} className={qualityLink}>
+            ScreenDraft
           </Link>
-          , puis relancez la vérification.
+          (les pages sont générées à l&apos;enregistrement), puis relancez la vérification.
         </div>
       )}
       {load?.status === "error" && (
