@@ -93,18 +93,34 @@ export async function checkHubGuide(guide: HubGuide, userSaysDone: boolean): Pro
       : stepReply(guide, [`Avez-vous terminé dans ${tool.label} ?`]);
   }
 
-  let file: ProjectFileInfo | undefined;
+  let files: ProjectFileInfo[];
   try {
-    file = (await listProjectFiles(guide.projectId)).find((f) => f.name === tool.outputFile);
+    files = await listProjectFiles(guide.projectId);
   } catch (error) {
     if (error instanceof ProjectFsError && error.code === "project-not-found") {
       return { text: `Le projet n°${guide.projectId} n'existe plus : parcours guidé arrêté.`, isError: true, guide: null };
     }
     throw error;
   }
+  /** Fichier de l'étape, s'il a été enregistré depuis le début de l'étape en cours. */
+  const savedSinceStart = (step: number) =>
+    files.find((f) => f.name === HUB_TOOLS[step].outputFile && f.lastModified >= guide.stepStartedAt);
+  const file = files.find((f) => f.name === tool.outputFile);
 
   if (file && file.lastModified >= guide.stepStartedAt) {
-    return advance(guide, [`✓ ${label} faite : ${file.name} enregistré le ${dateFormat.format(file.lastModified)}.`]);
+    const done = [`✓ ${label} faite : ${file.name} enregistré le ${dateFormat.format(file.lastModified)}.`];
+    // L'utilisateur a pu enchaîner sans repasser par le Hub (CodeForge a un lien direct vers AnimFlow) :
+    // on valide aussi les étapes suivantes dont le fichier a été enregistré entre-temps.
+    let step = guide.step;
+    for (let next = step + 1; next < HUB_TOOLS.length && !UNVERIFIABLE_STEPS.has(HUB_TOOLS[next].slug); next++) {
+      const nextFile = savedSinceStart(next);
+      if (!nextFile) break;
+      done.push(
+        `✓ Étape ${next + 1} (${HUB_TOOLS[next].label}) faite aussi : ${nextFile.name} enregistré le ${dateFormat.format(nextFile.lastModified)}.`,
+      );
+      step = next;
+    }
+    return advance({ ...guide, step }, done);
   }
   if (file) {
     return stepReply(guide, [
