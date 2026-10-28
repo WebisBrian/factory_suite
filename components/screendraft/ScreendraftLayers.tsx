@@ -58,7 +58,8 @@ type RenameHandlers = {
 };
 
 // Place réservée à gauche de chaque ligne pour la flèche des sections : les icônes restent alignées.
-const TOGGLE_GUTTER = "var(--space-6)";
+// 2.5rem : la cible minimale des contrôles de l'éditeur (screendraft-theme.css).
+const TOGGLE_GUTTER = "2.5rem";
 
 /**
  * Calques de la maquette, du premier plan à l'arrière-plan comme dans Figma :
@@ -186,10 +187,10 @@ function LayerRows(props: LayerRowsProps) {
               aria-label={`${isCollapsed ? "Déplier" : "Replier"} la section « ${nodeLabel(node)} »`}
               title={isCollapsed ? "Déplier" : "Replier"}
               onClick={() => onToggle(node.id)}
-              className={`absolute top-1/2 z-10 grid size-6 -translate-y-1/2 place-items-center rounded-(--radius-sm) hover:bg-(--surface-raised) ${
+              className={`absolute top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-(--radius-sm) hover:bg-(--surface-raised) ${
                 isSelected ? "text-(--draft)" : "text-(--ink-muted) hover:text-(--ink)"
               }`}
-              style={{ left: `calc(${indent} - var(--space-1))` }}
+              style={{ left: `calc(${indent} - var(--space-2))` }}
             >
               <svg
                 aria-hidden
@@ -226,7 +227,7 @@ function LayerRows(props: LayerRowsProps) {
               onDrop={drag.drop}
               onDragEnd={drag.end}
               className={`text-body-sm flex w-full items-center gap-(--space-2) rounded-(--radius-md) py-(--space-1) pr-(--space-2) text-left ${
-                isSelected || zone === "inside" ? "bg-(--draft-soft) font-semibold text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
+                isSelected || zone === "inside" ? "bg-(--draft-soft) font-semibold! text-(--draft)" : "text-(--ink) hover:bg-(--canvas)"
               } ${zone === "inside" ? "outline-[1.5px] outline-(--draft) outline-solid" : ""}`}
               style={{ paddingLeft: `calc(${indent} + ${TOGGLE_GUTTER})` }}
             >
