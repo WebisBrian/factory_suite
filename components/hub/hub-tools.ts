@@ -1,4 +1,6 @@
 import screendraftMark from "@/components/hub/logos/screendraft-mark.svg";
+import codeforgeMark from "@/components/hub/logos/codeforge-mark.svg";
+import animflowMark from "@/components/hub/logos/animflow-mark.svg";
 
 export interface HubTool {
   slug: "screendraft" | "generator" | "animations";
@@ -7,7 +9,7 @@ export interface HubTool {
   label: string;
   /** Monogramme affiché dans l'icône de l'appli (style suite créative). */
   monogram: string;
-  /** Logo officiel de l'outil (copie locale au Hub), affiché à la place du monogramme. */
+  /** Logo de l'outil (SVG dans components/hub/logos/), affiché à la place du monogramme. */
   logo?: string;
   description: string;
   /** Classes Tailwind complètes (pas de concaténation, sinon Tailwind ne les génère pas). */
@@ -43,9 +45,10 @@ export const HUB_TOOLS: readonly HubTool[] = [
     path: "/codeforge/generator",
     label: "CodeForge",
     monogram: "Cf",
+    logo: codeforgeMark.src,
     description: "JSON → HTML/CSS",
     theme: {
-      icon: "bg-[#062b1f] ring-2 ring-emerald-300",
+      icon: "bg-[#0B7A53] ring-2 ring-emerald-300",
       text: "text-emerald-300",
       hover: "hover:border-emerald-300 hover:shadow-emerald-500/20",
       glow: "bg-emerald-500/30",
@@ -55,9 +58,10 @@ export const HUB_TOOLS: readonly HubTool[] = [
     slug: "animations",
     label: "AnimFlow",
     monogram: "Af",
+    logo: animflowMark.src,
     description: "HTML/CSS → animations",
     theme: {
-      icon: "bg-[#2a0a3d] ring-2 ring-fuchsia-300",
+      icon: "bg-[#A3168F] ring-2 ring-fuchsia-300",
       text: "text-fuchsia-300",
       hover: "hover:border-fuchsia-300 hover:shadow-fuchsia-500/20",
       glow: "bg-fuchsia-500/30",

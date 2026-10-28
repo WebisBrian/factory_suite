@@ -1,4 +1,5 @@
 import type { HubTool } from "@/components/hub/hub-tools";
+import factorysuiteMark from "@/components/hub/logos/factorysuite-mark.svg";
 
 const sizes = {
   sm: "size-7 rounded-md text-sm",
@@ -27,14 +28,13 @@ export function HubAppIcon({ tool, size = "md" }: { tool: HubTool; size?: keyof 
   );
 }
 
-/** Logo FactorySuite (dégradé multicolore). */
+/** Logo FactorySuite : une usine dont les 3 fenêtres reprennent les couleurs des 3 outils. */
 export function HubLogo({ size = "md" }: { size?: keyof typeof sizes }) {
   return (
-    <span
-      aria-hidden
-      className={`inline-flex shrink-0 items-center justify-center bg-linear-to-br from-orange-700 via-pink-700 to-violet-700 font-bold tracking-tight text-white shadow-lg shadow-pink-500/20 ${sizes[size]}`}
-    >
-      Fs
+    <span aria-hidden className={`inline-flex shrink-0 overflow-hidden shadow-lg shadow-pink-500/20 ${sizes[size]}`}>
+      {/* Décoratif : le nom FactorySuite est toujours écrit à côté. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- export statique, pas d'optimisation d'image */}
+      <img src={factorysuiteMark.src} alt="" className="size-full" />
     </span>
   );
 }
