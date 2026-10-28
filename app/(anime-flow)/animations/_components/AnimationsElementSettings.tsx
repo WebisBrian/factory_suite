@@ -34,9 +34,9 @@ export function AnimationsElementSettings({ elementName, presetId, event, onPres
   return (
     <section
       aria-labelledby="animations-settings-title"
-      className="flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/3 p-5"
+      className="flex flex-col gap-5 rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
     >
-      <h2 id="animations-settings-title" className="text-xl font-semibold text-zinc-100">
+      <h2 id="animations-settings-title" className="text-xl font-semibold">
         Réglages de : {elementName}
       </h2>
       <AnimationsChoiceGroup

@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 
 const SELECTED_ATTR = "data-anime-flow-selected";
-const SELECTED_CSS = `[${SELECTED_ATTR}] { outline: 4px solid #d946ef !important; outline-offset: 4px !important; }`;
+// Les variables de la charte n'existent pas dans l'iframe : couleurs en dur (voir _brand/BRAND.md,
+// « Élément sélectionné »). Double contour blanc + violet, visible sur une page claire comme sombre.
+const SELECTED_CSS = `[${SELECTED_ATTR}] {
+  outline: 3px solid #ffffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 9px #6d28d9 !important;
+}`;
 
 type Props = {
   html: string;
@@ -37,7 +43,7 @@ export function AnimationsPreview({ html, selectedId }: Props) {
 
   return (
     <section aria-labelledby="animations-preview-title" className="flex flex-col gap-3">
-      <h2 id="animations-preview-title" className="text-xl font-semibold text-zinc-100">
+      <h2 id="animations-preview-title" className="text-xl font-semibold">
         Aperçu
       </h2>
       {/* Sans allow-scripts : les scripts de la page ne tournent pas, mais on garde l'accès au DOM. */}
@@ -47,7 +53,7 @@ export function AnimationsPreview({ html, selectedId }: Props) {
         srcDoc={html}
         sandbox="allow-same-origin"
         onLoad={handleLoad}
-        className="h-[70vh] w-full rounded-2xl border border-white/10 bg-white"
+        className="h-[70vh] w-full rounded-2xl border border-(--line) bg-white"
       />
     </section>
   );
