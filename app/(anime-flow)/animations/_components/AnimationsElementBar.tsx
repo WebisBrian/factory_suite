@@ -12,6 +12,11 @@ type Props = {
   onHover: (id: string | null) => void;
 };
 
+/** id du bouton d'un élément dans la liste, pour y revenir après un clic dans l'aperçu. */
+export function elementButtonId(elementId: string): string {
+  return `animations-element-${elementId}`;
+}
+
 /** Barre listant les éléments de la page, pour choisir lequel animer (SCRUM-6). */
 export function AnimationsElementBar({ elements, selectedId, hoveredId, onSelect, onHover }: Props) {
   return (
@@ -53,6 +58,7 @@ function AnimationsElementItem({ element, ...props }: Omit<Props, "elements"> & 
     <li>
       <button
         type="button"
+        id={elementButtonId(element.id)}
         aria-pressed={selected}
         onClick={() => onSelect(element)}
         onMouseEnter={() => onHover(element.id)}

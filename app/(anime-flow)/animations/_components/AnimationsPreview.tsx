@@ -17,6 +17,10 @@ type Props = {
   onHoverId: (id: string | null) => void;
   /** Clic sur un élément de l'aperçu. */
   onSelectId: (id: string) => void;
+  /** Clic hors de tout élément animable. */
+  onMissedClick: () => void;
+  /** Échap dans l'aperçu : désélection. */
+  onEscape: () => void;
   play?: PreviewPlay | null;
 };
 
@@ -31,15 +35,17 @@ export function AnimationsPreview({
   elementNames,
   onHoverId,
   onSelectId,
+  onMissedClick,
+  onEscape,
   play = null,
 }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const inspector = useRef<Inspector | null>(null);
   const [doc, setDoc] = useState<Document | null>(null);
   // Les écouteurs de l'iframe sont posés une fois au chargement : ils lisent les props à jour ici.
-  const latest = useRef({ elementNames, onHover: onHoverId, onSelect: onSelectId });
+  const latest = useRef({ elementNames, onHover: onHoverId, onSelect: onSelectId, onMissedClick, onEscape });
   useEffect(() => {
-    latest.current = { elementNames, onHover: onHoverId, onSelect: onSelectId };
+    latest.current = { elementNames, onHover: onHoverId, onSelect: onSelectId, onMissedClick, onEscape };
   });
 
   function handleLoad() {
@@ -77,8 +83,8 @@ export function AnimationsPreview({
         Aperçu
       </h2>
       <p id="animations-preview-help" className="text-lg text-(--ink-muted)">
-        Survolez un élément pour voir son nom, cliquez pour le sélectionner. Au clavier, parcourez la liste « Éléments
-        de la page » : l&apos;élément est entouré dans l&apos;aperçu.
+        Survolez un élément pour voir son nom, cliquez pour le sélectionner, Échap pour désélectionner. Au clavier,
+        parcourez la liste « Éléments de la page » : l&apos;élément est entouré dans l&apos;aperçu.
       </p>
       {/* Sans allow-scripts : les scripts de la page ne tournent pas, mais on garde l'accès au DOM. */}
       <iframe

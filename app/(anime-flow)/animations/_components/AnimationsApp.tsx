@@ -5,7 +5,10 @@ import animflowMark from "@/app/(anime-flow)/animations/_brand/logos/animflow-ma
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
-import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
+import {
+  AnimationsElementBar,
+  elementButtonId,
+} from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsExport } from "@/app/(anime-flow)/animations/_components/AnimationsExport";
 import { AnimationsCustomEditor } from "@/app/(anime-flow)/animations/_components/AnimationsCustomEditor";
@@ -134,7 +137,20 @@ export function AnimationsApp() {
   // Clic dans l'aperçu : même sélection (et même annonce) que depuis la liste.
   function handleSelectId(id: string) {
     const element = elementById.get(id);
-    if (element) handleSelect(element);
+    if (!element) return;
+    handleSelect(element);
+    // La liste se cale sur l'élément choisi, sans défilement animé.
+    document.getElementById(elementButtonId(id))?.scrollIntoView({ block: "nearest" });
+  }
+
+  function handleMissedClick() {
+    setAnnouncement("Cet endroit n'est pas animable : cliquez sur un élément entouré.");
+  }
+
+  function handleDeselect() {
+    if (!selected) return;
+    setSelected(null);
+    setAnnouncement(`Sélection retirée de ${selected.name}.`);
   }
 
   function handlePresetChange(presetId: string | null) {
@@ -273,6 +289,8 @@ export function AnimationsApp() {
                 elementNames={elementNames}
                 onHoverId={setHoveredId}
                 onSelectId={handleSelectId}
+                onMissedClick={handleMissedClick}
+                onEscape={handleDeselect}
                 play={previewPlay}
               />
               <AnimationsExport projectId={projectId} config={config} />

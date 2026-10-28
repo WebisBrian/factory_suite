@@ -8,6 +8,7 @@
  */
 
 const SELECTED_ATTR = "data-anime-flow-selected";
+const POINTER_ATTR = "data-anime-flow-pointer";
 const OVERLAY_ID = "anime-flow-inspector-overlay";
 const LABEL_ID = "anime-flow-inspector-label";
 /** Écart entre l'élément et son étiquette, et marge au bord de l'aperçu. */
@@ -18,7 +19,8 @@ const INSPECTOR_CSS = `[${SELECTED_ATTR}] {
   outline-offset: 2px !important;
   box-shadow: 0 0 0 9px #6d28d9 !important;
 }
-body { cursor: crosshair; }
+/* La main n'apparaît que sur ce qui se sélectionne. */
+html[${POINTER_ATTR}], html[${POINTER_ATTR}] * { cursor: pointer !important; }
 #${OVERLAY_ID}, #${LABEL_ID} {
   position: fixed;
   z-index: 2147483647;
@@ -43,7 +45,12 @@ export type InspectorCallbacks = {
   elementNames: ReadonlyMap<string, string>;
   /** La souris entre sur un élément animable (id) ou quitte la page (null). */
   onHover: (id: string | null) => void;
+  /** Clic sur un élément animable. */
   onSelect: (id: string) => void;
+  /** Clic sur une zone qui n'est dans aucun élément animable. */
+  onMissedClick: () => void;
+  /** Échap dans l'aperçu. */
+  onEscape: () => void;
 };
 
 export type Inspector = {
@@ -124,6 +131,7 @@ export function createInspector(doc: Document, getCallbacks: () => InspectorCall
   function setHovered(id: string | null) {
     if (id === hoveredId) return;
     hoveredId = id;
+    doc.documentElement.toggleAttribute(POINTER_ATTR, id !== null);
     getCallbacks().onHover(id);
   }
 
@@ -140,6 +148,15 @@ export function createInspector(doc: Document, getCallbacks: () => InspectorCall
       event.preventDefault();
       const element = animatableFrom(event.target);
       if (element) getCallbacks().onSelect(element.id);
+      else getCallbacks().onMissedClick();
+    },
+    { signal },
+  );
+
+  doc.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape") getCallbacks().onEscape();
     },
     { signal },
   );
