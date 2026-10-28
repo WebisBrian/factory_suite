@@ -170,6 +170,7 @@ const TOOL_PATTERNS: Record<HubTool["slug"], RegExp> = {
   screendraft: /\b(screen ?draft|maquett\w*)\b/,
   generator: /\b(code ?forge|generateur|generator|html)\b/,
   animations: /\b(anim ?flow|anime ?flow|animations?|anim)\b/,
+  quality: /\b(qualite|quality|controle|score|seo|performance)\b/,
 };
 
 /** Noms d'outils reconnus malgré une faute de frappe (« screndraft », « codefroge »). */
@@ -177,6 +178,7 @@ const TOOL_NAMES: Record<HubTool["slug"], string> = {
   screendraft: "screendraft",
   generator: "codeforge",
   animations: "animflow",
+  quality: "qualite",
 };
 
 /** Distance d'édition (insertion, suppression, substitution d'un caractère). */

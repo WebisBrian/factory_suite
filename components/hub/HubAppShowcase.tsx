@@ -3,14 +3,14 @@ import { HubAppIcon } from "@/components/hub/HubAppIcon";
 import { hubCard } from "@/components/hub/hub-styles";
 import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 
-/** Les 3 applis de la suite, ouvrables en mode démo (fixtures, sans project_id). */
+/** Les applis de la suite, ouvrables en mode démo (fixtures, sans project_id). */
 export function HubAppShowcase() {
   return (
     <section aria-labelledby="hub-tools-title" className="flex flex-col gap-4">
       <h2 id="hub-tools-title" className="text-2xl font-bold text-white">
         Les outils, en démonstration
       </h2>
-      <ol className="grid gap-4 md:grid-cols-3">
+      <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-4">
         {HUB_TOOLS.map((tool, index) => (
           <li key={tool.slug}>
             <Link

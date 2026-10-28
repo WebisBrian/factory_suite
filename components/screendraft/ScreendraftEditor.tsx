@@ -17,7 +17,6 @@ import {
 import { ScreendraftPrototype } from "@/components/screendraft/ScreendraftPrototype";
 import { CarouselPreviewContext, useCarouselPreviewState } from "@/components/screendraft/screendraft-carousel";
 import { MapExplorationContext } from "@/components/screendraft/screendraft-map-context";
-import { ScreendraftNextStep } from "@/components/screendraft/ScreendraftNextStep";
 import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftScreens } from "@/components/screendraft/ScreendraftScreens";
 import { ScreendraftTemplateDialog } from "@/components/screendraft/ScreendraftTemplateDialog";
@@ -49,7 +48,6 @@ import {
 import { frameRect } from "@/components/screendraft/screendraft-tree";
 import { useScreendraftHistory } from "@/components/screendraft/use-screendraft-history";
 import { useScreendraftLibrary } from "@/components/screendraft/use-screendraft-library";
-import { useScreendraftProjectHtml } from "@/components/screendraft/use-screendraft-project-html";
 import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
 import type { ScreendraftTemplate } from "@/components/screendraft/templates/screendraft-templates";
 
@@ -87,7 +85,6 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
   const selection = selections.length === 1 ? selections[0] : null;
   const { save, status: saveStatus, savedDraft } = useScreendraftSave(projectId, initialDraft);
   const isDirty = projectId !== null && draft !== savedDraft;
-  const hasProjectHtml = useScreendraftProjectHtml(projectId);
   // Presse-papiers interne à l'éditeur, comme la sélection : il n'est jamais exporté.
   const clipboard = useRef<ScreendraftClipboard | null>(null);
   const library = useScreendraftLibrary(projectId);
@@ -355,10 +352,6 @@ export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditor
                   onSave={() => void save(draft)}
                   onExport={() => downloadMaquette(draft)}
                 />
-                {/* Une page HTML existe déjà dans le projet : on peut passer directement à AnimFlow. */}
-                {projectId !== null && hasProjectHtml && (
-                  <ScreendraftNextStep projectId={projectId} isDirty={isDirty} onSave={() => save(draft)} />
-                )}
                 <ScreendraftThemeToggle />
               </div>
             </header>

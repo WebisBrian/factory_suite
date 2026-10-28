@@ -4,11 +4,12 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 /**
- * Cadre de la barre du haut : thème clair sur CodeForge (data-light), sombre ailleurs.
+ * Cadre de la barre du haut : thème clair sur Qualité et CodeForge (data-light), sombre ailleurs.
  * Les enfants adaptent leurs couleurs avec `group-data-light/nav:`.
  */
 export function HubNavFrame({ children }: { children: ReactNode }) {
-  const light = usePathname().startsWith("/codeforge");
+  const pathname = usePathname();
+  const light = ["/codeforge", "/quality"].some((p) => pathname.startsWith(p));
 
   return (
     <header
