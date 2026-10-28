@@ -122,6 +122,13 @@ export const ANIMATION_PRESETS: readonly AnimationPreset[] = [
   },
 ];
 
+/** Joue une animation une fois sur un élément, en arrêtant celle qui serait en cours. */
+export function playAnimation(element: Element, preset: AnimationPreset, duration = preset.duration, delay = 0): Animation {
+  element.getAnimations().forEach((animation) => animation.cancel());
+  // fill "backwards" : pendant le délai, l'élément est déjà dans son état de départ (invisible pour un fondu).
+  return element.animate(preset.keyframes, { duration, delay, easing: preset.easing, fill: "backwards" });
+}
+
 export function findPreset(id: string): AnimationPreset | null {
   return ANIMATION_PRESETS.find((preset) => preset.id === id) ?? null;
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ScreendraftNodeIcon } from "@/components/screendraft/ScreendraftNodeIcon";
+import { ScreendraftPanelSection } from "@/components/screendraft/ScreendraftPanelSection";
 import type { CustomComponent } from "@/components/screendraft/screendraft-components";
 import type { LibraryStatus } from "@/components/screendraft/use-screendraft-library";
 
@@ -31,9 +32,12 @@ export function ScreendraftLibrary({
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   return (
-    <section className="flex max-h-64 shrink-0 flex-col border-t border-(--line) p-(--space-4)">
-      <h2 className="text-label pb-(--space-2) text-(--ink-muted)">Mes composants</h2>
-
+    <ScreendraftPanelSection
+      id="library"
+      headingId="screendraft-mes-composants"
+      title="Mes composants"
+      count={components.length}
+    >
       {status.kind === "error" && (
         <p role="alert" className="text-body-sm pb-(--space-2) text-(--danger)">
           Erreur : {status.message}{" "}
@@ -58,7 +62,7 @@ export function ScreendraftLibrary({
         </p>
       )}
 
-      <ul className="-mx-(--space-2) min-h-0 overflow-y-auto">
+      <ul aria-labelledby="screendraft-mes-composants" className="-mx-(--space-2)">
         {components.map((component) => (
           <li key={component.id} className="flex items-center gap-(--space-1)">
             {renamingId === component.id ? (
@@ -83,7 +87,7 @@ export function ScreendraftLibrary({
               />
             ) : removingId === component.id ? (
               <>
-                <span className="text-body-sm min-w-0 flex-1 truncate p-(--space-2) text-(--ink)">
+                <span className="text-body-sm min-w-0 flex-1 break-words p-(--space-2) text-(--ink)">
                   Supprimer « {component.name} » ?
                 </span>
                 <button
@@ -115,7 +119,7 @@ export function ScreendraftLibrary({
                   <span className="text-(--ink-muted)">
                     <ScreendraftNodeIcon type={component.node.type} />
                   </span>
-                  <span className="truncate">{component.name}</span>
+                  <span className="min-w-0 break-words">{component.name}</span>
                 </button>
                 <button
                   type="button"
@@ -140,6 +144,6 @@ export function ScreendraftLibrary({
           </li>
         ))}
       </ul>
-    </section>
+    </ScreendraftPanelSection>
   );
 }

@@ -51,7 +51,7 @@ export function ScreendraftThemeToggle() {
       title="Changer de thème"
       aria-label="Changer de thème"
       onClick={toggle}
-      className="grid size-8 place-items-center rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) text-(--ink) hover:bg-(--canvas)"
+      className="grid size-10 place-items-center rounded-(--radius-md) border border-(--line-strong) bg-(--surface-raised) text-(--ink) hover:bg-(--canvas)"
     >
       {/* Lune en thème clair, soleil en thème sombre (affichage géré par screendraft-theme.css). */}
       <svg

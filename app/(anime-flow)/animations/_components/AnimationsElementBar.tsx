@@ -15,13 +15,13 @@ export function AnimationsElementBar({ elements, selectedId, onSelect }: Props) 
       aria-labelledby="animations-elements-title"
       className="rounded-2xl border border-(--line) bg-(--surface-raised) p-5"
     >
-      <h2 id="animations-elements-title" className="text-xl font-semibold">
+      <h2 id="animations-elements-title" className="text-lg font-semibold">
         Éléments de la page
       </h2>
-      <p className="mt-1 text-lg text-(--ink-muted)">Choisissez l&apos;élément à animer.</p>
+      <p className="mt-1 text-sm text-(--ink-muted)">Choisissez l&apos;élément à animer.</p>
 
       {elements.length === 0 ? (
-        <p className="mt-4 text-lg text-(--ink-muted)">Aucun élément animable dans cette page.</p>
+        <p className="mt-4 text-sm text-(--ink-muted)">Aucun élément animable dans cette page.</p>
       ) : (
         <ul className="mt-4 flex flex-col gap-1">
           {elements.map((element) => (
@@ -42,7 +42,7 @@ function AnimationsElementItem({ element, selectedId, onSelect }: Omit<Props, "e
         type="button"
         aria-pressed={selected}
         onClick={() => onSelect(element)}
-        className={`flex min-h-12 w-full items-center gap-2 rounded-xl border-2 px-4 py-2 text-left text-lg ${
+        className={`flex min-h-10 w-full items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-left text-base ${
           selected ? "border-(--motion) bg-(--motion-soft) font-semibold" : "border-transparent hover:bg-(--motion-soft)"
         }`}
       >

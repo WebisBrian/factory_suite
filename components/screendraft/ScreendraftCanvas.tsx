@@ -154,6 +154,8 @@ export function ScreendraftCanvas({
   return (
     <div
       ref={canvasRef}
+      role="region"
+      aria-label="Aperçu des écrans"
       className="relative min-w-0 flex-1 touch-none overflow-hidden bg-(--canvas) select-none"
       style={{ cursor }}
       {...panHandlers}
@@ -179,7 +181,7 @@ export function ScreendraftCanvas({
                 data-screen-id={screen.id}
                 aria-current={isActive || undefined}
                 onClick={() => onPick(screen.id, null, false)}
-                className={`text-body-sm absolute max-w-full truncate rounded-(--radius-sm) px-(--space-1) whitespace-nowrap ${
+                className={`sd-free-size text-body-sm absolute max-w-full truncate rounded-(--radius-sm) px-(--space-1) whitespace-nowrap ${
                   isActive || isDropTarget
                     ? "bg-(--draft-soft) font-semibold text-(--draft)"
                     : "text-(--ink-muted) hover:text-(--ink)"
@@ -188,8 +190,11 @@ export function ScreendraftCanvas({
               >
                 {screen.name}
               </button>
+              {/* Aperçu visuel : ses titres ne doivent pas se mêler à la structure de l'éditeur (RGAA 9.1).
+                  Au clavier et au lecteur d'écran, la maquette se parcourt dans les calques. */}
               <ScreendraftFrame
                 screen={screen}
+                hidden
                 style={{
                   top: 0,
                   left: 0,

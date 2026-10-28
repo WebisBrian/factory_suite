@@ -110,7 +110,7 @@ export function GeneratorApp() {
                 href={toolHref("/screendraft", projectId)}
                 className={`inline-flex min-h-10 items-center ${generatorLink}`}
               >
-                Screendraft
+                ScreenDraft
               </Link>
             </li>
             <li aria-hidden>→</li>
@@ -123,14 +123,14 @@ export function GeneratorApp() {
                 href={toolHref("/animations", projectId)}
                 className={`inline-flex min-h-10 items-center ${generatorLink}`}
               >
-                Animations
+                AnimFlow
               </Link>
             </li>
           </ol>
         </nav>
         <h1 className={`${generatorDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>CodeForge</h1>
         <p className="max-w-prose text-lg text-[#454545]">
-          Transforme la maquette de Screendraft en pages HTML/CSS, à télécharger ou à passer aux Animations.
+          Transforme la maquette de ScreenDraft en pages HTML/CSS, à télécharger ou à passer à AnimFlow.
         </p>
       </header>
 
@@ -202,7 +202,7 @@ export function GeneratorApp() {
           <GeneratorErrorBox
             title={
               projectLoad.status === "missing"
-                ? `${MAQUETTE_FILE} introuvable dans le projet ${projectId} : passez d'abord par Screendraft.`
+                ? `${MAQUETTE_FILE} introuvable dans le projet ${projectId} : passez d'abord par ScreenDraft.`
                 : projectLoad.status === "invalid"
                   ? `${MAQUETTE_FILE} du projet ${projectId} n'est pas une maquette valide.`
                   : projectLoad.message

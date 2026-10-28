@@ -92,7 +92,7 @@ export function ScreendraftPrototype({ screens, startScreenId, onClose }: Screen
         <span className="text-label rounded-(--radius-sm) bg-(--fluo) px-(--space-2) py-(--space-1) text-(--on-fluo)">
           Prototype
         </span>
-        <h2 className="text-body truncate font-semibold">{screen.name}</h2>
+        <h2 className="text-body font-semibold break-words">{screen.name}</h2>
         <span className="text-code text-(--ink-muted)">{screen.path}</span>
         <p className="text-body-sm ml-auto hidden text-(--ink-muted) md:block">
           {links.length > 0
@@ -146,7 +146,7 @@ export function ScreendraftPrototype({ screens, startScreenId, onClose }: Screen
                 onClick={() => open(targetScreenId)}
                 aria-label={`${node.props.label} — ouvre l’écran ${screenNames.get(targetScreenId)}`}
                 title={`Ouvre « ${screenNames.get(targetScreenId)} »`}
-                className={`absolute cursor-pointer rounded-(--radius-sm) hover:outline-2 hover:outline-(--draft) hover:outline-solid ${
+                className={`sd-free-size absolute cursor-pointer rounded-(--radius-sm) hover:outline-2 hover:outline-(--draft) hover:outline-solid ${
                   showHints ? "bg-(--draft)/20 outline-2 outline-(--draft) outline-solid" : ""
                 }`}
                 style={{

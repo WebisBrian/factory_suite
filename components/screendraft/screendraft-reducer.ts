@@ -68,6 +68,8 @@ export type ScreendraftAction =
   | { type: "set-geometry"; id: string; geometry: Partial<Geometry> }
   | { type: "set-style"; id: string; style: NodeStyle }
   | ({ type: "set-props"; id: string } & PropsPatch)
+  /** Nom du calque ; une chaîne vide le retire (le calque reprend son contenu comme libellé). */
+  | { type: "rename-node"; id: string; name: string }
   | { type: "sync-component"; component: CustomComponent }
   | { type: "reset-instance"; id: string; component: CustomComponent }
   | { type: "detach-instance"; id: string }
@@ -187,6 +189,17 @@ function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
         ),
       );
     // Le niveau d'un titre lié à la charte décide de sa taille.
+    case "rename-node": {
+      const name = action.name.trim();
+      return withNode(draft, action.id, (node) => {
+        if ((node.name ?? "") === name) return node;
+        if (name) return { ...node, name };
+        // Sans nom, la clé disparaît du JSON plutôt que de valoir "".
+        const unnamed = { ...node };
+        delete unnamed.name;
+        return unnamed;
+      });
+    }
     case "set-props":
       return withNode(draft, action.id, (node) => followTitleLevel(mergeProps(node, action), draft.theme));
     // Composant mis à jour : toutes ses instances, dans tous les écrans, reprennent son contenu
