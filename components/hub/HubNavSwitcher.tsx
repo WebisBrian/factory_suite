@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useProjectId } from "@/lib/project-fs";
+import { useEffect, useState } from "react";
+import { getProjectName, useProjectId } from "@/lib/project-fs";
 import { HubAppIcon } from "@/components/hub/HubAppIcon";
 import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 
@@ -10,12 +11,28 @@ import { HUB_TOOLS, hubToolHref } from "@/components/hub/hub-tools";
 export function HubNavSwitcher() {
   const pathname = usePathname();
   const projectId = useProjectId();
+  const [projectName, setProjectName] = useState<{ id: number; name: string } | null>(null);
+
+  useEffect(() => {
+    if (projectId === null) return;
+    let cancelled = false;
+    // Sans dossier autorisé, on garde simplement l'affichage "Projet #N".
+    getProjectName(projectId).then(
+      (name) => !cancelled && setProjectName({ id: projectId, name }),
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const name = projectName?.id === projectId ? projectName.name : null;
 
   return (
     <div className="flex items-center gap-1">
       {projectId !== null && (
-        <span className="mr-2 hidden rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 sm:inline">
-          Projet #{projectId}
+        <span className="mr-2 hidden max-w-56 truncate rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 sm:inline">
+          {name ?? "Projet"} <span className="font-mono text-zinc-500">#{projectId}</span>
         </span>
       )}
       {HUB_TOOLS.map((tool) => {
