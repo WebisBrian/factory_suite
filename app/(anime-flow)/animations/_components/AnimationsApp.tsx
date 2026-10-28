@@ -5,7 +5,6 @@ import animflowMark from "@/app/(anime-flow)/animations/_brand/logos/animflow-ma
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
-import { HubContinueLink } from "@/components/hub/HubContinueLink";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
 import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsPageSource } from "@/app/(anime-flow)/animations/_components/AnimationsPageSource";
@@ -235,7 +234,6 @@ export function AnimationsApp() {
             <span className="rounded-full border border-(--motion) bg-(--motion-soft) px-3 py-1 text-sm font-medium">
               {projectId === null ? "Mode démo" : `Projet #${projectId}`}
             </span>
-            <HubContinueLink className="inline-flex min-h-10 items-center rounded-full border border-(--line-strong) px-4 py-2 text-sm font-semibold hover:bg-(--canvas)" />
           </div>
         </div>
       </header>

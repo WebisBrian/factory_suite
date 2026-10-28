@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { HubNav } from "@/components/hub/HubNav";
+import { HubStepBar } from "@/components/hub/HubStepBar";
 import { hubTextScaleBootScript } from "@/components/hub/hub-text-scale";
 
 // Atkinson Hyperlegible : police conçue pour les personnes malvoyantes (Braille Institute).
@@ -46,6 +48,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           />
           <div className="relative flex flex-1 flex-col">
             <HubNav />
+            <Suspense fallback={null}>
+              <HubStepBar />
+            </Suspense>
             <div id="contenu" tabIndex={-1} className="flex flex-1 flex-col outline-none">
               {children}
             </div>

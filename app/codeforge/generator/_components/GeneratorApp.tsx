@@ -13,7 +13,6 @@ import {
   generatorPrimaryButton,
   generatorSecondaryButton,
   generatorSectionTitle,
-  toolHref,
 } from "@/app/codeforge/generator/_lib/generator-styles";
 import { GeneratorOutput } from "@/app/codeforge/generator/_components/GeneratorOutput";
 
@@ -103,24 +102,6 @@ export function GeneratorApp() {
   return (
     <div className="flex flex-col gap-12">
       <header className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Chaîne FactorySuite">
-          <ol className="flex flex-wrap items-center gap-x-2 text-sm text-[#454545]">
-            <li>
-              <Link
-                href={toolHref("/quality", projectId)}
-                className={`inline-flex min-h-10 items-center ${generatorLink}`}
-              >
-                Qualité
-              </Link>
-            </li>
-            <li aria-hidden>→</li>
-            <li aria-current="page" className="inline-flex min-h-10 items-center font-semibold text-[#2e2e2e]">
-              CodeForge
-            </li>
-          </ol>
-        </nav>
-        </div>
         <h1 className={`${generatorDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>CodeForge</h1>
         <p className="max-w-prose text-lg text-[#454545]">
           Transforme la maquette de ScreenDraft en pages HTML/CSS, à télécharger. Dernière étape, après le contrôle qualité.

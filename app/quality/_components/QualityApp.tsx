@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { HubContinueLink } from "@/components/hub/HubContinueLink";
 import { ProjectFsError, readProjectText, useProjectId, writeProjectFile } from "@/lib/project-fs";
 import {
   CRITERIA,
@@ -187,28 +186,6 @@ export function QualityApp() {
   return (
     <div className="flex flex-col gap-12">
       <header className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Chaîne FactorySuite">
-          <ol className="flex flex-wrap items-center gap-x-2 text-sm text-[#454545]">
-            <li>
-              <Link href={toolHref("/animations", projectId)} className={`inline-flex min-h-10 items-center ${qualityLink}`}>
-                AnimFlow
-              </Link>
-            </li>
-            <li aria-hidden>→</li>
-            <li aria-current="page" className="inline-flex min-h-10 items-center font-semibold text-[#2e2e2e]">
-              Qualité
-            </li>
-            <li aria-hidden>→</li>
-            <li>
-              <Link href={toolHref("/codeforge/generator", projectId)} className={`inline-flex min-h-10 items-center ${qualityLink}`}>
-                CodeForge
-              </Link>
-            </li>
-          </ol>
-        </nav>
-        <HubContinueLink className={qualityPrimaryButton} />
-        </div>
         <h1 className={`${qualityDisplay} text-5xl leading-tight tracking-tighter sm:text-6xl`}>Contrôle qualité</h1>
         <p className="max-w-prose text-lg text-[#454545]">
           Étape 4 : vérifie la page produite sur quatre points (performance, accessibilité, bonnes pratiques, SEO).
