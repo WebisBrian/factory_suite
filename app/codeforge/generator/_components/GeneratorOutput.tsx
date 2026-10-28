@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { writeProjectFile } from "@/lib/project-fs";
 import type { Maquette } from "@/app/codeforge/generator/_lib/maquette";
 import { CSS_FILE, HTML_FILE, generatePage } from "@/app/codeforge/generator/_lib/generate-html";
+import { GeneratorPreview } from "@/app/codeforge/generator/_components/GeneratorPreview";
 
 type SaveState = { status: "saving" } | { status: "saved"; at: Date } | { status: "error"; message: string };
 
@@ -32,7 +33,7 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
     <section className="rounded-2xl border border-white/10 bg-white/3 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-300">Page générée</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-emerald-300">Page générée</p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-100">Aperçu HTML/CSS</h2>
           <p className="text-sm text-zinc-400">
             {projectId === null ? (
@@ -52,7 +53,7 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
             type="button"
             onClick={handleSave}
             disabled={save?.status === "saving"}
-            className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
+            className="min-h-10 rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
           >
             {save?.status === "saving" ? "Enregistrement…" : "Générer et enregistrer"}
           </button>
@@ -68,17 +69,17 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
         <div role="alert" className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
           <p>{save.message}</p>
           <div className="mt-2 flex gap-4">
-            <button type="button" onClick={handleSave} className="underline">
+            <button type="button" onClick={handleSave} className="min-h-10 underline">
               Réessayer
             </button>
-            <Link href="/" className="underline">
+            <Link href="/" className="inline-flex min-h-10 items-center underline">
               Retour au Hub
             </Link>
           </div>
         </div>
       )}
 
-      <GeneratorPreview html={page.standaloneHtml} width={maquette.frame.width} height={maquette.frame.height} />
+      <GeneratorPreview html={page.standaloneHtml} name={maquette.name} width={maquette.frame.width} height={maquette.frame.height} />
 
       <div className="mt-6 flex gap-2" role="tablist" aria-label="Code généré">
         {(["html", "css"] as const).map((key) => (
@@ -88,47 +89,17 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`rounded-full px-4 py-1.5 font-mono text-xs font-medium ${
-              tab === key ? "bg-emerald-500 text-black" : "border border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10"
+            className={`min-h-10 rounded-full px-4 py-1.5 font-mono text-sm font-medium ${
+              tab === key ? "bg-emerald-500 text-black" : "border border-zinc-500 bg-white/5 text-zinc-100 hover:bg-white/10"
             }`}
           >
             {key === "html" ? HTML_FILE : CSS_FILE}
           </button>
         ))}
       </div>
-      <pre className="mt-2 max-h-96 overflow-auto rounded-xl bg-black/30 p-4 font-mono text-xs text-zinc-200">
+      <pre className="mt-2 max-h-96 overflow-auto rounded-xl bg-black/30 p-4 font-mono text-sm text-zinc-200" tabIndex={0} aria-label="Code généré">
         {tab === "html" ? page.html : page.css}
       </pre>
     </section>
-  );
-}
-
-/** Iframe à la taille réelle de la maquette, réduite pour tenir dans la largeur disponible. */
-function GeneratorPreview({ html, width, height }: { html: string; width: number; height: number }) {
-  const container = useRef<HTMLDivElement>(null);
-  const [availableWidth, setAvailableWidth] = useState<number | null>(null);
-
-  useEffect(() => {
-    const element = container.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setAvailableWidth(entry.contentRect.width));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const scale = availableWidth === null ? 1 : Math.min(1, availableWidth / width);
-
-  return (
-    <div ref={container} className="mt-4 overflow-hidden rounded-xl ring-1 ring-white/10" style={{ height: height * scale }}>
-      <iframe
-        title="Aperçu de la page générée"
-        srcDoc={html}
-        sandbox=""
-        width={width}
-        height={height}
-        className="origin-top-left border-0 bg-white"
-        style={{ transform: `scale(${scale})` }}
-      />
-    </div>
   );
 }
