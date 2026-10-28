@@ -9,11 +9,8 @@ import { GeneratorPreview } from "@/app/codeforge/generator/_components/Generato
 
 type SaveState = { status: "saving" } | { status: "saved"; at: Date } | { status: "error"; message: string };
 
-type CodeTab = "html" | "css";
-
-export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; projectId: number | null }) {
+export function GeneratorOutput({ maquette, projectId, sourceLabel }: { maquette: Maquette; projectId: number | null; sourceLabel: string }) {
   const page = useMemo(() => generatePage(maquette), [maquette]);
-  const [tab, setTab] = useState<CodeTab>("html");
   const [save, setSave] = useState<SaveState | null>(null);
 
   // Écriture depuis un clic : Chrome peut afficher l'invite d'autorisation.
@@ -33,8 +30,8 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
     <section className="rounded-2xl border border-white/10 bg-white/3 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-emerald-300">Page générée</p>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-100">Aperçu HTML/CSS</h2>
+          <h2 className="text-lg font-semibold text-zinc-100">{maquette.name}</h2>
+          <p className="text-sm text-zinc-300">{sourceLabel}</p>
           <p className="text-sm text-zinc-400">
             {projectId === null ? (
               <>Mode démo : ouvrez le Générateur depuis un projet du Hub pour enregistrer la page.</>
@@ -80,26 +77,6 @@ export function GeneratorOutput({ maquette, projectId }: { maquette: Maquette; p
       )}
 
       <GeneratorPreview html={page.standaloneHtml} name={maquette.name} width={maquette.frame.width} height={maquette.frame.height} />
-
-      <div className="mt-6 flex gap-2" role="tablist" aria-label="Code généré">
-        {(["html", "css"] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`min-h-10 rounded-full px-4 py-1.5 font-mono text-sm font-medium ${
-              tab === key ? "bg-emerald-500 text-black" : "border border-zinc-500 bg-white/5 text-zinc-100 hover:bg-white/10"
-            }`}
-          >
-            {key === "html" ? HTML_FILE : CSS_FILE}
-          </button>
-        ))}
-      </div>
-      <pre className="mt-2 max-h-96 overflow-auto rounded-xl bg-black/30 p-4 font-mono text-sm text-zinc-200" tabIndex={0} aria-label="Code généré">
-        {tab === "html" ? page.html : page.css}
-      </pre>
     </section>
   );
 }
