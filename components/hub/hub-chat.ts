@@ -607,7 +607,8 @@ export async function respondToHubChat(request: string, context: HubChatContext)
     }
 
     // « renomme le projet 2 en … », « renomme Café en … » ou « renomme-le en … » (projet de la conversation).
-    const rename = text.match(/\brenomm\w*(?:-le|-la)?\s+(?:(?:le\s+|ce\s+)?(?:projet\s*)?(.*?)\s+)?en\s+(.+)$/);
+    // Le projet visé ne commence pas par « en » : dans « renomme-le en Site en ligne », tout le reste est le nom.
+    const rename = text.match(/\brenomm\w*(?:-le|-la)?\s+(?:(?!en\s)(?:le\s+|ce\s+)?(?:projet\s*)?(.*?)\s+)?en\s+(.+)$/);
     if (rename) {
       const target = (rename[1] ?? "").trim();
       const ref = findProject(/^\d+$/.test(target) ? `projet ${target}` : target, projects, fallback);
