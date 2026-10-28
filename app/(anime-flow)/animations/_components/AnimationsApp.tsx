@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
+import { AnimationsPresetPicker } from "@/app/(anime-flow)/animations/_components/AnimationsPresetPicker";
 import { AnimationsPreview } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
+import { findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { listPageElements, PAGE_FILE, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
 
@@ -35,6 +37,9 @@ export function AnimationsApp() {
   const isBrowser = useIsBrowser();
   const [projectLoad, setProjectLoad] = useState<ProjectLoad | null>(null);
   const [selected, setSelected] = useState<PageElement | null>(null);
+  /** Animation choisie pour chaque élément : id de l'élément → id de l'animation. */
+  const [presetByElement, setPresetByElement] = useState<Record<string, string>>({});
+  const [announcement, setAnnouncement] = useState("");
 
   // Chargement initial de la page du projet (si l'accès est déjà accordé).
   useEffect(() => {
@@ -60,6 +65,24 @@ export function AnimationsApp() {
     setProjectLoad(await loadProjectPage(projectId));
   }
 
+  function handleSelect(element: PageElement) {
+    setSelected(element);
+    const preset = findPreset(presetByElement[element.id] ?? "");
+    setAnnouncement(`${element.name} sélectionné. ${preset ? `Animation : ${preset.name}.` : "Aucune animation."}`);
+  }
+
+  function handlePresetChange(presetId: string | null) {
+    if (!selected) return;
+    const next = { ...presetByElement };
+    if (presetId === null) delete next[selected.id];
+    else next[selected.id] = presetId;
+    setPresetByElement(next);
+    const preset = presetId === null ? null : findPreset(presetId);
+    setAnnouncement(
+      preset ? `Animation ${preset.name} ajoutée à ${selected.name}.` : `Animation retirée de ${selected.name}.`,
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -72,9 +95,9 @@ export function AnimationsApp() {
         </span>
       </header>
 
-      {/* Annonce la sélection aux lecteurs d'écran. */}
+      {/* Annonce les actions aux lecteurs d'écran. */}
       <p aria-live="polite" className="sr-only">
-        {selected ? `${selected.name} sélectionné.` : ""}
+        {announcement}
       </p>
 
       {projectId !== null && projectLoad && projectLoad.status !== "ok" && (
@@ -100,8 +123,21 @@ export function AnimationsApp() {
         projectLoad?.status !== "fs-error" && <p className="text-lg text-zinc-300">Lecture de {PAGE_FILE}…</p>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(18rem,1fr)_2fr]">
-          <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={setSelected} />
-          <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+          <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
+          <div className="flex flex-col gap-6">
+            {selected ? (
+              <AnimationsPresetPicker
+                elementName={selected.name}
+                presetId={presetByElement[selected.id] ?? null}
+                onChange={handlePresetChange}
+              />
+            ) : (
+              <p className="rounded-2xl border border-white/10 bg-white/3 p-5 text-lg text-zinc-300">
+                Sélectionnez un élément dans la liste pour lui choisir une animation.
+              </p>
+            )}
+            <AnimationsPreview html={html} selectedId={selected?.id ?? null} />
+          </div>
         </div>
       )}
     </div>
