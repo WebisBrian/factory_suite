@@ -40,7 +40,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div
           className={`relative flex min-h-screen flex-1 flex-col bg-[#0b0b10] font-sans text-base leading-relaxed text-zinc-100 ${focusRing}`}
         >
-            <div
+          {/* Lien d'évitement : invisible à la souris, il apparaît au premier Tab (clavier, lecteur d'écran). */}
+          <a
+            href="#contenu"
+            className="sr-only z-50 rounded-lg bg-yellow-300 px-4 py-2 font-bold text-black focus:not-sr-only focus:absolute focus:top-2 focus:left-2"
+          >
+            Aller au contenu
+          </a>
+          <div
             aria-hidden
             className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(56,189,248,0.08),transparent_45%),radial-gradient(ellipse_at_top_right,rgba(217,70,239,0.08),transparent_45%)]"
           />

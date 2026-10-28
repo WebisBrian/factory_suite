@@ -12,6 +12,8 @@ export interface HubTool {
   /** Logo de l'outil (SVG dans components/hub/logos/), affiché à la place du monogramme. */
   logo?: string;
   description: string;
+  /** Fichier produit par l'outil dans le dossier du projet : sa présence marque l'étape comme faite. */
+  outputFile: string;
   /** Classes Tailwind complètes (pas de concaténation, sinon Tailwind ne les génère pas). */
   theme: {
     /** Fond de l'icône. */
@@ -33,6 +35,7 @@ export const HUB_TOOLS: readonly HubTool[] = [
     monogram: "Sd",
     logo: screendraftMark.src,
     description: "Maquette → JSON",
+    outputFile: "maquette.json",
     theme: {
       icon: "bg-[#2348FF] ring-2 ring-sky-300",
       text: "text-sky-300",
@@ -47,6 +50,7 @@ export const HUB_TOOLS: readonly HubTool[] = [
     monogram: "Cf",
     logo: codeforgeMark.src,
     description: "JSON → HTML/CSS",
+    outputFile: "page.html",
     theme: {
       icon: "bg-[#0B7A53] ring-2 ring-emerald-300",
       text: "text-emerald-300",
@@ -60,6 +64,8 @@ export const HUB_TOOLS: readonly HubTool[] = [
     monogram: "Af",
     logo: animflowMark.src,
     description: "HTML/CSS → animations",
+    // Nom proposé dans le guide des squads : Animations n'écrit encore aucun fichier.
+    outputFile: "animations.json",
     theme: {
       icon: "bg-[#A3168F] ring-2 ring-fuchsia-300",
       text: "text-fuchsia-300",
