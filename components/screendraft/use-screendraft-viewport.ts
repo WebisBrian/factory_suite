@@ -14,7 +14,7 @@ import {
   type Size,
   type Viewport,
   type ZoomCommand,
-} from "../_lib/viewport";
+} from "@/components/screendraft/screendraft-viewport";
 
 const WHEEL_LINE_HEIGHT = 16;
 const WHEEL_ZOOM_SPEED = 0.01;
@@ -30,7 +30,7 @@ const MAX_WHEEL_ZOOM_DELTA = 25;
  *
  * `viewport` reste null tant que le canvas n'a pas été mesuré.
  */
-export function useCanvasViewport(frame: Size) {
+export function useScreendraftViewport(frame: Size) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
@@ -42,9 +42,10 @@ export function useCanvasViewport(frame: Size) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const observer = new ResizeObserver(() => {
-      setViewport(
-        (current) => current ?? fitToScreen({ width, height }, sizeOf(canvas)),
-      );
+      const canvasSize = sizeOf(canvas);
+      // Un canvas masqué mesure 0 × 0 : on attend une vraie taille pour ajuster.
+      if (canvasSize.width === 0 || canvasSize.height === 0) return;
+      setViewport((current) => current ?? fitToScreen({ width, height }, canvasSize));
     });
     observer.observe(canvas);
     return () => observer.disconnect();
