@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# hébergement local sur le PC du Hub (conteneurs dev / HTTPS) : pas pour les autres groupes
+/compose.dev.yaml
+/Dockerfile.dev
+/Dockerfile.https
+/docker/

@@ -94,12 +94,20 @@ export function ScreendraftPropertiesPanel({
         <ScreendraftInstanceControls
           node={selection.node}
           component={components.find((item) => item.id === selection.node.componentId)}
+          screens={screens}
           onUpdate={componentHandlers.update}
           onReset={componentHandlers.reset}
           onDetach={componentHandlers.detach}
         />
       )}
-      {selection && <ScreendraftNodeProperties node={selection.node} dispatch={dispatch} />}
+      {selection && (
+        <ScreendraftNodeProperties
+          node={selection.node}
+          screens={screens}
+          screenId={selectionScreenId}
+          dispatch={dispatch}
+        />
+      )}
       {selection && <ScreendraftDepthControls location={selection} dispatch={dispatch} />}
       {/* Équivalent clavier du glisser vers un autre écran. */}
       {selection && selectionScreenId && screens.length > 1 && (

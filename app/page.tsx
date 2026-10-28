@@ -14,7 +14,7 @@ export default function HubPage() {
           .
         </h1>
         <p className="max-w-2xl text-lg text-zinc-200">
-          Trois outils à la suite : Screendraft, puis le Générateur, puis Animations. Chaque projet a son propre
+          Trois outils à la suite : ScreenDraft, puis CodeForge, puis AnimFlow. Chaque projet a son propre
           dossier, partagé par les trois outils.
         </p>
       </div>

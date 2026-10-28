@@ -9,6 +9,7 @@ export const maquetteFixture: Maquette = {
     {
       id: "screen_home",
       name: "Accueil",
+      path: "index.html",
       frame: {
         device: "desktop",
         width: 1440,
@@ -287,7 +288,9 @@ export const maquetteFixture: Maquette = {
             borderRadius: 22
           },
           props: {
-            label: "Contact"
+            label: "Contact",
+            href: "contact.html",
+            targetScreenId: "screen_contact"
           }
         }
       ]
@@ -295,6 +298,7 @@ export const maquetteFixture: Maquette = {
     {
       id: "screen_contact",
       name: "Contact",
+      path: "contact.html",
       frame: {
         device: "mobile",
         width: 393,
@@ -302,6 +306,25 @@ export const maquetteFixture: Maquette = {
         backgroundColor: "#ffffff"
       },
       nodes: [
+        {
+          id: "button_contact_back",
+          type: "button",
+          x: 24,
+          y: 16,
+          width: 120,
+          height: 36,
+          style: {
+            backgroundColor: "#ffffff",
+            color: "#4f46e5",
+            fontSize: 14,
+            fontWeight: 600,
+            textAlign: "center",
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: "#4f46e5"
+          },
+          props: { label: "← Accueil", href: "index.html", targetScreenId: "screen_home" }
+        },
         {
           id: "title_contact",
           type: "title",

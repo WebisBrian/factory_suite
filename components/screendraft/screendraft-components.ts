@@ -1,5 +1,6 @@
 import { cloneNode, insertionOffset } from "@/components/screendraft/screendraft-new-node";
-import type { DraftNode } from "@/components/screendraft/screendraft-schema";
+import { syncNodeLinks } from "@/components/screendraft/screendraft-links";
+import type { DraftNode, Screen } from "@/components/screendraft/screendraft-schema";
 
 /**
  * Bibliothèque de composants custom du projet (fichier `screendraft-composants.json`).
@@ -66,9 +67,14 @@ export function instantiateComponent(component: CustomComponent, index: number):
   return buildInstance(component, id, offset, offset);
 }
 
-/** Vrai si l'instance a été modifiée depuis le composant (sa place mise à part). */
-export function isInstanceModified(node: DraftNode, component: CustomComponent): boolean {
-  return !sameJson(node, buildInstance(component, node.id, node.x, node.y));
+/**
+ * Vrai si l'instance a été modifiée depuis le composant (sa place mise à part).
+ * Les liens du composant sont d'abord remis à jour avec `screens` : un écran renommé ou
+ * supprimé change le `href` des boutons de l'instance sans que ce soit une modification.
+ */
+export function isInstanceModified(node: DraftNode, component: CustomComponent, screens: Screen[]): boolean {
+  const [expected] = syncNodeLinks([buildInstance(component, node.id, node.x, node.y)], screens);
+  return !sameJson(node, expected);
 }
 
 /**

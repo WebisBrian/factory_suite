@@ -8,7 +8,14 @@ import {
   ScreendraftSelectField,
 } from "@/components/screendraft/ScreendraftFields";
 import type { Geometry, ScreendraftAction } from "@/components/screendraft/screendraft-reducer";
-import type { DraftNode, DraftNodeType, NodeStyle, VideoNode } from "@/components/screendraft/screendraft-schema";
+import type {
+  ButtonNode,
+  DraftNode,
+  DraftNodeType,
+  NodeStyle,
+  Screen,
+  VideoNode,
+} from "@/components/screendraft/screendraft-schema";
 import { SHAPE_LABELS } from "@/components/screendraft/screendraft-tree";
 import { parseVideoUrl } from "@/components/screendraft/screendraft-video";
 
@@ -48,11 +55,17 @@ const TEXT_ALIGNS: { value: NonNullable<NodeStyle["textAlign"]>; label: string }
 
 type ScreendraftNodePropertiesProps = {
   node: DraftNode;
+  /** Écrans de la maquette et écran de l'élément, pour lier un bouton à un autre écran. */
+  screens: Screen[];
+  screenId: string | null;
   dispatch: Dispatch<ScreendraftAction>;
 };
 
+// Valeur du menu « Ouvre l'écran » quand le bouton n'est lié à aucun écran.
+const NO_SCREEN = "";
+
 /** Tout ce qui se modifie sur l'élément sélectionné : contenu, position et taille, apparence. */
-export function ScreendraftNodeProperties({ node, dispatch }: ScreendraftNodePropertiesProps) {
+export function ScreendraftNodeProperties({ node, screens, screenId, dispatch }: ScreendraftNodePropertiesProps) {
   const { style } = node;
 
   function setStyle(next: NodeStyle) {
@@ -61,7 +74,7 @@ export function ScreendraftNodeProperties({ node, dispatch }: ScreendraftNodePro
 
   return (
     <>
-      <ContentFields node={node} dispatch={dispatch} />
+      <ContentFields node={node} screens={screens} screenId={screenId} dispatch={dispatch} />
 
       <ScreendraftFieldGroup title="Position et taille">
         <div className="grid grid-cols-2 gap-(--space-3)">
@@ -155,7 +168,7 @@ export function ScreendraftNodeProperties({ node, dispatch }: ScreendraftNodePro
 }
 
 /** Contenu propre à chaque type d'élément. Une section n'en a pas : ce sont ses enfants. */
-function ContentFields({ node, dispatch }: ScreendraftNodePropertiesProps) {
+function ContentFields({ node, screens, screenId, dispatch }: ScreendraftNodePropertiesProps) {
   switch (node.type) {
     case "section":
       return null;
@@ -196,22 +209,33 @@ function ContentFields({ node, dispatch }: ScreendraftNodePropertiesProps) {
               className={FIELD_CLASS}
             />
           </ScreendraftField>
-          <ScreendraftField label="Lien">
-            <input
-              type="url"
-              placeholder="https://… ou #ancre"
-              value={node.props.href ?? ""}
-              onChange={(event) =>
-                dispatch({
-                  type: "set-props",
-                  id: node.id,
-                  nodeType: "button",
-                  props: { href: event.target.value || undefined },
-                })
-              }
-              className={FIELD_CLASS}
-            />
-          </ScreendraftField>
+          <ScreenLinkField node={node} screens={screens} screenId={screenId} dispatch={dispatch} />
+          {node.props.targetScreenId ? (
+            // Le lien suit l'écran cible : il se met à jour si l'écran est renommé.
+            <div className="flex flex-col gap-(--space-1)">
+              <span className="text-(--ink-muted)">Lien</span>
+              <p className="text-code rounded-(--radius-sm) border border-(--line) px-(--space-2) py-(--space-1) text-(--ink-muted)">
+                {node.props.href}
+              </p>
+            </div>
+          ) : (
+            <ScreendraftField label="Lien">
+              <input
+                type="url"
+                placeholder="https://… ou #ancre"
+                value={node.props.href ?? ""}
+                onChange={(event) =>
+                  dispatch({
+                    type: "set-props",
+                    id: node.id,
+                    nodeType: "button",
+                    props: { href: event.target.value || undefined },
+                  })
+                }
+                className={FIELD_CLASS}
+              />
+            </ScreendraftField>
+          )}
         </ScreendraftFieldGroup>
       );
     case "image":
@@ -321,6 +345,39 @@ function VideoFields({ node, dispatch }: { node: VideoNode; dispatch: Dispatch<S
         />
       </ScreendraftField>
     </ScreendraftFieldGroup>
+  );
+}
+
+type ScreenLinkFieldProps = Omit<ScreendraftNodePropertiesProps, "node"> & { node: ButtonNode };
+
+/**
+ * Prototype : écran ouvert au clic sur le bouton. Le `href` devient alors le fichier HTML
+ * de cet écran ; « Aucun » rend la main au lien libre.
+ */
+function ScreenLinkField({ node, screens, screenId, dispatch }: ScreenLinkFieldProps) {
+  const target = node.props.targetScreenId ?? NO_SCREEN;
+  // Lier un bouton à son propre écran ne mène nulle part : on ne le propose pas.
+  const options = screens.filter((screen) => screen.id !== screenId || screen.id === target);
+  if (options.length === 0) return null;
+
+  return (
+    <ScreendraftSelectField
+      label="Ouvre l’écran"
+      value={target}
+      options={[
+        { value: NO_SCREEN, label: "Aucun (lien libre)" },
+        ...options.map((screen) => ({ value: screen.id, label: screen.name })),
+      ]}
+      onChange={(next) =>
+        dispatch({
+          type: "set-props",
+          id: node.id,
+          nodeType: "button",
+          // Le href est recalculé à partir de l'écran choisi (voir syncLinks).
+          props: { targetScreenId: next === NO_SCREEN ? undefined : next, href: undefined },
+        })
+      }
+    />
   );
 }
 

@@ -3,7 +3,7 @@ import {
   isInstanceModified,
   type CustomComponent,
 } from "@/components/screendraft/screendraft-components";
-import type { DraftNode } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Screen } from "@/components/screendraft/screendraft-schema";
 
 const BUTTON_CLASS = `${FIELD_CLASS} hover:bg-(--canvas) disabled:text-(--line-strong) disabled:hover:bg-(--surface-raised)`;
 
@@ -11,6 +11,8 @@ type ScreendraftInstanceControlsProps = {
   node: DraftNode;
   /** undefined : le composant a été retiré de la bibliothèque, ou elle n'a pas pu être lue. */
   component: CustomComponent | undefined;
+  /** Écrans de la maquette, pour les liens des boutons du composant. */
+  screens: Screen[];
   onUpdate: (node: DraftNode) => void;
   onReset: (id: string, component: CustomComponent) => void;
   onDetach: (id: string) => void;
@@ -20,11 +22,12 @@ type ScreendraftInstanceControlsProps = {
 export function ScreendraftInstanceControls({
   node,
   component,
+  screens,
   onUpdate,
   onReset,
   onDetach,
 }: ScreendraftInstanceControlsProps) {
-  const isModified = component !== undefined && isInstanceModified(node, component);
+  const isModified = component !== undefined && isInstanceModified(node, component, screens);
 
   return (
     <ScreendraftFieldGroup title="Composant">

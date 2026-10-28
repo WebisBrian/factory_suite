@@ -47,6 +47,8 @@ export function createScreen(screens: Screen[], format: FrameFormat): Screen {
   return {
     id: `screen_${Date.now()}`,
     name: `Écran ${number}`,
+    // Calculé par syncLinks dès que l'écran est ajouté à la maquette.
+    path: "",
     frame: { ...format, backgroundColor: "#ffffff" },
     nodes: [],
   };

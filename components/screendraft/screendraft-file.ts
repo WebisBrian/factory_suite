@@ -1,3 +1,4 @@
+import { syncLinks } from "@/components/screendraft/screendraft-links";
 import { SCHEMA_VERSION, type Frame, type Maquette } from "@/components/screendraft/screendraft-schema";
 
 /** Fichier écrit dans le dossier du projet, lu ensuite par le Générateur. */
@@ -12,7 +13,8 @@ export function serializeMaquette(draft: Maquette): string {
 /**
  * Relit un `maquette.json`. Vérifie la version et la forme générale (écrans, frame, nodes),
  * pas chaque élément : le fichier est censé avoir été écrit par Screendraft.
- * Un fichier en version 1 (un seul écran) est converti en version 2.
+ * Un fichier en version 1 (un seul écran) est converti en version 2. Les `path` des écrans
+ * et les `href` des boutons liés sont recalculés (un fichier plus ancien n'en a pas).
  */
 export function parseMaquette(text: string): ParsedMaquette {
   let data: unknown;
@@ -21,14 +23,14 @@ export function parseMaquette(text: string): ParsedMaquette {
   } catch {
     return { ok: false, error: `${MAQUETTE_FILE} n'est pas un fichier JSON valide.` };
   }
-  if (looksLikeMaquetteV1(data)) return { ok: true, draft: migrateV1(data) };
+  if (looksLikeMaquetteV1(data)) return { ok: true, draft: syncLinks(migrateV1(data)) };
   if (!looksLikeMaquette(data)) {
     return {
       ok: false,
       error: `${MAQUETTE_FILE} n'est pas une maquette Screendraft (version ${SCHEMA_VERSION}).`,
     };
   }
-  return { ok: true, draft: data };
+  return { ok: true, draft: syncLinks(data) };
 }
 
 /** Maquette de départ d'un projet qui n'a pas encore de `maquette.json`. */
@@ -41,6 +43,7 @@ export function createEmptyMaquette(projectId: number): Maquette {
       {
         id: "screen_1",
         name: "Écran 1",
+        path: "index.html",
         frame: { device: "desktop", width: 1440, height: 1024, backgroundColor: "#ffffff" },
         nodes: [],
       },
@@ -99,7 +102,7 @@ function migrateV1({ id, name, frame, nodes }: MaquetteV1): Maquette {
     schemaVersion: SCHEMA_VERSION,
     id,
     name,
-    screens: [{ id: "screen_1", name: "Écran 1", frame, nodes }],
+    screens: [{ id: "screen_1", name: "Écran 1", path: "", frame, nodes }],
   };
 }
 

@@ -14,6 +14,10 @@
  * - L'ordre des tableaux `nodes` et `children` est l'ordre d'empilement :
  *   le premier élément est au fond, le dernier au premier plan.
  *
+ * - Prototype : chaque écran a un `path`, le nom de son fichier HTML. Un bouton lié à un
+ *   écran (`targetScreenId`) a pour `href` le `path` de cet écran : le HTML généré peut
+ *   l'utiliser tel quel. Screendraft tient `path` et `href` à jour (renommage, suppression).
+ *
  * Version 2 : `frame` et `nodes` passent du premier niveau à chaque écran de `screens`.
  */
 
@@ -32,6 +36,11 @@ export type Screen = {
   /** Unique dans le document. */
   id: string;
   name: string;
+  /**
+   * Fichier HTML de l'écran, unique dans le document : `index.html` pour le premier écran,
+   * puis tiré du nom (ex. « Contact » → `contact.html`). Calculé par Screendraft.
+   */
+  path: string;
   frame: Frame;
   nodes: DraftNode[];
 };
@@ -107,7 +116,13 @@ export type VideoNode = BaseNode & {
 
 export type ButtonNode = BaseNode & {
   type: "button";
-  props: { label: string; href?: string };
+  props: {
+    label: string;
+    /** Lien du bouton : URL libre, ou `path` de l'écran cible si `targetScreenId` est défini. */
+    href?: string;
+    /** Écran ouvert au clic dans le prototype. */
+    targetScreenId?: string;
+  };
 };
 
 export type ShapeKind = "circle" | "rectangle" | "triangle";

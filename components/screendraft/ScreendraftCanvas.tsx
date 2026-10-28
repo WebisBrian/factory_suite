@@ -11,8 +11,9 @@ import {
   screensSize,
   type ScreenNodeLocation,
 } from "@/components/screendraft/screendraft-screens";
+import { linkTarget } from "@/components/screendraft/screendraft-links";
 import { findNode, frameRect } from "@/components/screendraft/screendraft-tree";
-import { rectToScreen, type Point } from "@/components/screendraft/screendraft-viewport";
+import { rectToScreen, type Point, type Size } from "@/components/screendraft/screendraft-viewport";
 import { useScreendraftViewport } from "@/components/screendraft/use-screendraft-viewport";
 
 type ScreendraftCanvasProps = {
@@ -208,10 +209,60 @@ export function ScreendraftCanvas({
               )}
             />
           )}
+          {selection && <LinkArrow selection={selection} screens={screens} origins={origins} viewport={viewport} />}
           <ScreendraftZoomControls zoom={viewport.zoom} onCommand={zoom} />
         </>
       )}
     </div>
+  );
+}
+
+type LinkArrowProps = {
+  selection: ScreenNodeLocation;
+  screens: Screen[];
+  origins: Map<string, Point>;
+  viewport: { zoom: number; x: number; y: number };
+};
+
+/**
+ * Prototype : flèche du bouton sélectionné vers l'écran qu'il ouvre, comme dans Figma.
+ * Elle part du côté du bouton tourné vers l'écran cible et arrive sur le bord de son frame.
+ */
+function LinkArrow({ selection, screens, origins, viewport }: LinkArrowProps) {
+  const targetId = linkTarget(selection.location.node);
+  const target = screens.find((screen) => screen.id === targetId);
+  const targetOrigin = targetId ? origins.get(targetId) : undefined;
+  if (!target || !targetOrigin) return null;
+
+  const button = rectToScreen(
+    offsetRect(frameRect(selection.location), origins.get(selection.screen.id)),
+    viewport,
+  );
+  const frame: Point & Size = rectToScreen({ ...targetOrigin, ...target.frame }, viewport);
+  const toRight = frame.x >= button.x + button.width;
+  const start = { x: toRight ? button.x + button.width : button.x, y: button.y + button.height / 2 };
+  const end = {
+    x: toRight ? frame.x : frame.x + frame.width,
+    y: Math.min(Math.max(start.y, frame.y + 12), frame.y + frame.height - 12),
+  };
+  const bend = Math.max(Math.abs(end.x - start.x) / 2, 24) * (toRight ? 1 : -1);
+
+  return (
+    <svg aria-hidden className="pointer-events-none absolute inset-0 size-full overflow-visible text-(--draft)">
+      <defs>
+        <marker id="screendraft-link-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 10 5 0 10Z" fill="currentColor" />
+        </marker>
+      </defs>
+      <circle cx={start.x} cy={start.y} r={3.5} fill="currentColor" />
+      <path
+        d={`M${start.x} ${start.y} C${start.x + bend} ${start.y} ${end.x - bend} ${end.y} ${end.x} ${end.y}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        markerEnd="url(#screendraft-link-arrow)"
+      />
+    </svg>
   );
 }
 
