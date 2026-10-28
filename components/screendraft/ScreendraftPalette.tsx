@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DraftNodeType } from "@/components/screendraft/screendraft-schema";
+import type { DraftNodeType, ShapeKind } from "@/components/screendraft/screendraft-schema";
 
 const BASE_COMPONENTS: { type: DraftNodeType; label: string; icon: ReactNode }[] = [
   { type: "section", label: "Section", icon: <rect x="3" y="5" width="18" height="14" rx="2" /> },
@@ -28,7 +28,11 @@ const BASE_COMPONENTS: { type: DraftNodeType; label: string; icon: ReactNode }[]
 ];
 
 /** Composants de base. L'insertion dans la maquette viendra avec SCRUM-4. */
-export function ScreendraftPalette() {
+export function ScreendraftPalette({
+  onAdd,
+}: {
+  onAdd: (type: DraftNodeType, shape?: ShapeKind) => void;
+}) {
   return (
     <aside className="w-56 shrink-0 border-r border-(--line) bg-(--surface-raised) p-(--space-4)">
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
@@ -38,7 +42,8 @@ export function ScreendraftPalette() {
         {BASE_COMPONENTS.map(({ type, label, icon }) => (
           <li
             key={type}
-            className="text-body-sm flex items-center gap-(--space-3) rounded-(--radius-md) p-(--space-2) text-(--ink)"
+            className="text-body-sm flex w-full items-center gap-(--space-3) rounded-(--radius-md) p-(--space-2) text-(--ink) hover:bg-(--canvas)"
+            onClick={() => onAdd(type)}
           >
             <svg
               aria-hidden
@@ -54,6 +59,22 @@ export function ScreendraftPalette() {
           </li>
         ))}
       </ul>
+      <h2 className="text-label mt-(--space-6) pb-(--space-2) text-(--ink-muted)">
+        Formes
+      </h2>
+      <div className="flex gap-(--space-2)">
+        {(["circle", "rectangle", "triangle"] as const).map((shape) => (
+          <button
+            key={shape}
+            type="button"
+            onClick={() => onAdd("shape", shape)}
+            className="grid size-9 place-items-center rounded-(--radius-md) border border-(--line) text-lg text-(--ink) hover:bg-(--canvas)"
+            aria-label={`Ajouter un ${shape === "circle" ? "rond" : shape === "rectangle" ? "rectangle" : "triangle"}`}
+          >
+            {shape === "circle" ? "○" : shape === "rectangle" ? "□" : "△"}
+          </button>
+        ))}
+      </div>
     </aside>
   );
 }

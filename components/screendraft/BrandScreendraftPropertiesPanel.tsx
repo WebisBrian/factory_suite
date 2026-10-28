@@ -1,4 +1,4 @@
-import type { Frame } from "@/components/screendraft/screendraft-schema";
+import type { DraftNode, Frame } from "@/components/screendraft/screendraft-schema";
 
 const DEVICE_LABELS: Record<Frame["device"], string> = {
   desktop: "Desktop",
@@ -6,7 +6,15 @@ const DEVICE_LABELS: Record<Frame["device"], string> = {
 };
 
 /** Propriétés de la maquette. Celles d'un élément viendront avec la sélection (SCRUM-8). */
-export function ScreendraftPropertiesPanel({ frame }: { frame: Frame }) {
+export function ScreendraftPropertiesPanel({
+  frame,
+  selectedNode,
+  onTextChange,
+}: {
+  frame: Frame;
+  selectedNode: DraftNode | null;
+  onTextChange: (value: string) => void;
+}) {
   return (
     <aside className="w-64 shrink-0 border-l border-(--line) bg-(--surface-raised) p-(--space-4)">
       <h2 className="text-label pb-(--space-2) text-(--ink-muted)">
@@ -30,6 +38,28 @@ export function ScreendraftPropertiesPanel({ frame }: { frame: Frame }) {
           </span>
         </dd>
       </dl>
+      <div className="mt-(--space-6) border-t border-(--line) pt-(--space-4)">
+        <h2 className="text-label pb-(--space-2) text-(--ink-muted)">Élément</h2>
+        {selectedNode ? (
+          <>
+            <p className="text-body-sm text-(--ink)">
+              Sélectionné : <strong>{selectedNode.type}</strong>
+            </p>
+            {(selectedNode.type === "text" || selectedNode.type === "title") && (
+              <label className="text-body-sm mt-(--space-4) block text-(--ink-muted)">
+                Contenu
+                <textarea
+                  value={selectedNode.props.text}
+                  onChange={(event) => onTextChange(event.target.value)}
+                  className="mt-(--space-2) min-h-24 w-full resize-y rounded-(--radius-md) border border-(--line-strong) bg-(--canvas) p-(--space-2) text-(--ink)"
+                />
+              </label>
+            )}
+          </>
+        ) : (
+          <p className="text-body-sm text-(--ink-muted)">Sélectionnez un élément.</p>
+        )}
+      </div>
     </aside>
   );
 }
