@@ -61,7 +61,7 @@ function statusMessage(projectId: number | null, isDirty: boolean, status: SaveS
   if (projectId === null) return "Mode démo : rien n'est enregistré";
   if (status.kind === "saving") return "Enregistrement…";
   if (isDirty) return "Modifications non enregistrées";
-  if (status.kind === "saved") return `Enregistré à ${formatTime(status.at)}`;
+  if (status.kind === "saved") return `Enregistré à ${formatTime(status.at)}${status.note ? `, ${status.note}` : ""}`;
   return `Projet ${projectId}, à jour`;
 }
 
