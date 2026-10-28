@@ -2,8 +2,10 @@
  * Conversion d'une maquette Screendraft en page HTML/CSS autonome.
  *
  * Chaque élément est positionné en absolu dans son parent (les coordonnées des
- * enfants d'une section sont relatives à cette section), dans l'ordre du tableau :
- * le dernier élément est dessiné au-dessus. Chaque balise porte un `id` CSS et
+ * enfants d'une section sont relatives à cette section). Le HTML suit l'ordre de
+ * lecture visuel (haut → bas, gauche → droite) pour les lecteurs d'écran et la
+ * tabulation ; l'empilement de la maquette (dernier élément du tableau au-dessus)
+ * est conservé par un `z-index` explicite. Chaque balise porte un `id` CSS et
  * les attributs `data-node-id` / `data-node-type` pour que le squad Animations
  * puisse cibler les éléments.
  */
@@ -55,9 +57,10 @@ export function generatePage(maquette: MaquetteScreen, documentId = maquette.id,
       head,
       "</head>",
       "<body>",
-      `  <div class="maquette-frame" data-maquette-id="${escapeAttr(documentId)}" data-screen-id="${escapeAttr(maquette.id)}">`,
+      // <main> : repère de navigation principal pour les lecteurs d'écran.
+      `  <main class="maquette-frame" data-maquette-id="${escapeAttr(documentId)}" data-screen-id="${escapeAttr(maquette.id)}">`,
       body,
-      "  </div>",
+      "  </main>",
       "</body>",
       "</html>",
       "",
@@ -117,11 +120,38 @@ body {
   font: inherit;
   text-decoration: none;
   cursor: pointer;
+}
+
+/* Focus clavier visible sur tout fond : contour bleu foncé doublé d'un liseré blanc. */
+.maquette-frame :focus-visible {
+  outline: 3px solid #0a4fb8;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #ffffff;
 }`;
 }
 
+/**
+ * Ordre de lecture : lignes de haut en bas, puis de gauche à droite dans chaque ligne.
+ * Un élément rejoint la ligne en cours si son centre vertical tombe dans la hauteur
+ * du premier élément de la ligne (logo, titre et menu d'un en-tête par exemple).
+ * Les formes, décoratives (aria-hidden), restent en tête : un fond pleine page
+ * ne doit pas servir de ligne et regrouper tout le reste.
+ */
+function readingOrder(nodes: MaquetteNode[]): MaquetteNode[] {
+  const shapes = nodes.filter((node) => node.type === "shape");
+  const rows: MaquetteNode[][] = [];
+  const content = nodes.filter((node) => node.type !== "shape");
+  for (const node of content.sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const row = rows.at(-1);
+    const center = node.y + node.height / 2;
+    if (row && center >= row[0].y && center <= row[0].y + row[0].height) row.push(node);
+    else rows.push([node]);
+  }
+  return [...shapes, ...rows.flatMap((row) => row.sort((a, b) => a.x - b.x))];
+}
+
 function renderNodes(nodes: MaquetteNode[], cssIdOf: (node: MaquetteNode) => string, depth: number, paths: ReadonlyMap<string, string>): string {
-  return nodes.map((node) => renderNode(node, cssIdOf, depth, paths)).join("\n");
+  return readingOrder(nodes).map((node) => renderNode(node, cssIdOf, depth, paths)).join("\n");
 }
 
 function renderNode(node: MaquetteNode, cssIdOf: (node: MaquetteNode) => string, depth: number, paths: ReadonlyMap<string, string>): string {
@@ -132,9 +162,12 @@ function renderNode(node: MaquetteNode, cssIdOf: (node: MaquetteNode) => string,
     case "section":
       if (node.children.length === 0) return `${indent}<section ${attrs}></section>`;
       return `${indent}<section ${attrs}>\n${renderNodes(node.children, cssIdOf, depth + 1, paths)}\n${indent}</section>`;
+    // Titre ou paragraphe vide : bloc décoratif, pour ne pas annoncer un titre sans contenu.
     case "title":
+      if (!node.props.text.trim()) return `${indent}<div ${attrs} aria-hidden="true"></div>`;
       return `${indent}<h${node.props.level} ${attrs}>${escapeHtml(node.props.text)}</h${node.props.level}>`;
     case "text":
+      if (!node.props.text.trim()) return `${indent}<div ${attrs} aria-hidden="true"></div>`;
       return `${indent}<p ${attrs}>${escapeHtml(node.props.text)}</p>`;
     case "image":
       return `${indent}<img ${attrs} src="${escapeAttr(node.props.src)}" alt="${escapeAttr(node.props.alt)}">`;
@@ -149,21 +182,26 @@ function renderNode(node: MaquetteNode, cssIdOf: (node: MaquetteNode) => string,
         return `${indent}<svg ${attrs} aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="50,0 100,100 0,100" fill="${node.style.backgroundColor ?? "none"}" stroke="${node.style.borderColor ?? "none"}" stroke-width="${node.style.borderWidth ?? 0}" vector-effect="non-scaling-stroke" /></svg>`;
       }
       return `${indent}<div ${attrs} aria-hidden="true"></div>`;
-    case "video":
-      if (!node.props.src) return `${indent}<div ${attrs} role="img" aria-label="${escapeAttr(node.props.title)}"></div>`;
+    case "video": {
+      // Un lecteur sans nom n'est pas identifiable au lecteur d'écran : nom générique par défaut.
+      const title = node.props.title.trim() || "Vidéo";
+      if (!node.props.src) return `${indent}<div ${attrs} role="img" aria-label="${escapeAttr(title)}"></div>`;
       return node.props.kind === "embed"
-        ? `${indent}<iframe ${attrs} src="${escapeAttr(node.props.src)}" title="${escapeAttr(node.props.title)}" loading="lazy" allowfullscreen></iframe>`
-        : `${indent}<video ${attrs} src="${escapeAttr(node.props.src)}" aria-label="${escapeAttr(node.props.title)}" controls preload="metadata">${escapeHtml(node.props.title)}</video>`;
+        ? `${indent}<iframe ${attrs} src="${escapeAttr(node.props.src)}" title="${escapeAttr(title)}" loading="lazy" allowfullscreen></iframe>`
+        : `${indent}<video ${attrs} src="${escapeAttr(node.props.src)}" aria-label="${escapeAttr(title)}" controls preload="metadata">${escapeHtml(title)}</video>`;
+    }
   }
 }
 
 function collectRules(nodes: MaquetteNode[], cssIdOf: (node: MaquetteNode) => string): string[] {
-  return nodes.flatMap((node) => {
+  return nodes.flatMap((node, index) => {
     const declarations = [
       `left: ${node.x}px;`,
       `top: ${node.y}px;`,
       `width: ${node.width}px;`,
       `height: ${node.height}px;`,
+      // Le HTML suit l'ordre de lecture : l'empilement de la maquette est porté par le z-index.
+      `z-index: ${index + 1};`,
       ...(node.type === "shape" && node.props.shape === "triangle" ? ["overflow: visible;"] : styleDeclarations(node.style)),
     ];
     if (node.type === "image") declarations.push(`object-fit: ${node.props.fit};`);
