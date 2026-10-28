@@ -1,6 +1,6 @@
 // Éléments que ce générateur sait produire. ScreenDraft en propose d'autres (carte, carrousel) :
 // ils sont retirés avant la validation, sinon toute la maquette serait refusée.
-const SUPPORTED_TYPES: ReadonlySet<string> = new Set(["section", "title", "text", "image", "button", "shape", "video"]);
+const SUPPORTED_TYPES: ReadonlySet<string> = new Set(["section", "title", "text", "image", "button", "shape", "video", "map"]);
 
 type JsonNode = { type?: unknown; children?: unknown };
 

@@ -9,6 +9,7 @@
  * les attributs `data-node-id` / `data-node-type` pour que le squad Animations
  * puisse cibler les éléments.
  */
+import { TILE_PX, pointInMap, tilesFor } from "@/app/codeforge/generator/_lib/map-tiles";
 import type { Maquette, MaquetteScreen, MaquetteNode, MaquetteNodeStyle } from "@/app/codeforge/generator/_lib/maquette";
 
 export const HTML_FILE = "page.html";
@@ -106,6 +107,70 @@ body {
   display: block;
 }
 
+.maquette-frame [data-node-type="map"] {
+  overflow: hidden;
+  background-color: #e5e3df;
+}
+
+.maquette-frame .map-tile {
+  position: absolute;
+  max-width: none;
+}
+
+.maquette-frame .map-marker {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.maquette-frame .map-pin {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #b42318;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.maquette-frame .map-label {
+  position: absolute;
+  left: 0;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.maquette-frame .map-attribution {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1a1a;
+  font-size: 12px;
+}
+
+.maquette-frame .map-points {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .maquette-frame iframe, .maquette-frame video {
   display: block;
   border: 0;
@@ -182,6 +247,24 @@ function renderNode(node: MaquetteNode, cssIdOf: (node: MaquetteNode) => string,
         return `${indent}<svg ${attrs} aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="50,0 100,100 0,100" fill="${node.style.backgroundColor ?? "none"}" stroke="${node.style.borderColor ?? "none"}" stroke-width="${node.style.borderWidth ?? 0}" vector-effect="non-scaling-stroke" /></svg>`;
       }
       return `${indent}<div ${attrs} aria-hidden="true"></div>`;
+    case "map": {
+      const { latitude, longitude, zoom, markers } = node.props;
+      const title = node.props.title.trim() || "Carte";
+      const center = { latitude, longitude };
+      const tiles = tilesFor(center, zoom, node.width, node.height)
+        .map((tile) => `${indent}    <img class="map-tile" src="${tile.src}" alt="" width="${TILE_PX}" height="${TILE_PX}" loading="lazy" style="left: ${tile.left}px; top: ${tile.top}px;">`)
+        .join("\n");
+      const pins = markers
+        .map((marker) => ({ marker, at: pointInMap(marker, center, zoom, node.width, node.height) }))
+        .filter(({ at }) => at.x >= 0 && at.x <= node.width && at.y >= 0 && at.y <= node.height)
+        .map(({ marker, at }) => `${indent}    <span class="map-marker" aria-hidden="true" style="left: ${at.x}px; top: ${at.y}px;"><span class="map-pin"></span><span class="map-label">${escapeHtml(marker.label)}</span></span>`)
+        .join("\n");
+      // La liste des points est l'équivalent texte de la carte pour le lecteur d'écran.
+      const list = markers.length === 0
+        ? ""
+        : `\n${indent}  <ul class="map-points">\n${markers.map((m) => `${indent}    <li>${escapeHtml(m.label)} (${m.latitude}, ${m.longitude})</li>`).join("\n")}\n${indent}  </ul>`;
+      return `${indent}<div ${attrs} role="group" aria-label="${escapeAttr(title)}">\n${tiles}${pins ? `\n${pins}` : ""}${list}\n${indent}  <a class="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>\n${indent}</div>`;
+    }
     case "video": {
       // Un lecteur sans nom n'est pas identifiable au lecteur d'écran : nom générique par défaut.
       const title = node.props.title.trim() || "Vidéo";
