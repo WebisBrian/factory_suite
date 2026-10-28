@@ -35,7 +35,7 @@ function historyReducer(history: History<Maquette>, event: HistoryEvent): Histor
 
 /**
  * Actions envoyées en continu pendant un même geste, à regrouper en une seule étape :
- * déplacer un élément (et le lâcher dans une section), taper son texte.
+ * déplacer un élément (et le lâcher dans une section), taper son texte, régler une couleur.
  */
 function groupKey(action: ScreendraftAction): string | null {
   switch (action.type) {
@@ -44,6 +44,11 @@ function groupKey(action: ScreendraftAction): string | null {
       return `move:${action.id}`;
     case "set-text":
       return `text:${action.id}`;
+    // Glisser dans un sélecteur de couleur, taper un libellé ou un lien.
+    case "set-style":
+      return `style:${action.id}:${Object.keys(action.style).join()}`;
+    case "set-props":
+      return `props:${action.id}:${Object.keys(action.props).join()}`;
     default:
       return null;
   }

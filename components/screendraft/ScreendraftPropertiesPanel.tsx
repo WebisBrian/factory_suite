@@ -29,7 +29,7 @@ type ScreendraftPropertiesPanelProps = {
   dispatch: Dispatch<ScreendraftAction>;
 };
 
-/** Contenu et profondeur de l'élément sélectionné, puis propriétés de la maquette. Le reste viendra avec SCRUM-8. */
+/** Propriétés et profondeur de l'élément sélectionné (SCRUM-8), puis propriétés de la maquette. */
 export function ScreendraftPropertiesPanel({
   frame,
   selection,
