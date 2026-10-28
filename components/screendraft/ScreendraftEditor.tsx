@@ -8,18 +8,29 @@ import { ScreendraftCanvas } from "@/components/screendraft/ScreendraftCanvas";
 import { ScreendraftLayers } from "@/components/screendraft/ScreendraftLayers";
 import { ScreendraftPalette } from "@/components/screendraft/ScreendraftPalette";
 import { ScreendraftPropertiesPanel } from "@/components/screendraft/ScreendraftPropertiesPanel";
+import { ScreendraftSaveControls } from "@/components/screendraft/ScreendraftSaveControls";
 import { ScreendraftThemeToggle } from "@/components/screendraft/ScreendraftThemeToggle";
+import { downloadMaquette } from "@/components/screendraft/screendraft-file";
 import { screendraftReducer } from "@/components/screendraft/screendraft-reducer";
 import { createNode } from "@/components/screendraft/screendraft-new-node";
 import type { DraftNodeType, Maquette, ShapeKind } from "@/components/screendraft/screendraft-schema";
 import { findNode } from "@/components/screendraft/screendraft-tree";
+import { useScreendraftSave } from "@/components/screendraft/use-screendraft-save";
+
+type ScreendraftEditorProps = {
+  initialDraft: Maquette;
+  /** null : mode démo, la maquette n'est enregistrée nulle part. */
+  projectId: number | null;
+};
 
 /** Éditeur plein écran, dans l'espace laissé sous la barre du Hub. */
-export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) {
+export function ScreendraftEditor({ initialDraft, projectId }: ScreendraftEditorProps) {
   const [draft, dispatch] = useReducer(screendraftReducer, initialDraft);
   // La sélection est un état de l'éditeur : elle n'est pas exportée dans le JSON.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selection = selectedId ? findNode(draft.nodes, selectedId) : null;
+  const { save, status: saveStatus, savedDraft } = useScreendraftSave(projectId, initialDraft);
+  const isDirty = projectId !== null && draft !== savedDraft;
 
   function addNode(type: DraftNodeType, shape?: ShapeKind) {
     const node = createNode(type, draft.nodes.length, shape);
@@ -30,17 +41,32 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setSelectedId(null);
+      const isSaveShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
+      if (isSaveShortcut && projectId !== null) {
+        event.preventDefault();
+        void save(draft);
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [draft, projectId, save]);
+
+  // Le navigateur prévient avant de quitter la page avec des modifications non enregistrées.
+  useEffect(() => {
+    if (!isDirty) return;
+    function warnBeforeLeaving(event: BeforeUnloadEvent) {
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [isDirty]);
 
   return (
     // Le Hub n'impose pas de hauteur à la page : seul, l'éditeur grandirait avec la liste des calques
     // et ferait défiler la page. Le conteneur absolu occupe exactement l'espace sous la barre du Hub.
     <div className="relative min-h-0 flex-1">
       <div className="screendraft absolute inset-0 flex flex-col bg-(--surface) text-(--ink)">
-        <header className="flex h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4)">
+        <header className="flex min-h-14 shrink-0 items-center gap-(--space-3) border-b border-(--line) bg-(--surface-raised) px-(--space-4) py-(--space-2)">
           {/* SVG servis tels quels : next/image n'a pas de loader en export statique. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={wordmark.src} alt="Screen draft" className="sd-only-light h-8 w-auto" />
@@ -50,7 +76,14 @@ export function ScreendraftEditor({ initialDraft }: { initialDraft: Maquette }) 
             /
           </span>
           <span className="text-body-sm truncate text-(--ink-muted)">{draft.name}</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-(--space-3)">
+            <ScreendraftSaveControls
+              projectId={projectId}
+              isDirty={isDirty}
+              status={saveStatus}
+              onSave={() => void save(draft)}
+              onExport={() => downloadMaquette(draft)}
+            />
             <ScreendraftThemeToggle />
           </div>
         </header>
