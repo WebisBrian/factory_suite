@@ -4,11 +4,19 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProjectText, useProjectId } from "@/lib/project-fs";
 import { AnimationsElementBar } from "@/app/(anime-flow)/animations/_components/AnimationsElementBar";
-import { AnimationsPresetPicker } from "@/app/(anime-flow)/animations/_components/AnimationsPresetPicker";
+import { AnimationsElementSettings } from "@/app/(anime-flow)/animations/_components/AnimationsElementSettings";
 import { AnimationsPreview } from "@/app/(anime-flow)/animations/_components/AnimationsPreview";
 import { findPreset } from "@/app/(anime-flow)/animations/_lib/animation-library";
 import { listPageElements, PAGE_FILE, type PageElement } from "@/app/(anime-flow)/animations/_lib/page-elements";
 import { pageHtmlFixture } from "@/app/(anime-flow)/animations/_lib/page-fixture";
+import {
+  DEFAULT_TRIGGER_EVENT,
+  findTriggerEvent,
+  type TriggerEventId,
+} from "@/app/(anime-flow)/animations/_lib/trigger-events";
+
+/** Animation posée sur un élément : laquelle, et ce qui la déclenche. */
+type ElementAnimation = { animation: string; event: TriggerEventId };
 
 type ProjectLoad = { status: "ok"; html: string } | { status: "missing" } | { status: "fs-error"; message: string };
 
@@ -19,6 +27,13 @@ async function loadProjectPage(projectId: number): Promise<ProjectLoad> {
   } catch (e) {
     return { status: "fs-error", message: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Pour les annonces : « Animation Rebond, au clic. » */
+function describeAnimation(animation: ElementAnimation | undefined): string {
+  const preset = animation ? findPreset(animation.animation) : null;
+  if (!animation || !preset) return "Aucune animation.";
+  return `Animation ${preset.name}, ${findTriggerEvent(animation.event).phrase}.`;
 }
 
 const noSubscribe = () => () => {};
@@ -37,8 +52,8 @@ export function AnimationsApp() {
   const isBrowser = useIsBrowser();
   const [projectLoad, setProjectLoad] = useState<ProjectLoad | null>(null);
   const [selected, setSelected] = useState<PageElement | null>(null);
-  /** Animation choisie pour chaque élément : id de l'élément → id de l'animation. */
-  const [presetByElement, setPresetByElement] = useState<Record<string, string>>({});
+  /** Animations posées, par id d'élément. Un élément sans animation n'a pas d'entrée. */
+  const [animationByElement, setAnimationByElement] = useState<Record<string, ElementAnimation>>({});
   const [announcement, setAnnouncement] = useState("");
 
   // Chargement initial de la page du projet (si l'accès est déjà accordé).
@@ -65,22 +80,32 @@ export function AnimationsApp() {
     setProjectLoad(await loadProjectPage(projectId));
   }
 
+  const selectedAnimation = selected ? (animationByElement[selected.id] ?? null) : null;
+
   function handleSelect(element: PageElement) {
     setSelected(element);
-    const preset = findPreset(presetByElement[element.id] ?? "");
-    setAnnouncement(`${element.name} sélectionné. ${preset ? `Animation : ${preset.name}.` : "Aucune animation."}`);
+    setAnnouncement(`${element.name} sélectionné. ${describeAnimation(animationByElement[element.id])}`);
   }
 
   function handlePresetChange(presetId: string | null) {
     if (!selected) return;
-    const next = { ...presetByElement };
-    if (presetId === null) delete next[selected.id];
-    else next[selected.id] = presetId;
-    setPresetByElement(next);
-    const preset = presetId === null ? null : findPreset(presetId);
-    setAnnouncement(
-      preset ? `Animation ${preset.name} ajoutée à ${selected.name}.` : `Animation retirée de ${selected.name}.`,
-    );
+    const next = { ...animationByElement };
+    if (presetId === null) {
+      delete next[selected.id];
+      setAnnouncement(`Animation retirée de ${selected.name}.`);
+    } else {
+      // On garde le déclencheur déjà choisi quand on change seulement d'animation.
+      next[selected.id] = { animation: presetId, event: selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT };
+      setAnnouncement(`${describeAnimation(next[selected.id])} Ajoutée à ${selected.name}.`);
+    }
+    setAnimationByElement(next);
+  }
+
+  function handleEventChange(event: TriggerEventId) {
+    if (!selected || !selectedAnimation) return;
+    const updated = { ...selectedAnimation, event };
+    setAnimationByElement({ ...animationByElement, [selected.id]: updated });
+    setAnnouncement(`${describeAnimation(updated)} Sur ${selected.name}.`);
   }
 
   return (
@@ -126,10 +151,12 @@ export function AnimationsApp() {
           <AnimationsElementBar elements={elements} selectedId={selected?.id ?? null} onSelect={handleSelect} />
           <div className="flex flex-col gap-6">
             {selected ? (
-              <AnimationsPresetPicker
+              <AnimationsElementSettings
                 elementName={selected.name}
-                presetId={presetByElement[selected.id] ?? null}
-                onChange={handlePresetChange}
+                presetId={selectedAnimation?.animation ?? null}
+                event={selectedAnimation?.event ?? DEFAULT_TRIGGER_EVENT}
+                onPresetChange={handlePresetChange}
+                onEventChange={handleEventChange}
               />
             ) : (
               <p className="rounded-2xl border border-white/10 bg-white/3 p-5 text-lg text-zinc-300">
