@@ -42,6 +42,16 @@ export function panBy(viewport: Viewport, dx: number, dy: number): Viewport {
   return { ...viewport, x: viewport.x + dx, y: viewport.y + dy };
 }
 
+/** Rectangle de la maquette (px à l'échelle 1) converti en px écran du canvas. */
+export function rectToScreen(rect: Point & Size, viewport: Viewport): Point & Size {
+  return {
+    x: viewport.x + rect.x * viewport.zoom,
+    y: viewport.y + rect.y * viewport.zoom,
+    width: rect.width * viewport.zoom,
+    height: rect.height * viewport.zoom,
+  };
+}
+
 /** Centre le frame dans le canvas au plus grand zoom qui le montre en entier. */
 export function fitToScreen(frame: Size, canvas: Size): Viewport {
   const zoom = clampZoom(

@@ -8,7 +8,11 @@ type ScreendraftZoomControlsProps = {
 
 export function ScreendraftZoomControls({ zoom, onCommand }: ScreendraftZoomControlsProps) {
   return (
-    <div className="text-body-sm absolute right-(--space-4) bottom-(--space-4) flex items-center rounded-(--radius-lg) border border-(--line) bg-(--surface-raised) p-(--space-1) text-(--ink) shadow-(--shadow-panel)">
+    // Un clic sur les contrôles ne doit ni sélectionner, ni désélectionner, ni déplacer la vue.
+    <div
+      onPointerDown={(event) => event.stopPropagation()}
+      className="text-body-sm absolute right-(--space-4) bottom-(--space-4) flex items-center rounded-(--radius-lg) border border-(--line) bg-(--surface-raised) p-(--space-1) text-(--ink) shadow-(--shadow-panel)"
+    >
       <ControlButton title="Zoom arrière (Ctrl/⌘ −)" onClick={() => onCommand("out")}>
         −
       </ControlButton>

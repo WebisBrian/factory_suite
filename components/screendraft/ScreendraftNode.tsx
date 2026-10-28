@@ -1,14 +1,17 @@
 import type { CSSProperties } from "react";
 import type { ButtonNode, DraftNode, NodeStyle } from "@/components/screendraft/screendraft-schema";
 
-/** Un élément de la maquette, à l'échelle 1, positionné dans son parent. */
+/**
+ * Un élément de la maquette, à l'échelle 1, positionné dans son parent.
+ * `data-node-id` permet au canvas de retrouver l'élément cliqué.
+ */
 export function ScreendraftNode({ node }: { node: DraftNode }) {
   const style = { ...boxStyle(node), ...toCss(node.style) };
 
   switch (node.type) {
     case "section":
       return (
-        <section style={style}>
+        <section data-node-id={node.id} style={style}>
           {node.children.map((child) => (
             <ScreendraftNode key={child.id} node={child} />
           ))}
@@ -16,16 +19,25 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
       );
     case "title": {
       const Heading = `h${node.props.level}` as const;
-      return <Heading style={style}>{node.props.text}</Heading>;
+      return (
+        <Heading data-node-id={node.id} style={style}>
+          {node.props.text}
+        </Heading>
+      );
     }
     case "text":
-      return <p style={style}>{node.props.text}</p>;
+      return (
+        <p data-node-id={node.id} style={style}>
+          {node.props.text}
+        </p>
+      );
     case "image":
       return (
         // URL libre affichée telle quelle : next/image exigerait de déclarer
         // chaque domaine et redimensionnerait l'image.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          data-node-id={node.id}
           src={node.props.src}
           alt={node.props.alt}
           draggable={false}
@@ -34,7 +46,11 @@ export function ScreendraftNode({ node }: { node: DraftNode }) {
       );
     case "button":
       // Pas de vrai lien ni de vrai bouton : dans l'éditeur, un clic ne doit rien déclencher.
-      return <div style={{ ...style, ...buttonLayout(node) }}>{node.props.label}</div>;
+      return (
+        <div data-node-id={node.id} style={{ ...style, ...buttonLayout(node) }}>
+          {node.props.label}
+        </div>
+      );
   }
 }
 
