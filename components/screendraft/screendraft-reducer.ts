@@ -46,6 +46,8 @@ import {
  * Les actions sur un élément retrouvent seules son écran ; les autres le nomment.
  */
 export type ScreendraftAction =
+  /** Remplace tout le contenu par celui d'un modèle ; la maquette garde son id. */
+  | { type: "load-template"; template: Maquette }
   | { type: "add-screen"; screen: Screen }
   | { type: "rename-screen"; screenId: string; name: string }
   | { type: "delete-screen"; screenId: string }
@@ -99,6 +101,13 @@ export function screendraftReducer(draft: Maquette, action: ScreendraftAction): 
 
 function applyAction(draft: Maquette, action: ScreendraftAction): Maquette {
   switch (action.type) {
+    case "load-template":
+      return {
+        ...draft,
+        name: action.template.name,
+        theme: action.template.theme,
+        screens: structuredClone(action.template.screens),
+      };
     // Ajouté après les autres, donc à droite sur le canvas.
     case "add-screen":
       return applyTheme({ ...draft, screens: [...draft.screens, action.screen] });
