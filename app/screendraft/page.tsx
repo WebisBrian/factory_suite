@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 
 // Mode démo : l'éditeur ouvre la fixture. La lecture du projet (?project_id=) viendra avec project-fs.
 export default function ScreendraftPage() {
-  return <ScreendraftEditor draft={maquetteFixture} />;
+  return <ScreendraftEditor initialDraft={maquetteFixture} />;
 }
