@@ -97,7 +97,7 @@ export function GeneratorApp() {
             Transmettez la maquette JSON produite par Screendraft pour la convertir en HTML/CSS.
           </p>
         </div>
-        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-300">
           {projectId === null ? "Mode démo" : `Projet #${projectId}`}
         </span>
       </header>
@@ -192,7 +192,7 @@ function GeneratorErrorBox({ title, errors, onRetry }: { title: string; errors: 
     <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
       <p>{title}</p>
       {errors.length > 0 && (
-        <ul className="mt-2 list-disc space-y-0.5 pl-5 font-mono text-xs text-red-200/90">
+        <ul className="mt-2 list-disc space-y-0.5 pl-5 font-mono text-sm text-red-200">
           {errors.map((error) => (
             <li key={error}>{error}</li>
           ))}
